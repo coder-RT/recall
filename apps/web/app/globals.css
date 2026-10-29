@@ -1,0 +1,190 @@
+@import "tailwindcss";
+
+/* "Facebook 2008, rebuilt": classic blue and grey surfaces, modern radii and shadows.
+   The Instagram gradient is decoration only (rings, glows), never behind text. */
+@theme {
+  --color-fb-blue: #3b5998; /* 6.8:1 on white: bars, buttons, large text */
+  /* fb-blue-dark (9:1 on white) is the colour for text links. */
+  --color-fb-blue-dark: #29487d;
+  --color-fb-blue-pale: #dfe3ee;
+  --color-fb-grey: #f0f2f5;
+  --color-fb-line: #bdc7d8;
+  --color-ink: #1c1e21;
+  --color-muted: #4b4f56;
+  --color-cta: #42b72a;
+  --color-cta-dark: #1f6516; /* 7.2:1 with white text */
+
+  --color-ig-1: #feda75;
+  --color-ig-2: #fa7e1e;
+  --color-ig-3: #d62976;
+  --color-ig-4: #962fbf;
+  --color-ig-5: #4f5bd5;
+
+  --font-sans: var(--font-body), "Segoe UI", system-ui, sans-serif;
+  --font-classic: Tahoma, Verdana, "Lucida Grande", sans-serif;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.08), 0 8px 24px -8px rgb(59 89 152 / 0.25);
+  --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.08), 0 20px 48px -16px rgb(41 72 125 / 0.45);
+}
+
+:root {
+  color-scheme: light;
+  --ig-gradient: linear-gradient(45deg, #feda75, #fa7e1e, #d62976, #962fbf, #4f5bd5);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-fb-grey);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-fb-blue);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Reduced motion: either the OS setting or the site toggle (data-reduce-motion on <html>). */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+html[data-reduce-motion="true"] {
+  scroll-behavior: auto;
+}
+/* ...and no CSS transitions or animations either: GSAP and Motion stop themselves, these don't */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+html[data-reduce-motion="true"] *,
+html[data-reduce-motion="true"] *::before,
+html[data-reduce-motion="true"] *::after {
+  transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important;
+}
+
+/*
+ * High contrast (accessibility menu): black, white and yellow. The theme's colour tokens are
+ * swapped, so every utility follows: "white" surfaces turn black, ink turns white, blue accents
+ * and buttons turn yellow (with their white text turning black). Drawings keep their colours.
+ */
+html[data-contrast="high"] {
+  --color-white: #000;
+  --color-black: #fff;
+  --color-ink: #fff;
+  --color-muted: #f2f2f2;
+  --color-fb-blue: #ffd400;
+  --color-fb-blue-dark: #ffd400;
+  --color-fb-blue-pale: #1f1f1f;
+  --color-fb-grey: #000;
+  --color-fb-line: #fff;
+  --color-cta: #ffd400;
+  --color-cta-dark: #ffd400;
+  --shadow-card: 0 0 0 2px #fff;
+  --shadow-lift: 0 0 0 2px #fff;
+}
+html[data-contrast="high"] [data-site-nav] {
+  /* the nav's colour is animated inline by Motion (only the site nav: posts have headers too) */
+  background-color: #ffd400 !important;
+}
+html[data-contrast="high"] a {
+  text-decoration: underline;
+}
+html[data-contrast="high"] :focus-visible {
+  outline-width: 4px;
+}
+html[data-contrast="high"] [data-dot],
+html[data-contrast="high"] [data-braille] {
+  fill: #fff;
+}
+/* decoration behind the hero would only add noise */
+html[data-contrast="high"] [data-floaters] {
+  display: none;
+}
+
+/* Larger text (accessibility menu): the nav keeps only the logo and buttons so it never overflows;
+   every section is still reachable by scrolling, the skip link and the Tab order. */
+html[data-text-scale]:not([data-text-scale="1"]) [data-section-links] {
+  display: none;
+}
+
+/* Read aloud (accessibility menu): the block being spoken. */
+[data-reading] {
+  outline: 3px dashed #ffd400;
+  outline-offset: 4px;
+}
+
+@layer components {
+  /* Old Facebook "boxed" section label with a modern finish. */
+  .classic-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid var(--color-fb-line);
+    border-radius: 999px;
+    background: var(--color-white);
+    padding: 0.25rem 0.85rem;
+    font-family: var(--font-classic);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--color-fb-blue-dark);
+  }
+
+  .card {
+    border-radius: 16px;
+    background: var(--color-white);
+    box-shadow: var(--shadow-card);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    border-radius: 10px;
+    padding: 0.6rem 1.15rem;
+    font-weight: 700;
+    transition: background-color 0.15s, box-shadow 0.15s;
+  }
+  .btn-blue {
+    background: var(--color-fb-blue);
+    color: var(--color-white);
+  }
+  .btn-blue:hover {
+    background: var(--color-fb-blue-dark);
+  }
+  .btn-green {
+    background: var(--color-cta-dark);
+    color: var(--color-white);
+  }
+  .btn-green:hover {
+    background: #17500f;
+  }
+  .btn-ghost {
+    background: var(--color-white);
+    color: var(--color-fb-blue-dark);
+    box-shadow: inset 0 0 0 1px var(--color-fb-line);
+  }
+
+  .ig-ring {
+    background: var(--ig-gradient);
+  }
+
+  /* SplitText word masks: padding so descenders are not clipped. */
+  .split-word-mask {
+    padding-bottom: 0.08em;
+    margin-bottom: -0.08em;
+  }
+}

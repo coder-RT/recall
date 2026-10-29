@@ -60,15 +60,15 @@ Indie track · Theme: <strong>Build for Your World</strong></p>
 
 ## Screenshots
 
-All images are our own captures: the landing page, and one real room scanned with the pipeline.
+All images are our own captures: the landing page, and one real room reconstructed by the pipeline.
 
 | Landing page | 3D viewer with layers |
 |---|---|
 | ![The landing page hero](docs/media/hero.png) | ![The scanned room as a point cloud with the floor grid, height bands and flat surfaces](docs/media/viewer-layers.png) |
 
-| The point cloud gathering into the room | Frames from the walkthrough |
-|---|---|
-| ![Three moments of the gather animation](docs/media/gather.png) | ![Eight frames from the phone walkthrough](docs/media/scan-frames.jpg) |
+| The point cloud gathering into the room |
+|---|
+| ![Three moments of the gather animation](docs/media/gather.png) |
 
 ## What it is
 

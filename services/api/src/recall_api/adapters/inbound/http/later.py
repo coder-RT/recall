@@ -7,11 +7,6 @@ from .deps import not_implemented, require_device_key
 router = APIRouter(dependencies=[Depends(require_device_key)])
 
 
-@router.post("/ask", tags=["ask"])
-def ask():
-    raise not_implemented("The Guide agent")
-
-
 @router.post("/guidance/sessions", tags=["guidance"])
 def start_guidance():
     raise not_implemented("Route planning")
@@ -20,8 +15,3 @@ def start_guidance():
 @router.post("/guidance/sessions/{session_id}/verify", tags=["guidance"])
 def verify(session_id: str):
     raise not_implemented("The arrival check")
-
-
-@router.post("/transcribe", tags=["voice"])
-def transcribe():
-    raise not_implemented("Speech to text")

@@ -29,8 +29,16 @@ class Repos:
         self.ingest = IngestScan(self.scans, self.homes, self.objects, FixedClock(), lambda p: f"{p}{next(n)}")
 
     def scan(self, sid, hour):
-        s = Scan(id=sid, home_id="flat", room="Office", status=ScanStatus.PROCESSING, archive_size=1,
-                 archive_sha256="x", part_size=5242880, created_at=datetime(2026, 10, 30, hour, tzinfo=UTC))
+        s = Scan(
+            id=sid,
+            home_id="flat",
+            room="Office",
+            status=ScanStatus.PROCESSING,
+            archive_size=1,
+            archive_sha256="x",
+            part_size=5242880,
+            created_at=datetime(2026, 10, 30, hour, tzinfo=UTC),
+        )
         self.scans.save(s)
         return s
 
@@ -42,8 +50,14 @@ def obj(label, c, conf=0.9):
 def test_two_scans_one_object_moved_and_one_disappeared():
     r = Repos()
     r.scan("s1", 10)
-    r.ingest("s1", {"room": ROOM, "landmarks": [obj("desk", [2, 1, 0.38])],
-                    "objects": [obj("keys", [1, 1, 0.8]), obj("mug", [3, 2, 0.8])]})
+    r.ingest(
+        "s1",
+        {
+            "room": ROOM,
+            "landmarks": [obj("desk", [2, 1, 0.38])],
+            "objects": [obj("keys", [1, 1, 0.8]), obj("mug", [3, 2, 0.8])],
+        },
+    )
     r.scan("s2", 12)
     done = r.ingest("s2", {"room": ROOM, "landmarks": [], "objects": [obj("keys", [2, 2.5, 0.8])]})
     assert done.status == ScanStatus.PROCESSED and "1 moved" in done.detail and "1 gone" in done.detail

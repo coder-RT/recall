@@ -23,7 +23,10 @@ from scipy import ndimage
 
 
 def fit_floor(points: np.ndarray, up_hint: np.ndarray, rng: np.random.Generator) -> tuple[np.ndarray, float]:
-    """RANSAC plane among the lowest points whose normal is near `up_hint`; returns (normal, offset) with n·p + d = height."""
+    """RANSAC plane among the lowest points with a normal near `up_hint`.
+
+    Returns (normal, offset) such that n·p + d is the height above the floor.
+    """
     heights = points @ up_hint
     low = points[heights < np.percentile(heights, 15)]
     best_count, best = 0, None
@@ -99,13 +102,15 @@ def find_surfaces(points: np.ndarray, cell: float = 0.05, slab: float = 0.015, m
             fill = len(cells) / float((cmax - cmin).prod())
             if fill < 0.35:
                 continue
-            found.append({
-                "z": round(float(zc), 3),
-                "min": np.round(lo + cmin * cell, 3).tolist(),
-                "max": np.round(lo + cmax * cell, 3).tolist(),
-                "area_m2": round(float(area), 2),
-                "points": int(len(cells)),
-            })
+            found.append(
+                {
+                    "z": round(float(zc), 3),
+                    "min": np.round(lo + cmin * cell, 3).tolist(),
+                    "max": np.round(lo + cmax * cell, 3).tolist(),
+                    "area_m2": round(float(area), 2),
+                    "points": int(len(cells)),
+                }
+            )
     found.sort(key=lambda f: -f["area_m2"])
     return found
 
@@ -162,7 +167,10 @@ def main() -> None:
     (args.out_dir / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
     print(f"{len(kept)} points, voxel {voxel:.3f} m, bounds {meta['bounds']}")
     for f in surfaces:
-        print(f"  surface at z={f['z']:.2f} m: {f['max'][0]-f['min'][0]:.2f} x {f['max'][1]-f['min'][1]:.2f} m, {f['area_m2']} m2")
+        print(
+            f"  surface at z={f['z']:.2f} m: {f['max'][0] - f['min'][0]:.2f} x {f['max'][1] - f['min'][1]:.2f} m,"
+            f" {f['area_m2']} m2"
+        )
 
 
 if __name__ == "__main__":

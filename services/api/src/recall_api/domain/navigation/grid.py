@@ -14,6 +14,8 @@ class NavConfig:
     body_radius_m: float = 0.30
     clearance_weight: float = 2.0
     min_floor_hits: int = 1
+    min_obstacle_hits: int = 3  # points per cell before it counts as an obstacle (one stray point is noise)
+    walked_radius_cells: int = 1  # cells either side of the scan's walked path that count as free
 
 
 @dataclass
@@ -26,23 +28,35 @@ class FloorGrid:
     clearance: np.ndarray  # (H, W) metres to the nearest raw obstacle or unknown cell
 
     @staticmethod
-    def from_points(points: np.ndarray, cfg: NavConfig | None = None) -> FloorGrid:
+    def from_points(points: np.ndarray, cfg: NavConfig | None = None, walked: np.ndarray | None = None) -> FloorGrid:
+        """`walked`: the (N, 2) floor positions of the phone during the scan. A person walked there, so those cells
+        are free even where the camera never saw the floor; clearance is kept from seen obstacles only, and floor
+        nobody saw or walked is never entered (but doesn't push the route away like a wall would)."""
         cfg = cfg or NavConfig()
-        xy = points[:, :2]
-        lo = xy.min(0) - cfg.cell_m
-        size = np.ceil((xy.max(0) + cfg.cell_m - lo) / cfg.cell_m).astype(int)
-        idx = np.floor((xy - lo) / cfg.cell_m).astype(int)
+        walked = np.zeros((0, 2)) if walked is None else np.asarray(walked, float).reshape(-1, 2)
+        xy_all = np.vstack([points[:, :2], walked])
+        lo = xy_all.min(0) - cfg.cell_m
+        size = np.ceil((xy_all.max(0) + cfg.cell_m - lo) / cfg.cell_m).astype(int)
+        idx = np.floor((points[:, :2] - lo) / cfg.cell_m).astype(int)
         floor = np.zeros(size[::-1], int)
-        obst = np.zeros(size[::-1], bool)
+        hits = np.zeros(size[::-1], int)
         z = points[:, 2]
         on_floor = np.abs(z) < 0.06
         np.add.at(floor, (idx[on_floor, 1], idx[on_floor, 0]), 1)
         is_obst = (z >= cfg.obstacle_min_z) & (z <= cfg.obstacle_max_z)
-        obst[idx[is_obst, 1], idx[is_obst, 0]] = True
-        known_free = (floor >= cfg.min_floor_hits) & ~obst
-        known_free = ndimage.binary_closing(known_free, iterations=1)  # fill single-cell holes in the floor scan
-        raw_blocked = ~known_free | obst
-        return FloorGrid.from_blocked(raw_blocked, lo, cfg)
+        np.add.at(hits, (idx[is_obst, 1], idx[is_obst, 0]), 1)
+        obst = hits >= cfg.min_obstacle_hits
+        seen_free = (floor >= cfg.min_floor_hits) & ~obst
+        seen_free = ndimage.binary_closing(seen_free, iterations=1) & ~obst  # fill single-cell holes in the floor scan
+        walked_cells = np.zeros(size[::-1], bool)
+        if len(walked):
+            w = np.floor((walked - lo) / cfg.cell_m).astype(int)
+            walked_cells[w[:, 1], w[:, 0]] = True
+            if cfg.walked_radius_cells > 0:
+                walked_cells = ndimage.binary_dilation(walked_cells, iterations=cfg.walked_radius_cells)
+        clearance = np.maximum(ndimage.distance_transform_edt(~obst) * cfg.cell_m - cfg.cell_m / 2, 0.0)
+        blocked = ~(walked_cells | (seen_free & (clearance >= cfg.body_radius_m)))
+        return FloorGrid(np.asarray(lo, float), cfg.cell_m, blocked, clearance)
 
     @staticmethod
     def from_blocked(raw_blocked: np.ndarray, origin, cfg: NavConfig | None = None) -> FloorGrid:

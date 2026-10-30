@@ -31,6 +31,34 @@ def test_a_gap_narrower_than_a_body_has_no_safe_path():
         plan(corridor(0.5), (0.5, 0.45), (3.5, 0.45))
 
 
+def room_cloud(seen_floor_x_max: float) -> np.ndarray:
+    """A 4 x 2 m room: walls of points along y = 0 and y = 2 (0.1 to 1.5 m high), floor points only where x is
+    below `seen_floor_x_max` (the camera never looked down further along)."""
+    xs = np.arange(0.0, 4.0, 0.05)
+    walls = [(x, y, z) for x in xs for y in (0.0, 2.0) for z in np.arange(0.1, 1.5, 0.1)]
+    floor = [(x, y, 0.0) for x in xs if x < seen_floor_x_max for y in np.arange(0.2, 1.85, 0.05)]
+    return np.array(walls + floor)
+
+
+def test_floor_nobody_saw_is_not_entered():
+    g = FloorGrid.from_points(room_cloud(1.5))
+    with pytest.raises(NoSafePath):
+        plan(g, (0.5, 1.0), (3.5, 1.0))
+
+
+def test_the_walked_path_counts_as_floor():
+    walked = np.array([(x, 1.0) for x in np.arange(0.3, 3.8, 0.1)])
+    g = FloorGrid.from_points(room_cloud(1.5), walked=walked)
+    path = plan(g, (0.5, 1.0), (3.5, 1.0))
+    assert path[-1][0] > 3.2
+
+
+def test_one_stray_point_is_not_a_wall():
+    cloud = np.vstack([room_cloud(4.0), [(2.0, 1.0, 1.0)]])  # a single floater in the middle of the room
+    g = FloorGrid.from_points(cloud)
+    assert not g.blocked[g.cell_of(2.0, 1.0)]
+
+
 def test_simplify_keeps_only_the_corner():
     pts = [(x / 10, 0.0) for x in range(11)] + [(1.0, y / 10) for y in range(1, 11)]
     assert simplify(pts) == [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0)]

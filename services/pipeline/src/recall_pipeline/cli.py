@@ -17,6 +17,7 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
     fmt = "%(asctime)s %(levelname)s %(message)s"
     logging.basicConfig(level=logging.INFO, format=fmt, stream=sys.stdout, force=True)
+    logging.getLogger("httpx").setLevel(logging.WARNING)  # one line per SAM call is noise; failures still show
     sys.stdout.reconfigure(line_buffering=True)  # type: ignore[union-attr]  # the API's log file shows progress live
     if args.cmd == "process":
         from recall_pipeline.adapters.run import process  # heavy imports (torch) only when processing

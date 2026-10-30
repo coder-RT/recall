@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 
 from recall_api.application.ports import BlobStore
+from recall_api.domain.memory import Scan
 from recall_api.domain.navigation import FloorGrid, NavConfig, NoSafePath, plan, simplify, to_clock_steps
 from recall_api.domain.ports import HomeRepository, ScanRepository, TrackedObjectRepository
 from recall_api.domain.spatial import relate
@@ -45,29 +46,29 @@ class PlanGuidance:
         self.sessions: dict[str, Session] = {}
         self._grids: dict[str, tuple[str, FloorGrid]] = {}
 
-    def _transform(self, home_id: str) -> tuple[np.ndarray, str]:
+    def _transform(self, home_id: str) -> tuple[np.ndarray, Scan]:
         home = self.homes.get(home_id)
         if home is None or home.first_scan_id is None:
             raise GuidanceError("no_scan", "This home has no processed scan yet.")
         scan = self.scans.get(home.first_scan_id)
         if scan is None or not scan.transform_to_home:
             raise GuidanceError("no_transform", "The scan has no frame alignment yet.")
-        return np.array(scan.transform_to_home, dtype=float).reshape(4, 4), scan.id
+        return np.array(scan.transform_to_home, dtype=float).reshape(4, 4), scan
 
-    def _grid(self, home_id: str, scan_id: str) -> FloorGrid:
+    def _grid(self, home_id: str, scan: Scan) -> FloorGrid:
         cached = self._grids.get(home_id)
-        if cached and cached[0] == scan_id:
+        if cached and cached[0] == scan.id:
             return cached[1]
-        key = f"scans/{scan_id}/episode/home_cloud.npy"
+        key = f"{scan.folder}/episode/home_cloud.npy"
         if not self.blobs.exists(key):
             raise GuidanceError("no_cloud", "The scan's point cloud is missing; process the scan again.")
         cloud = np.load(io.BytesIO(self.blobs.get(key))).astype(np.float64)
         grid = FloorGrid.from_points(cloud, self.cfg)
-        self._grids[home_id] = (scan_id, grid)
+        self._grids[home_id] = (scan.id, grid)
         return grid
 
     def start(self, home_id: str, object_id: str, pose_column_major: list[float], tracking: str) -> dict[str, Any]:
-        T, scan_id = self._transform(home_id)
+        T, scan = self._transform(home_id)
         M = np.array(pose_column_major, dtype=float).reshape(4, 4).T  # ARKit cam-to-world
         pos = (T @ np.append(M[:3, 3], 1.0))[:3]
         fwd = T[:3, :3] @ (-M[:3, 2])  # the camera looks along −Z
@@ -99,7 +100,7 @@ class PlanGuidance:
                 "path_arkit": [],
             }
         try:
-            path = plan(self._grid(home_id, scan_id), (pos[0], pos[1]), (last.position.x, last.position.y), self.cfg)
+            path = plan(self._grid(home_id, scan), (pos[0], pos[1]), (last.position.x, last.position.y), self.cfg)
         except NoSafePath as e:
             return {
                 **base,

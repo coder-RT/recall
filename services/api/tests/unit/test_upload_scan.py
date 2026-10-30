@@ -39,7 +39,7 @@ def test_a_full_upload_verifies_and_starts_the_pipeline():
         up.put_part(SCAN, n, p, hashlib.sha256(p).hexdigest())
     up.put_manifest(SCAN, manifest)
     scan = up.complete(SCAN)
-    assert scan.status == ScanStatus.PROCESSING and trigger.started == [(SCAN, f"scans/{SCAN}/episode")]
+    assert scan.status == ScanStatus.PROCESSING and trigger.started == [(SCAN, f"{scan.folder}/episode")]
 
 
 def test_resuming_reports_the_parts_already_received():

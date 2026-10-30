@@ -13,7 +13,13 @@ AUTH = {"Authorization": "Bearer test-key"}
 
 
 def test_upload_parts_manifest_and_complete(tmp_path, monkeypatch):
-    s = Settings(RECALL_DATA_DIR=tmp_path, RECALL_DEVICE_KEY="test-key", pipeline_command="true", RECALL_TRACES="off")
+    s = Settings(
+        RECALL_DATA_DIR=tmp_path,
+        RECALL_DEVICE_KEY="test-key",
+        pipeline_command="true",
+        RECALL_TRACES="off",
+        RECALL_PIPELINE_RUNNER="subprocess",
+    )
     client = TestClient(create_app(s))
     files = {"frames/000000.jpg": b"x" * 3000, "poses.jsonl": b"{}\n"}
     archive = episode_zip(files)
@@ -59,6 +65,5 @@ def test_upload_parts_manifest_and_complete(tmp_path, monkeypatch):
     assert client.put(plan["manifest_url"], json=manifest, headers=AUTH).status_code == 200
     done = client.post(plan["complete_url"], headers=AUTH).json()
     assert done["status"] == "processing", done
-    assert (tmp_path / "blobs" / "scans" / SCAN / "episode" / "frames" / "000000.jpg").read_bytes() == files[
-        "frames/000000.jpg"
-    ]
+    (folder,) = (tmp_path / "blobs" / "scans").glob(f"*_{SCAN}")  # time and room first, the id last
+    assert (folder / "episode" / "frames" / "000000.jpg").read_bytes() == files["frames/000000.jpg"]

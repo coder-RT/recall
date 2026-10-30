@@ -58,7 +58,12 @@ class Container:
 
     @cached_property
     def upload_scan(self) -> UploadScan:
-        trigger = SubprocessPipelineTrigger(self.settings.pipeline_command, REPO_ROOT, self.settings.data_dir / "logs")
+        if self.settings.pipeline_runner == "queue":
+            from recall_api.infra.jobs import QueuedPipelineTrigger
+
+            trigger = QueuedPipelineTrigger()
+        else:
+            trigger = SubprocessPipelineTrigger(self.settings.pipeline_command, REPO_ROOT, self.settings.log_dir)
         return UploadScan(self.scans, self.homes, self.blobs, ZipEpisodeUnpacker(self.blobs), trigger, self.clock)
 
     @cached_property

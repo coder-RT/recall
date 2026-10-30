@@ -51,7 +51,7 @@ class RecordingTrigger:
     def __init__(self) -> None:
         self.started: list[tuple[str, str]] = []
 
-    def start(self, scan_id, episode_dir):
+    def start(self, name, scan_id, episode_dir):
         self.started.append((scan_id, episode_dir))
 
 

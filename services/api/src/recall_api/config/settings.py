@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     meta_muse_api_key: SecretStr | None = None
 
     pipeline_command: str = "uv run --project services/pipeline recall-pipeline process"
+    # queue: the Huey worker runs it (make worker); subprocess: start it right away (tests, no worker)
+    pipeline_runner: Literal["queue", "subprocess"] = Field("queue", alias="RECALL_PIPELINE_RUNNER")
 
     log_level: str = Field("INFO", alias="RECALL_LOG_LEVEL")
     # traces: "file" writes data/logs/traces.jsonl; "otlp" sends to OTEL_EXPORTER_OTLP_ENDPOINT; "off" for tests

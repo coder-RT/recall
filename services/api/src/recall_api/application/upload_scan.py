@@ -23,8 +23,8 @@ class UploadError(Exception):
         self.status = status
 
 
-def _keys(scan_id: str) -> dict[str, str]:
-    base = f"scans/{scan_id}"
+def _keys(scan: Scan) -> dict[str, str]:
+    base = scan.folder
     return {
         "base": base,
         "manifest": f"{base}/manifest.json",
@@ -33,8 +33,8 @@ def _keys(scan_id: str) -> dict[str, str]:
     }
 
 
-def part_key(scan_id: str, number: int) -> str:
-    return f"scans/{scan_id}/parts/{number:05d}"
+def part_key(scan: Scan, number: int) -> str:
+    return f"{scan.folder}/parts/{number:05d}"
 
 
 @dataclass
@@ -86,8 +86,7 @@ class UploadScan:
         return {
             n
             for n in range(1, scan.part_count + 1)
-            if self.blobs.exists(part_key(scan.id, n))
-            and self.blobs.size(part_key(scan.id, n)) == scan.expected_part_size(n)
+            if self.blobs.exists(part_key(scan, n)) and self.blobs.size(part_key(scan, n)) == scan.expected_part_size(n)
         }
 
     def _uploading(self, scan_id: str) -> Scan:
@@ -108,7 +107,7 @@ class UploadScan:
             raise UploadError("bad_part_size", f"Part {number} should be {expected} bytes, got {len(data)}.")
         if hashlib.sha256(data).hexdigest() != sha256:
             raise UploadError("bad_part_checksum", f"Part {number} arrived damaged; send it again.")
-        self.blobs.put(part_key(scan_id, number), data)
+        self.blobs.put(part_key(scan, number), data)
         return len(data)
 
     def put_manifest(self, scan_id: str, manifest: dict[str, Any]) -> Scan:
@@ -120,20 +119,20 @@ class UploadScan:
             raise UploadError(
                 "parts_missing", f"Upload the manifest last; {len(missing)} parts are still missing.", 409
             )
-        self.blobs.put(_keys(scan_id)["manifest"], json.dumps(manifest).encode())
+        self.blobs.put(_keys(scan)["manifest"], json.dumps(manifest).encode())
         scan.frame_count = int(manifest.get("frame_count", 0))
         self.scans.save(scan)
         return scan
 
     def complete(self, scan_id: str) -> Scan:
         scan = self._uploading(scan_id)
-        keys = _keys(scan_id)
+        keys = _keys(scan)
         if not self.blobs.exists(keys["manifest"]):
             raise UploadError("manifest_missing", "Upload the manifest before completing.", 409)
         digest = hashlib.sha256()
         chunks: list[bytes] = []
         for n in range(1, scan.part_count + 1):
-            part = self.blobs.get(part_key(scan_id, n))
+            part = self.blobs.get(part_key(scan, n))
             digest.update(part)
             chunks.append(part)
         if digest.hexdigest() != scan.archive_sha256:
@@ -152,7 +151,7 @@ class UploadScan:
         scan.status, scan.detail = ScanStatus.UPLOADED, None
         self.scans.save(scan)
         episode_dir = self.blobs.local_path(keys["episode"]) or keys["episode"]
-        self.trigger.start(scan_id, episode_dir)
+        self.trigger.start(scan.folder.removeprefix("scans/"), scan_id, episode_dir)
         scan.status = ScanStatus.PROCESSING
         self.scans.save(scan)
         return scan

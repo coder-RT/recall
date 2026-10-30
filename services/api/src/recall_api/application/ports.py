@@ -39,7 +39,7 @@ class EpisodeUnpacker(Protocol):
 
 
 class PipelineTrigger(Protocol):
-    def start(self, scan_id: str, episode_dir: str) -> None: ...
+    def start(self, name: str, scan_id: str, episode_dir: str) -> None: ...  # name: the scan's folder name
 
 
 @dataclass

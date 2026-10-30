@@ -5,7 +5,7 @@ PIPE := services/pipeline
 WEB := apps/web
 REDOCLY := npx -y @redocly/cli@2.72.1
 
-.PHONY: help setup dev live demo probes pair rerun test lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
+.PHONY: help setup dev worker regression live demo probes pair rerun test lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -16,11 +16,17 @@ setup: ## Install Python 3.12 services (uv), the web app (pnpm) and generate the
 	pnpm install
 	$(MAKE) bundle-spec gen-models migrate
 
-dev: ## Run the API on :8000 (reachable on the LAN) and the web app on :3000
-	( cd $(API) && uv run recall-api ) & ( cd $(WEB) && pnpm dev ) ; wait
+dev: ## Run the API on :8000 (reachable on the LAN), the scan worker and the web app on :3000
+	( cd $(API) && uv run recall-api ) & $(MAKE) worker & ( cd $(WEB) && pnpm dev ) ; wait
 
-live: ## The API with real Meta model calls (keys from .env)
-	cd $(API) && uv run recall-api
+worker: ## The scan job worker (Huey on SQLite): processes uploaded scans one at a time, nightly regression at 03:17
+	cd $(API) && uv run huey_consumer recall_api.infra.jobs.huey -w 1 -k thread
+
+regression: ## Re-run every processed scan now (no posting; cached SAM answers) and compare with the last run
+	cd $(API) && uv run python -c "from recall_api.infra import jobs, regression; print('\n'.join(regression.run(jobs.settings, jobs.run_pipeline)))"
+
+live: ## The API with real Meta model calls (keys from .env), and the scan worker
+	( cd $(API) && uv run recall-api ) & $(MAKE) worker ; wait
 
 demo: ## Replay recordings of real runs (samples/replay/); none exist until a real run is recorded
 	@if [ -d samples/replay ] && [ -n "$$(ls -A samples/replay 2>/dev/null)" ]; then \

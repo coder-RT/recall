@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass, field, replace
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 
 
@@ -191,6 +192,13 @@ class Scan:
     frame_count: int | None = None
     object_count: int | None = None
     transform_to_home: tuple[float, ...] | None = None
+
+    @property
+    def folder(self) -> str:
+        """Where the scan's files live: readable and sortable by time, e.g.
+        scans/2026-10-30T042101Z_living-room_7a736bf2-…; the id at the end keeps it unique."""
+        slug = re.sub(r"[^a-z0-9]+", "-", self.room.lower()).strip("-")[:32] or "room"
+        return f"scans/{self.created_at.astimezone(UTC):%Y-%m-%dT%H%M%SZ}_{slug}_{self.id}"
 
     @property
     def part_count(self) -> int:

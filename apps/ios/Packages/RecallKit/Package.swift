@@ -1,6 +1,6 @@
 // swift-tools-version: 6.0
 // RecallKit: all of the iPhone app's real logic. Targets list their dependencies explicitly, so a forbidden import
-// fails to compile (apps/ios/ARCHITECTURE.md §3). Only Apple packages are used (the OpenAPI generator and runtime).
+// fails to compile. Only Apple packages are used (the OpenAPI generator and runtime).
 import PackageDescription
 
 let package = Package(

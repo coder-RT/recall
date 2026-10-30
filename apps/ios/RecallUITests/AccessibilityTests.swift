@@ -24,7 +24,7 @@ final class AccessibilityTests: XCTestCase {
         app.textFields[id].exists ? app.textFields[id] : app.textViews[id]
     }
 
-    /// Saves a screenshot for docs/progress/ when RECALL_SHOTS points at a folder (the simulator can write to it).
+    /// Saves a screenshot for the progress notes when RECALL_SHOTS points at a folder (the simulator can write to it).
     private func shot(_ name: String) {
         let png = XCUIScreen.main.screenshot().pngRepresentation
         let attachment = XCTAttachment(data: png, uniformTypeIdentifier: "public.png")

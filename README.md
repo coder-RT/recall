@@ -108,7 +108,6 @@ All images are our own captures: the landing page, and one real room reconstruct
 - **Verifier** runs once, on arrival: one camera frame, SAM 3.1 plus the LiDAR depth, and a yes or no on whether the object is really there. Muse Spark 1.1 can only lower confidence. If the object isn't there, the memory heals itself and the Guide says when it was last seen. The Guide calls it in-process by default and in the live demo; A2A between the two is optional.
 - **Home Memory** is the house's face to other agents (a robot, a pair of glasses, another assistant) over the open A2A 1.0 protocol: read-only, off by default, never the user's live position, and every incoming message is screened by Llama Prompt Guard first.
 - One rule: every agent has a job no other agent does. Complexity is not the goal; the three jobs are different.
-- Details: `docs/agents.md`.
 
 ## How it works: the Meta models
 
@@ -208,7 +207,7 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
 - Open:
   - `http://localhost:3000/` for the landing page;
   - `http://localhost:3000/homes/demo-flat/viewer` for the sample room (our own scan).
-- Optional: "Ask by voice" on the landing page calls Muse Voice Transcribe through a server route. Copy `.env.example` to `.env` and fill `META_MUSE_BASE_URL` and `META_MUSE_API_KEY`; without them the card still works with the preset questions. Every spoken line on the site is the browser's own voice.
+- Optional: "Ask by voice" on the landing page calls Muse Voice Transcribe through a server route. Create `.env` in the repo root with `META_MUSE_API_KEY=<your key>`; without it the card still works with the preset questions. Every spoken line on the site is the browser's own voice.
 - Checks:
   ```bash
   pnpm lint && pnpm exec tsc --noEmit && pnpm build
@@ -243,7 +242,7 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
 
 ### 6. Environment variables
 
-- `.env.example` lists every key with an empty value; `.env` is never committed.
+- Keys live in `.env` at the repo root, which is never committed: `META_MUSE_API_KEY` (Meta Model API), `BASETEN_API_KEY` (Muse Spark Open on Baseten) and `RECALL_DEVICE_KEY` (any long random string; the phone pairs with it).
 - `make demo` needs none. `make live` needs the Meta Model API key and, for the demo setup, the Baseten key; the Glimmer, LM Studio, A2A and R2 settings are optional.
 
 ## Not in this submission
@@ -259,7 +258,7 @@ Planned next, not built or not working yet (updated before submission; removed i
 
 - Until Nov 4, 2026 this is a solo hackathon entry (Indie track), so pull requests will wait until judging ends.
 - After that, issues and pull requests are welcome. Please:
-  1. read `CLAUDE.md` (rules, architecture, conventions) and `docs/hackathon-rules.md`;
+  1. read `CLAUDE.md` (rules, architecture, conventions);
   2. keep the dependency rule: domain code imports nothing from adapters or frameworks;
   3. use Conventional Commits, small and frequent;
   4. keep `make test`, `make lint` and the Playwright suite green;

@@ -19,7 +19,7 @@ then ask "where are my keys?" and hear step-by-step directions.
 
 ## 2. Non-negotiable rules (breaking one can disqualify the project)
 
-The full rule list, each with its source and level, is `docs/hackathon-rules.md`; this section is the short form.
+The full rule list, each with its source and level, is `docs/private/hackathon-rules.md`; this section is the short form.
 
 1. **New work only.** There is no pre-existing work: the repo was started fresh on Oct 27, 2026, the day after the hackathon began, and everything in it is event work. Never copy in code written before Oct 26 or from other projects. `PRIOR_WORK.md` says None. Third-party libraries (MapAnything, etc.) are dependencies, never copied in; they go in `THIRD_PARTY.md`.
 2. **Public repo, Apache-2.0.** Record every model and asset licence in `THIRD_PARTY.md`.
@@ -30,7 +30,7 @@ The full rule list, each with its source and level, is `docs/hackathon-rules.md`
    - Dashboard as main feature → the 3D viewer is a demo aid; the product is voice + guidance.
    - **No Streamlit** anywhere.
    - Medical advice → describe Recall as independence and accessibility, never health or vision care.
-5. **No secrets in git.** `.env` is gitignored; `.env.example` lists every key with empty values.
+5. **No secrets in git.** `.env` is gitignored. The key list (`.env.example`) is kept locally in `docs/private/`, not committed.
 6. **Privacy.** Never commit raw walkthrough video or frames. `samples/` holds only processed, reviewed data with nothing personal.
 7. **Never invent APIs.** For Meta APIs, Muse Spark Open, Muse Glimmer, SAM 3.1, Prompt Guard, MapAnything, Baseten, Modal, Fireworks, LM Studio, R2 and ARKit, check official docs or model cards. If unverifiable, stop and ask, or leave `TODO(verify): ...` and report it.
 8. **Meta models only at runtime** (organizer ruling). Every model the product calls at runtime is a Meta model: hosted on the Meta Model API, or open weights run by us on the Mac, Modal, Fireworks or Baseten. OS and browser features that are not model calls are fine (ARKit, LiDAR, haptics, VoiceOver, AVSpeechSynthesizer, Web Speech). **No non-Meta model anywhere, and no TTS model of any kind.** Fine-tuning Meta models is allowed; any weights we present as ours must be public.
@@ -56,7 +56,7 @@ The full rule list, each with its source and level, is `docs/hackathon-rules.md`
 | iPhone app | Swift 6, SwiftUI, ARKit (LiDAR depth, ARWorldMap), AVSpeechSynthesizer, background URLSession, **XcodeGen** | iPhone 16 Pro, iOS 18+ |
 | Watch app | SwiftUI, WatchConnectivity, haptics (stretch goal) | Apple Watch Ultra 4; minimum watchOS `TODO(verify)`: the Ultra 4 ships with a current watchOS, so the deployment target can be the latest major; confirm against Apple's docs and the iOS 18 pairing requirement |
 | Web | Next.js 16, React 19, TypeScript strict, **GSAP + `@gsap/react`** (scroll), **Motion** (UI), react-three-fiber (viewer). **No login anywhere**: the landing page, the sample room and the demo work signed out; judges never need an account | Vercel + GitHub Pages mirror |
-| Multi-agent | Guide + Verifier + Home Memory agent; **A2A 1.0** via `a2a-sdk` (JSON-RPC), see `docs/agents.md` | inside the FastAPI app |
+| Multi-agent | Guide + Verifier + Home Memory agent; **A2A 1.0** via `a2a-sdk` (JSON-RPC), see `docs/private/agents.md` | inside the FastAPI app |
 | Quality | ruff, pytest, import-linter, Schemathesis, ESLint, GitHub Actions, CodeQL (Python + TypeScript) | GitHub |
 
 **Memory rule on the 48 GB Mac (M5 Pro):** never run MapAnything and LM Studio (Glimmer) at the same time. Qwen stays off.
@@ -149,7 +149,7 @@ Grounding rules (system prompt **and** enforced in code):
 5. Spoken style: one or two short sentences; landmark first, then shelf and height, then time.
 6. Max 6 agent steps; on failure give the best grounded partial answer.
 
-### Multi-agent (full design in `docs/agents.md`)
+### Multi-agent (full design in `docs/private/agents.md`)
 
 - **Guide** (above) is the lead agent and the only one on the live question path.
 - **Verifier** confirms arrival from one camera frame: SAM 3.1 + geometry decide; **Muse Spark 1.1** (hosted, multimodal) is asked only as a tie-break and may only downgrade to `uncertain`, never confirm.
@@ -248,10 +248,9 @@ recall/
 ├── THIRD_PARTY.md                  models, fonts, images + licences
 ├── PRIOR_WORK.md                   "None.": the repo was started fresh on Oct 27, 2026
 ├── Makefile
-├── .env.example
 ├── .github/workflows/           ci.yml (ruff, pytest, import-linter, web typecheck/lint/build), codeql.yml (Python + TypeScript)
 ├── apps/
-│   ├── ios/                        see apps/ios/ARCHITECTURE.md: RecallKit package + thin Recall / RecallWatch targets
+│   ├── ios/                        see docs/private/ios-ARCHITECTURE.md: RecallKit package + thin Recall / RecallWatch targets
 │   └── web/
 │       ├── app/(marketing)/        landing page (finished; keep as it is)
 │       ├── app/(app)/              homes/[homeId], homes/demo-flat/viewer (no auth: everything works signed out)
@@ -324,11 +323,8 @@ recall/
 ├── examples/a2a-client/home_robot.py  external agent asking Recall over A2A (Muse Spark)
 ├── samples/demo-flat/              processed scan only, privacy-reviewed
 ├── samples/replay/                 recorded scan + recorded model responses for `make demo` (labelled as recorded)
-└── docs/
+└── docs/                           (docs/private/ is gitignored: planning docs, ADRs, progress notes, the key list)
     ├── architecture.md             hexagon diagram + both paths (mermaid)
-    ├── hackathon-rules.md          every rule with its source (organizer rulings vs our own standards)
-    ├── agents.md                   multi-agent design (Guide, Verifier, Home Memory, A2A)
-    ├── decisions.md                short ADRs
     ├── verification.md             answers to section 10, with sources
     ├── demo-script.md
     └── media/                      README images: our own captures only (logo.svg, hero, viewer, gather); no photos of the home
@@ -346,7 +342,7 @@ recall/
   The look is a deliberate 2008 social-network homage (ADR-014): no Meta, Facebook or Instagram logos, wordmarks or current
   brand styling anywhere, and the footer says "not affiliated". The landing page is finished; don't restyle it.
 - **Commits:** small, frequent, Conventional Commits. Timestamps are our evidence of when work happened.
-- **Decisions:** any trade-off gets a 5-line ADR in `docs/decisions.md`.
+- **Decisions:** any trade-off gets a 5-line ADR in `docs/private/decisions.md`.
 
 ### Make targets
 
@@ -376,7 +372,7 @@ recall/
 | 5 Ship | Nov 3 to 4 | README ("What runs where"), 3-minute video, X post, submission, rehearsal | Submitted before Nov 4 evening Warsaw; tag `submission` |
 
 **Schedule:** phases keep their dates; we work overtime (evenings) to finish each one on time rather than cut scope.
-The "Cut if late" lists in `docs/agents.md` stay as a last resort.
+The "Cut if late" lists in `docs/private/agents.md` stay as a last resort.
 
 Fallbacks: phase 1 misses → VGGT or LiDAR depth only. Live guidance unstable → landmark directions only (must always work alone).
 
@@ -428,7 +424,7 @@ link in `docs/verification.md`. **Rachit**: items marked "You" need accounts or 
 
 ### Multi-agent and A2A
 
-See `docs/agents.md` section 8 (items A1 to A7): `a2a-sdk` API, Agent Card discovery path and required fields in spec 1.0,
+See `docs/private/agents.md` section 8 (items A1 to A7): `a2a-sdk` API, Agent Card discovery path and required fields in spec 1.0,
 SAM 3.1 single-frame latency, Muse Spark 1.1 image input, mounting A2A routes in FastAPI, Prompt Guard screening.
 
 ### Tooling versions

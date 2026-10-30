@@ -1,6 +1,6 @@
 import Foundation
 
-/// The scan report's numbers (Manifest.capture_metrics), and the grade rules (apps/ios/ARCHITECTURE.md §11.1).
+/// The scan report's numbers (Manifest.capture_metrics), and the grade rules.
 public struct CaptureMetrics: Codable, Sendable, Equatable {
     public var directionsCovered: Int
     public var keyframesKept: Int

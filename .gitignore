@@ -8,7 +8,6 @@ dist
 # env: never commit secrets
 .env
 .env.*
-!.env.example
 
 # python
 __pycache__/

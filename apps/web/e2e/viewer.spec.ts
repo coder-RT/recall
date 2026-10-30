@@ -89,7 +89,8 @@ test.describe("3D viewer: sample room", () => {
       await open(page, URL);
       await formed(page);
       const blueShare = async () => (await tint(page)).blue;
-      await page.getByRole("checkbox", { name: s.grid }).uncheck(); // only the points: the grid's lines are blue-grey too
+      // only the points: the grid, walls and pins are drawn in token colours too
+      for (const layer of ["grid", "room", "things"] as const) await page.getByRole("checkbox", { name: s[layer] }).uncheck();
       const photo = page.getByRole("radio", { name: s.modes.photo });
       if (await photo.count()) {
         await photo.check();
@@ -102,14 +103,14 @@ test.describe("3D viewer: sample room", () => {
       await expect.poll(blueShare).toBeGreaterThan(0.5);
     });
 
-    for (const layer of ["grid", "bands", "surfaces"] as const) {
+    for (const layer of ["room", "things", "grid", "bands", "surfaces"] as const) {
       test(`the ${layer} layer changes the picture and can be switched back`, async ({ page }) => {
         await prepare(page);
         await open(page, URL);
         await formed(page);
         const before = await canvas(page).screenshot();
         const box = page.getByRole("checkbox", { name: s[layer] });
-        const initial = await box.isChecked(); // the floor grid starts on, the others off
+        const initial = await box.isChecked(); // room, things and the floor grid start on, the others off
         await box.setChecked(!initial);
         await expect.poll(async () => (await canvas(page).screenshot()).equals(before)).toBe(false);
         await box.setChecked(initial);
@@ -118,13 +119,33 @@ test.describe("3D viewer: sample room", () => {
     }
   });
 
-  test("the floor grid is on by default, the other layers off", async ({ page }) => {
+  test("the room, the things and the floor grid are on by default, the other layers off", async ({ page }) => {
     await prepare(page);
     await open(page, URL);
     await formed(page);
+    await expect(page.getByRole("checkbox", { name: s.room })).toBeChecked();
+    await expect(page.getByRole("checkbox", { name: s.things })).toBeChecked();
     await expect(page.getByRole("checkbox", { name: s.grid })).toBeChecked();
     await expect(page.getByRole("checkbox", { name: s.bands })).not.toBeChecked();
     await expect(page.getByRole("checkbox", { name: s.surfaces })).not.toBeChecked();
+  });
+
+  test("lists everything Recall found; choosing one highlights its pin", async ({ page }) => {
+    await prepare(page);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await open(page, URL);
+    await formed(page);
+    const list = page.getByRole("region", { name: new RegExp(s.found.title) });
+    const items = list.getByRole("button");
+    await expect(items).toHaveCount(meta.objects.length);
+    const first = meta.objects[0];
+    await expect(items.first()).toContainText([first.color, first.label].filter(Boolean).join(" "));
+    const before = await canvas(page).screenshot();
+    await items.first().click();
+    await expect(items.first()).toHaveAttribute("aria-pressed", "true");
+    await expect.poll(async () => (await canvas(page).screenshot()).equals(before)).toBe(false);
+    await items.first().click();
+    await expect(items.first()).toHaveAttribute("aria-pressed", "false");
   });
 
   test("stats show the run's measured numbers", async ({ page }) => {
@@ -132,9 +153,9 @@ test.describe("3D viewer: sample room", () => {
     await open(page, URL);
     const stats = page.getByRole("region", { name: s.stats.label });
     await expect(stats.locator("[data-stat]")).toHaveText([
-      `${s.stats.photos}${meta.stats.photos}`,
-      `${s.stats.rebuild}${meta.stats.rebuild_s}`,
-      `${s.stats.memory}${meta.stats.peak_memory_gb}`,
+      `${s.stats.frames}${meta.stats.frames}`,
+      `${s.stats.rebuild}${Math.round(meta.stats.total_s)}`,
+      `${s.stats.sam}${meta.stats.sam_calls}`,
       `${s.stats.points}${Math.round(meta.count / 1000)}k`,
     ]);
   });

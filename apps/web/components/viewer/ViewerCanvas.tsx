@@ -7,7 +7,7 @@ import { Color, Vector3 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { gsap, MOTION_OK } from "@/lib/gsap";
 import { useMotionPrefs } from "@/lib/motion-prefs";
-import { FloorGrid, HeightBands, Surfaces, type Bounds, type Surface, type Tokens } from "./Layers";
+import { FloorGrid, Furniture, HeightBands, Room, Surfaces, Things, type Bounds, type FurnitureBox, type RoomShape, type Surface, type Thing, type Tokens } from "./Layers";
 import { makeUniforms, MODES, RoomCloud, type CloudData, type CloudUniforms, type ColourMode } from "./RoomCloud";
 
 const TARGET = new Vector3(0, 0, 0.9);
@@ -21,6 +21,8 @@ export interface ViewerStrings {
   grid: string;
   bands: string;
   surfaces: string;
+  room: string;
+  things: string;
 }
 
 export interface ViewerProps {
@@ -28,6 +30,11 @@ export interface ViewerProps {
   src: string;
   bounds: Bounds;
   surfaces: Surface[];
+  room: RoomShape;
+  furniture: FurnitureBox[];
+  things: Thing[];
+  /** index into `things` of the one chosen in the list, or null */
+  selected: number | null;
   t: ViewerStrings;
 }
 
@@ -36,7 +43,11 @@ interface Layers {
   grid: boolean;
   bands: boolean;
   surfaces: boolean;
+  room: boolean;
+  things: boolean;
 }
+
+type Model = Pick<ViewerProps, "room" | "furniture" | "things" | "selected">;
 
 /** Drag to orbit (sideways on phones, so vertical swipes still scroll the page); a slow turn until the first drag. */
 function Controls({ spin }: { spin: boolean }) {
@@ -99,8 +110,9 @@ function useTokens(): Tokens {
   return tokens;
 }
 
-function Scene({ data, uniforms, spin, layers, bounds, surfaces, tokens }: { data: CloudData; uniforms: CloudUniforms; spin: boolean; layers: Layers; bounds: Bounds; surfaces: Surface[]; tokens: Tokens }) {
+function Scene({ data, uniforms, spin, layers, bounds, surfaces, model, tokens }: { data: CloudData; uniforms: CloudUniforms; spin: boolean; layers: Layers; bounds: Bounds; surfaces: Surface[]; model: Model; tokens: Tokens }) {
   const { invalidate } = useThree();
+  useEffect(() => invalidate(), [model.selected, layers, invalidate]);
   useEffect(() => {
     uniforms.uLow.value = new Color(tokens.line);
     uniforms.uHigh.value = new Color(tokens.blue);
@@ -116,6 +128,9 @@ function Scene({ data, uniforms, spin, layers, bounds, surfaces, tokens }: { dat
       {layers.grid && <FloorGrid bounds={bounds} tokens={tokens} />}
       {layers.bands && <HeightBands bounds={bounds} tokens={tokens} />}
       {layers.surfaces && <Surfaces surfaces={surfaces} tokens={tokens} />}
+      {layers.room && <Room room={model.room} tokens={tokens} />}
+      {layers.room && <Furniture items={model.furniture} tokens={tokens} />}
+      {layers.things && <Things items={model.things} selected={model.selected} tokens={tokens} />}
       <Controls spin={spin} />
     </>
   );
@@ -133,12 +148,12 @@ async function load(src: string): Promise<CloudData> {
   return { positions: new Float32Array(positions!), colors: colors ? new Uint8Array(colors) : null, conf: new Uint8Array(conf!) };
 }
 
-export default function ViewerCanvas({ src, bounds, surfaces, t }: ViewerProps) {
+export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, things, selected, t }: ViewerProps) {
   const root = useRef<HTMLDivElement>(null);
   const id = useId();
   const { reduced } = useMotionPrefs();
   const [data, setData] = useState<CloudData | null>(null);
-  const [layers, setLayers] = useState<Layers>({ mode: "height", grid: true, bands: false, surfaces: false });
+  const [layers, setLayers] = useState<Layers>({ mode: "height", grid: true, bands: false, surfaces: false, room: true, things: true });
   const [animate] = useState(() => !reduced && window.matchMedia(MOTION_OK).matches);
   // the same clamp as the Canvas dpr below, so the first frame already has the final point size
   const uniforms = useMemo(() => makeUniforms(animate ? 0 : 1, Math.min(Math.max(window.devicePixelRatio, 1), 2) * 1.15), [animate]);
@@ -195,7 +210,7 @@ export default function ViewerCanvas({ src, bounds, surfaces, t }: ViewerProps) 
     };
   }, [data, still, uniforms]);
 
-  const toggle = (key: "grid" | "bands" | "surfaces") => setLayers((l) => ({ ...l, [key]: !l[key] }));
+  const toggle = (key: "grid" | "bands" | "surfaces" | "room" | "things") => setLayers((l) => ({ ...l, [key]: !l[key] }));
   const modes = data?.colors ? MODES : MODES.filter((mode) => mode !== "photo");
   const check = "size-4 accent-fb-blue";
   const chip = "flex cursor-pointer items-center gap-2 rounded-full border border-fb-line bg-white px-3 py-1.5 text-sm text-ink has-checked:border-fb-blue has-checked:bg-fb-blue-pale";
@@ -210,7 +225,7 @@ export default function ViewerCanvas({ src, bounds, surfaces, t }: ViewerProps) 
             camera={{ position: [4.6, -5.8, 5.6], fov: 34, near: 0.1, far: 60 }}
             gl={{ antialias: true, alpha: true, preserveDrawingBuffer: true }}
           >
-            <Scene data={data} uniforms={uniforms} spin={!still} layers={layers} bounds={bounds} surfaces={surfaces} tokens={tokens} />
+            <Scene data={data} uniforms={uniforms} spin={!still} layers={layers} bounds={bounds} surfaces={surfaces} model={{ room, furniture, things, selected }} tokens={tokens} />
           </Canvas>
         ) : (
           <p className="grid size-full place-items-center text-sm text-muted">{t.loading}</p>
@@ -228,7 +243,7 @@ export default function ViewerCanvas({ src, bounds, surfaces, t }: ViewerProps) 
         </fieldset>
         <fieldset className="flex flex-wrap items-center gap-2">
           <legend className="float-left mr-1 text-sm font-semibold text-muted">{t.layers}</legend>
-          {(["grid", "bands", "surfaces"] as const).map((key) => (
+          {(["room", "things", "grid", "bands", "surfaces"] as const).map((key) => (
             <label key={key} className={chip}>
               <input type="checkbox" checked={layers[key]} onChange={() => toggle(key)} className={check} />
               {t[key]}

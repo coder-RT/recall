@@ -1,7 +1,7 @@
 import { format, getDictionary } from "@/i18n";
 import meta from "@/public/samples/demo-flat/meta.json";
 import { BAND_EDGES, BANDS, bandOf } from "./bands";
-import { RoomViewer } from "./RoomViewer";
+import { FoundViewer } from "./FoundViewer";
 import { ViewerStats } from "./ViewerStats";
 
 const s = getDictionary().app.viewer.sample;
@@ -13,12 +13,12 @@ function bandRange(i: number) {
   return format(s.bandRange, { from: BAND_EDGES[i - 1], to: BAND_EDGES[i] });
 }
 
-/** The sample room: a real run of our pipeline on one room. Caption, stats, bands and surfaces are plain HTML. */
+/** The sample room: a real run of our pipeline on one room. Caption, stats, bands and the found list are plain HTML. */
 export function SampleScan() {
   const stats = [
-    { value: String(meta.stats.photos), label: s.stats.photos },
-    { value: String(meta.stats.rebuild_s), label: s.stats.rebuild },
-    { value: String(meta.stats.peak_memory_gb), label: s.stats.memory },
+    { value: String(meta.stats.frames), label: s.stats.frames },
+    { value: String(Math.round(meta.stats.total_s)), label: s.stats.rebuild },
+    { value: String(meta.stats.sam_calls), label: s.stats.sam },
     { value: `${Math.round(meta.count / 1000)}k`, label: s.stats.points },
   ];
   const viewer = {
@@ -30,22 +30,32 @@ export function SampleScan() {
     grid: s.grid,
     bands: s.bands,
     surfaces: s.surfaces,
+    room: s.room,
+    things: s.things,
   };
   return (
     <>
-      <figure className="mt-8 overflow-hidden rounded-xl border border-fb-line bg-white">
-        <div className="aspect-[4/5] sm:aspect-[16/11]">
-          <RoomViewer src={SAMPLE} bounds={meta.bounds} surfaces={meta.surfaces} t={viewer} />
+      <FoundViewer
+        src={SAMPLE}
+        bounds={meta.bounds}
+        surfaces={meta.surfaces}
+        room={meta.room}
+        furniture={meta.furniture}
+        things={meta.objects}
+        viewer={viewer}
+        found={{ ...s.found, bandNames: s.bandNames }}
+        caption={
+          <>
+            <span className="font-semibold text-ink">{s.alt}</span> {s.label} {s.scale} <span data-viewer-hint>{s.hint}</span>
+          </>
+        }
+        poster={
           <noscript>
             {/* eslint-disable-next-line @next/next/no-img-element -- a static poster for visitors without JavaScript */}
             <img src={`${SAMPLE}/poster.webp`} alt={s.posterAlt} className="size-full object-contain" />
           </noscript>
-        </div>
-        <figcaption className="border-t border-fb-line px-4 py-3 text-sm text-muted">
-          <span className="font-semibold text-ink">{s.alt}</span> {s.label} {s.scale}{" "}
-          <span data-viewer-hint>{s.hint}</span>
-        </figcaption>
-      </figure>
+        }
+      />
 
       <div className="mt-8">
         <ViewerStats label={s.stats.label} items={stats} />

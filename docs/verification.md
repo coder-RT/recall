@@ -36,3 +36,35 @@ deployment. With 19.6 s inference per room on the Mac, Modal is not needed now. 
 | MapAnything code | Apache-2.0 | `LICENSE` | ✅ |
 | MapAnything weights `facebook/map-anything-apache` | Apache 2.0: the model card front matter says `license: apache-2.0` and "This is the Apache 2.0 variant of the model"; not gated, public. Card revision `00f9c245bbcb60522d1ed7f9e9d88462c6e3f38a` (last modified 2026-02-04), checked 2026-10-29. Pin this revision when downloading. | README "Models › Hugging Face Hub Models"; https://huggingface.co/facebook/map-anything-apache ; https://huggingface.co/api/models/facebook/map-anything-apache | ✅ |
 | Glimmer, SAM 3.1, VGGT, Atkinson Hyperlegible, Unsplash photo | not checked yet | — | ⏳ |
+
+## Probes, 2026-10-30 00:54 UTC (`make probes`, real calls)
+
+| Probe | Result | Time | What came back | Docs |
+|---|---|---|---|---|
+| Meta Model API: models list | PASS | 1007 ms | `{"models": ["muse-wonder-1.0", "sam-3.1", "muse-spark-1.3-contributor", "muse-voice-transcribe-1.0", "muse-spark-1.3", "muse-image-1.0", "muse-spark-1.2-contributor", "muse-spark-1.2", "muse-spark-1.1"]}` | https://dev.meta.ai/docs/models |
+| Muse Spark 1.1: chat with find_object tool | PASS | 1922 ms | `{"model": "muse-spark-1.1", "tool_calls": [{"name": "find_object", "arguments": "{\"name\":\"keys\"}"}], "text": "Lost track of your keys? I'll look them up for you."}` | https://dev.meta.ai/docs/api-reference/chat-completions/create-chat-completion |
+| Muse Spark 1.1: image input | PASS | 2659 ms | `{"answer": "yes", "finish_reason": "stop"}` | https://dev.meta.ai/docs/image-understanding |
+| SAM 3.1: one frame, prompt 'laptop' | PASS | 1651 ms | `{"output_keys": ["message"], "boxes": 1, "masks": 1, "mask_marker": "~", "first_line_head": "<0f>0<\|box;x1=472;y1=449;x2=575;y2=970;w=576;h=1024;c=0.949367105960846\|><\|mask;x=0;y=0;c=0.949367105960846;data=522,104,~!!!kX#K{$j+y{rp.c'qir+O7_TnGEH-F2[e-TOnTXiW'=c$)/5?jjB*Y8pU*M`0[)S[Ra8V{!#4KFFYepqC6bQ_6-fU@`r+cJ1"}` | https://dev.meta.ai/docs/sam/segmenting |
+| Muse Voice Transcribe: 2 s WAV, both modes | PASS | 5316 ms | `{"PUSH_TO_TALK": {"transcript": "Where did I leave my keys?", "turns": 0, "ms": 2241}, "ENDPOINTING": {"transcript": "Where did I leave my keys?", "turns": 1, "ms": 2168}}` | https://dev.meta.ai/docs/api-reference/voice/transcribe |
+| Muse Spark Open on Baseten: find_object tool | PASS | 1263 ms | `{"slug": "meta-models/muse-spark-open-1026", "tool_calls": [{"name": "find_object", "arguments": "{\"name\": \"keys\"}"}], "finish_reason": "tool_calls", "tried": ["meta-models/muse-spark-open", "meta-models/muse-spark-open-1026"]}` | https://docs.baseten.co/inference/function-calling.md |
+| Muse Glimmer on LM Studio: find_object tool | SKIP | 8 ms | `{"skipped": "LM Studio server is not running (lms server start)"}` | https://lmstudio.ai/docs/app/api/endpoints/openai |
+
+### What the probes and the docs settle (2026-10-30)
+
+- **Meta Model API** (items 1, 4): works from Poland. Base `https://api.meta.ai/v1`, `Authorization: Bearer`, OpenAI-compatible
+  `/chat/completions`; tools as `{"type":"function","function":{...}}`, `tool_choice` only `"auto"`. Hosted chat ids:
+  `muse-spark-1.1/1.2/1.3`, `muse-wonder-1.0`; Muse Spark Open and Glimmer are not hosted there. https://dev.meta.ai/docs/models
+- **Muse Spark 1.1 image input** (item 4, A5): ✅ `image_url` data URL in a user message. https://dev.meta.ai/docs/image-understanding
+- **Muse Spark Open on Baseten** (item 6): ✅ tool calling works, but **only as `meta-models/muse-spark-open-1026`** with the
+  hackathon key; the public slug `meta-models/muse-spark-open` from the docs is refused. Base `https://inference.baseten.co/v1`,
+  Bearer. No JSON mode/structured outputs for this model (docs). https://docs.baseten.co/inference/model-apis/overview.md
+- **SAM 3.1** (item 2, A4): `POST /v1/responses`, `model: sam-3.1`, one `input_text` noun phrase + one `input_image` per request
+  (**one concept per request**, no batch); options in `metadata` (`include_confidence`, `mask_encoding`). Output: one line per
+  frame `<0f>id<|box;x1;y1;x2;y2;w;h;c|><|mask;x=0;y=0;c;data=H,W,<enc>payload|>`; boxes in source pixels, inclusive; the mask
+  raster is the box's size (522×104 for a 104×522 box). ~1.7 s per frame. **`TODO(verify)`: the mask payload encoding is not
+  documented** (it is not RFC 1924 base85, Ascii85 or zlib; one-bit packs 54,288 pixels into 85 characters). The pipeline uses
+  boxes + LiDAR depth until Meta documents it. https://dev.meta.ai/docs/sam/reading-segmentation
+- **Muse Voice Transcribe** (item 3): `POST https://api.meta.ai/v1/asr/transcribe`, multipart `request` JSON + `audio`; WAV must
+  be mono 16-bit PCM at 16 or 24 kHz. **`mode: ENDPOINTING` gives turn detection** (`turns` filled) and answered in 2.1 s for a
+  2 s clip. Realtime alternative: `wss://api.meta.ai/v1/asr/realtime`. https://dev.meta.ai/docs/speech-to-text
+- **Glimmer on LM Studio** (item 7): not run; LM Studio's server was off and no Glimmer model is loaded.

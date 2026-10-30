@@ -390,7 +390,7 @@ link in `docs/verification.md`. **Rachit**: items marked "You" need accounts or 
 | # | Check | Who | How | If it fails |
 |---|---|---|---|---|
 | 1 | Meta Model API works from Poland with our key | You | One chat-completion call | Ask in Discord office hours; Spark Open on Baseten only |
-| 2 | SAM 3.1 on Meta API: input modes (single image, batch, **video tracking across frames**), text prompts, mask format (RLE, PNG, polygons), rate limits, cost per call | Claude Code (docs) + You (test call) | Docs + one call with 3 frames | Self-hosted SAM 3.1 adapter on Modal (open weights) |
+| 2 | ✅ mostly (see verification.md; mask encoding still open). SAM 3.1 on Meta API: input modes (single image, batch, **video tracking across frames**), text prompts, mask format (RLE, PNG, polygons), rate limits, cost per call | Claude Code (docs) + You (test call) | Docs + one call with 3 frames | Self-hosted SAM 3.1 adapter on Modal (open weights) |
 | 3 | Muse Voice Transcribe: endpoint, audio formats, sample rate, batch vs streaming, **turn detection**, latency | Claude Code + You | Docs + one 5 s m4a | Push-to-talk without turn detection; typed question as last resort (no Apple on-device speech recognition) |
 | 4 | Hosted Muse Spark model ID on Meta API, tool-calling support; **Muse Spark 1.1 image input** for the Verifier tie-break | Claude Code + You | Docs + one tool call + one image call | Drop the cloud fallback / the tie-break |
 | 5 | Muse Glimmer: HF repo id (`meta-models/Muse-Glimmer-30B`?), gating, licence, minimum vLLM version, **tool-call parser name**, chat template, image input format; **hosting on Modal or Fireworks** | Claude Code | Model card, Modal / Fireworks docs | Guide stays on Spark Open |

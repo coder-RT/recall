@@ -9,3 +9,8 @@ home_id:
   in: path
   required: true
   schema: {type: string, pattern: "^[a-z0-9-]{1,64}$"}
+object_id:
+  name: object_id
+  in: path
+  required: true
+  schema: {type: string, pattern: "^[a-z]+_[0-9a-f]{1,32}$"}

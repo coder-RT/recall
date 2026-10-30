@@ -4,7 +4,7 @@
 from __future__ import annotations
 from enum import Enum, StrEnum
 from typing import Annotated, Any, Literal
-from pydantic import AwareDatetime, BaseModel, Field, RootModel
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, RootModel
 from uuid import UUID
 
 
@@ -183,6 +183,12 @@ class DetectedThing(BaseModel):
     front_dir: Annotated[
         list[float] | None, Field(description="Unit vector (x, y) the front faces, landmarks only")
     ] = None
+    color: Annotated[
+        str | None, Field(description="Basic colour name measured from the photo pixels inside the box (objects only)")
+    ] = None
+    size_m: Annotated[
+        list[float] | None, Field(description="Bounding box x, y, z in metres", max_length=3, min_length=3)
+    ] = None
 
 
 class ScanResult(BaseModel):
@@ -199,6 +205,35 @@ class ScanResult(BaseModel):
         ),
     ] = None
     stats: Annotated[dict[str, Any], Field(description="Measured timings and counts for this run")]
+
+
+class Color(Enum):
+    black = "black"
+    white = "white"
+    grey = "grey"
+    red = "red"
+    orange = "orange"
+    yellow = "yellow"
+    green = "green"
+    blue = "blue"
+    purple = "purple"
+    pink = "pink"
+    brown = "brown"
+    beige = "beige"
+    NoneType_None = None
+
+
+class ObjectCorrection(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    name: Annotated[str | None, Field(description="The user's own name for it, e.g. work bag", max_length=40)] = None
+    color: Color | None = None
+    height_m: Annotated[float | None, Field(description="Height above the floor in metres", ge=0.0, le=3.0)] = None
+    note: Annotated[str | None, Field(max_length=200)] = None
+    confirmed: Annotated[bool | None, Field(description="The user checked it is right; it then counts as certain")] = (
+        None
+    )
 
 
 class HeightBand(StrEnum):
@@ -229,6 +264,16 @@ class ObjectLocation(BaseModel):
     seen_at: AwareDatetime
     confidence: float
     stale: bool | None = None
+    color: Annotated[
+        str | None, Field(description="Basic colour name: the user's if they set one, else measured from the photo")
+    ] = None
+    size_m: Annotated[
+        list[float] | None, Field(description="Bounding box x, y, z in metres", max_length=3, min_length=3)
+    ] = None
+    corrections: ObjectCorrection | None = None
+    needs_review: Annotated[
+        bool | None, Field(description="The models were unsure (confidence under 0.7) and the user hasn't confirmed it")
+    ] = None
 
 
 class AskRequest(BaseModel):

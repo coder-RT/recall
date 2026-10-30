@@ -1,7 +1,9 @@
 """The memory aggregates: Home, Scan, TrackedObject, and the value objects they share."""
 
 from .model import (
+    COLOR_NAMES,
     BBox,
+    Corrections,
     FurnitureFootprint,
     Home,
     Landmark,
@@ -16,7 +18,9 @@ from .model import (
 )
 
 __all__ = [
+    "COLOR_NAMES",
     "BBox",
+    "Corrections",
     "FurnitureFootprint",
     "Home",
     "Landmark",

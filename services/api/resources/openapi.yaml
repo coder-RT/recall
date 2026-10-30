@@ -51,6 +51,8 @@ paths:
     $ref: paths/homes.yaml#/room
   /homes/{home_id}/objects:
     $ref: paths/objects.yaml#/objects
+  /homes/{home_id}/objects/{object_id}:
+    $ref: paths/objects.yaml#/object
   /ask:
     $ref: paths/ask.yaml#/ask
   /guidance/sessions:

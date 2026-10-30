@@ -12,6 +12,7 @@ from recall_api.adapters.outbound.storage.local_disk import LocalDiskBlobStore
 from recall_api.adapters.outbound.storage.zip_unpacker import ZipEpisodeUnpacker
 from recall_api.adapters.outbound.voice.muse_transcribe import MuseTranscriber
 from recall_api.application.ask_where_is import AskWhereIs
+from recall_api.application.correct_object import CorrectObject
 from recall_api.application.ingest_scan import IngestScan
 from recall_api.application.plan_guidance import PlanGuidance
 from recall_api.application.tools import Tools
@@ -63,6 +64,10 @@ class Container:
     @cached_property
     def ingest_scan(self) -> IngestScan:
         return IngestScan(self.scans, self.homes, self.objects, self.clock, new_id)
+
+    @cached_property
+    def correct_object(self) -> CorrectObject:
+        return CorrectObject(self.objects)
 
     @cached_property
     def guidance(self) -> PlanGuidance:

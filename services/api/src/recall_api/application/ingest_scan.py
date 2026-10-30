@@ -86,7 +86,7 @@ class IngestScan:
         self.homes.save(home)
 
         # objects: match per label against what memory last saw
-        remembered = [o for o in self.objects.list_for_home(home.id) if o.last_seen() is not None]
+        remembered = [o for o in self.objects.list_for_home(home.id) if o.where() is not None]
         by_label: dict[str, list[dict]] = defaultdict(list)
         for t in result["objects"]:
             by_label[t["label"]].append(t)
@@ -95,7 +95,7 @@ class IngestScan:
             olds = [o for o in remembered if o.label == label]
             news = by_label.get(label, [])
             matches = match_label(
-                [o.last_seen().position for o in olds],
+                [o.where().position for o in olds],
                 [_pos(t["centroid"]) for t in news],
                 covered=lambda p: _inside(room.floor_polygon, p),
             )
@@ -106,11 +106,15 @@ class IngestScan:
                     if m.kind == "moved":
                         for o in obj.observations:
                             o.stale = True  # the old place is history now
+                    if m.kind == "moved":
+                        obj.corrections.height_m = None  # the user's height was for the old place
                     obj.observations.append(self._observation(obj.id, scan.id, seen_at, news[m.detected]))
+                    _appearance(obj, news[m.detected])
                     self.objects.save(obj)
                 elif m.kind == "new":
                     obj = TrackedObject(self.new_id("obj"), home.id, label)
                     obj.observations.append(self._observation(obj.id, scan.id, seen_at, news[m.detected]))
+                    _appearance(obj, news[m.detected])
                     self.objects.save(obj)
                 elif m.kind == "gone":
                     obj = olds[m.existing]
@@ -135,3 +139,11 @@ class IngestScan:
             float(t["confidence"]),
             keyframe_index=t.get("keyframe_index"),
         )
+
+
+def _appearance(obj: TrackedObject, t: dict) -> None:
+    """Colour and size from the newest sighting; the user's own values live in corrections and stay."""
+    if t.get("color"):
+        obj.color = t["color"]
+    if t.get("size_m"):
+        obj.size_m = tuple(float(v) for v in t["size_m"])

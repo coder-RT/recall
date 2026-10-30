@@ -44,12 +44,14 @@ class Tools:
     def find_object(self, ctx: ToolContext, name: str) -> dict:
         matches = []
         for o in self.objects.list_for_home(ctx.home_id):
-            last = o.last_seen()
+            last = o.where()
             if last is not None and o.matches(name):
                 matches.append(
                     {
                         "object_id": o.id,
                         "label": o.label,
+                        "name": o.corrections.name,
+                        "color": o.display_color(),
                         "minutes_since_seen": self._minutes(last.seen_at),
                         "confidence": round(last.confidence, 2),
                     }
@@ -63,14 +65,19 @@ class Tools:
     def describe_location(self, ctx: ToolContext, object_id: str) -> dict:
         obj = self.objects.get(object_id)
         home: Home | None = self.homes.get(ctx.home_id)
-        if obj is None or home is None or obj.last_seen() is None:
+        if obj is None or home is None or obj.where() is None:
             return {"result": "not_found"}
-        last = obj.last_seen()
+        last = obj.where()
         rel = relate(last.position, home.landmarks)
         shelves = [lm.bbox.top_z for lm in home.landmarks if rel.landmark is lm and lm.label in ("shelf", "cabinet")]
         ctx.found_object = object_id
         return {
             "label": obj.label,
+            "name": obj.corrections.name,
+            "color": obj.display_color(),
+            "size_cm": [round(v * 100) for v in obj.size_m] if obj.size_m else None,
+            "note": obj.corrections.note,
+            "set_by_user": sorted(k for k, v in vars(obj.corrections).items() if v not in (None, False)),
             "room": rel.landmark.room if rel.landmark else None,
             "landmark": rel.landmark.label if rel.landmark else None,
             "relation": rel.kind,

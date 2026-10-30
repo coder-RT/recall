@@ -70,6 +70,9 @@ class MemoryRepo:
     def save(self, item):
         self.items[item.id] = item
 
+    def delete(self, key):
+        self.items.pop(key, None)
+
     def list_for_home(self, home_id):
         return [i for i in self.items.values() if i.home_id == home_id]
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from enum import StrEnum
 
@@ -110,16 +110,61 @@ class TrackedObject:
     label: str
     aliases: tuple[str, ...] = ()
     observations: list[Observation] = field(default_factory=list)
+    color: str | None = None  # a basic colour name, from the photo or from the user
+    size_m: tuple[float, float, float] | None = None  # bounding box (x, y, z) from the newest sighting
+    corrections: Corrections = field(default_factory=lambda: Corrections())
 
     def last_seen(self, min_confidence: float = 0.5) -> Observation | None:
         fresh = [o for o in self.observations if not o.stale and o.confidence >= min_confidence]
         return max(fresh, key=lambda o: o.seen_at, default=None)
 
+    def where(self) -> Observation | None:
+        """The newest sighting, with the user's height in place of the measured one when they gave it.
+        A confirmed object counts as certain."""
+        last = self.last_seen(0.0 if self.corrections.confirmed else 0.5)
+        if last is None:
+            return None
+        c = self.corrections
+        if c.height_m is not None:
+            last = replace(last, position=Position(last.position.x, last.position.y, c.height_m))
+        if c.confirmed:
+            last = replace(last, confidence=1.0)
+        return last
+
+    def display_color(self) -> str | None:
+        return self.corrections.color or self.color
+
     def matches(self, name: str) -> bool:
-        n = name.strip().lower()
+        words = name.strip().lower().split()
+        colors = [w for w in words if w in COLOR_NAMES]
+        if colors and self.display_color() not in colors:
+            return False  # "the red bag" never matches a blue bag
+        n = " ".join(w for w in words if w not in COLOR_NAMES) or name.strip().lower()
         names = {self.label.lower(), *(a.lower() for a in self.aliases)}
+        if self.corrections.name:
+            names.add(self.corrections.name.lower())
         singular = n[:-1] if n.endswith("s") else n
         return n in names or singular in names or any(singular in x or x in n for x in names if len(x) >= 3)
+
+
+# the basic colour terms the pipeline names; a user can type any of these
+COLOR_NAMES = (
+    "black", "white", "grey", "red", "orange", "yellow", "green", "blue", "purple", "pink", "brown", "beige",
+)  # fmt: skip
+
+
+@dataclass
+class Corrections:
+    """What the user told us after a scan. It wins over the measurement and is never overwritten by a scan."""
+
+    name: str | None = None  # e.g. "work bag"
+    color: str | None = None
+    height_m: float | None = None  # above the floor
+    note: str | None = None
+    confirmed: bool = False
+
+    def is_empty(self) -> bool:
+        return self == Corrections()
 
 
 class ScanStatus(StrEnum):

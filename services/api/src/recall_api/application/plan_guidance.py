@@ -73,7 +73,7 @@ class PlanGuidance:
         fwd = T[:3, :3] @ (-M[:3, 2])  # the camera looks along −Z
         heading = fwd[:2] / (np.linalg.norm(fwd[:2]) or 1.0)
         obj = self.objects.get(object_id)
-        last = obj.last_seen() if obj else None
+        last = obj.where() if obj else None
         if last is None:
             raise GuidanceError("object_not_seen", "That object isn't in memory.")
         session = Session(self.new_id("gs"), home_id, object_id, pos, heading, tracking)

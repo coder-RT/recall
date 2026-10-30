@@ -19,6 +19,7 @@ from recall_pipeline.application.ports import (
     Segmenter,
 )
 from recall_pipeline.domain import home_frame, room_model
+from recall_pipeline.domain.appearance import dominant_color, vote
 from recall_pipeline.domain.lift import lift_box
 
 log = logging.getLogger("recall_pipeline")
@@ -91,7 +92,7 @@ def process_episode(
     debug.points("cloud", home_cloud)
 
     # SAM 3.1 boxes on a subset of views, lifted to 3D with depth + pose
-    sightings: dict[str, list[tuple[np.ndarray, float, int, np.ndarray]]] = defaultdict(list)
+    sightings: dict[str, list[tuple[np.ndarray, float, int, np.ndarray, str | None]]] = defaultdict(list)
     sam_views = views[:: cfg.sam_every]
     t1 = time.perf_counter()
     calls = 0
@@ -100,6 +101,7 @@ def process_episode(
     pool = ThreadPoolExecutor(cfg.sam_workers)
     for n, v in enumerate(sam_views, 1):
         jpeg = source.jpeg(v.index)
+        rgb = source.image_rgb(v.index)
         h, w = v.depth.shape
         img_w, img_h = episode.image_size
         sx, sy = w / img_w, h / img_h  # SAM boxes are in source-image pixels; depth is at the output size
@@ -116,7 +118,8 @@ def process_episode(
                 if lifted is None:
                     continue
                 pts = home_frame.apply(T, lifted.points)
-                sightings[concept].append((np.median(pts, axis=0), b.score, v.index, pts))
+                color = dominant_color(rgb, b.box) if concept in cfg.objects else None
+                sightings[concept].append((np.median(pts, axis=0), b.score, v.index, pts, color))
         log.info("SAM view %d/%d done, %d sightings so far", n, len(sam_views), sum(map(len, sightings.values())))
     pool.shutdown()
     t_sam = time.perf_counter() - t1
@@ -141,11 +144,13 @@ def process_episode(
                 "sightings": len(members),
                 "keyframe_index": int(best[2]),
             }
+            thing["size_m"] = np.round(hi - lo, 3).tolist()
             if label in cfg.furniture:
                 thing["front_dir"] = None
                 things["landmarks"].append(thing)
                 furniture_pts.append((label, pts))
             else:
+                thing["color"] = vote([(m[4], m[1]) for m in members])
                 things["objects"].append(thing)
 
     floor_xy = home_frame.apply(T, home_frame.apply(np.linalg.inv(T_y), floor.inliers))  # back through T_y, then T

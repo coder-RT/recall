@@ -20,7 +20,9 @@ Rules:
 2. If find_object says not_found, or confidence is below 0.5, say you haven't seen it and suggest scanning the room.
 3. If it was seen more than 24 hours ago (1440 minutes), say when.
 4. Speak one or two short sentences: the landmark first, then the shelf and height, then how long ago.
-5. Say heights as words (floor, knee, waist, chest, head height). No lists, no markdown."""
+5. Say heights as words (floor, knee, waist, chest, head height). No lists, no markdown.
+6. If several things match, tell them apart by the user's name for them or their colour, and ask which one if unsure.
+7. Values in set_by_user come from the user; say them plainly, they are the most reliable."""
 
 
 @dataclass
@@ -47,9 +49,10 @@ def fallback_sentence(outputs: list[str]) -> str:
     if facts.get("relation") == "near":
         where = f"near the {facts['landmark']}"
     shelf = f", shelf {facts['shelf_level']}" if facts.get("shelf_level") else ""
+    thing = facts.get("name") or " ".join(x for x in (facts.get("color"), facts["label"]) if x)
     mins = facts.get("minutes_since_seen", 0)
     when = f"seen {mins} minutes ago" if mins < 1440 else f"last seen at {facts.get('seen_at')}"
-    return f"Your {facts['label']} is {where}{shelf}, at {facts['height_band']} height, {when}."
+    return f"Your {thing} is {where}{shelf}, at {facts['height_band']} height, {when}."
 
 
 class AskWhereIs:

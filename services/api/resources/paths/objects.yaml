@@ -14,3 +14,38 @@ objects:
               type: array
               items:
                 $ref: ../schemas/ObjectLocation.yaml
+object:
+  patch:
+    tags: [homes]
+    operationId: correctObject
+    summary: Fix what a scan was unsure about (name, colour, height, note) or confirm it
+    parameters:
+      - $ref: ../schemas/Params.yaml#/home_id
+      - $ref: ../schemas/Params.yaml#/object_id
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: ../schemas/ObjectCorrection.yaml}
+    responses:
+      "200":
+        description: The object as it is now remembered
+        content:
+          application/json:
+            schema: {$ref: ../schemas/ObjectLocation.yaml}
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound
+      "422":
+        $ref: ../schemas/Responses.yaml#/Invalid
+  delete:
+    tags: [homes]
+    operationId: removeObject
+    summary: Forget something a scan got wrong
+    parameters:
+      - $ref: ../schemas/Params.yaml#/home_id
+      - $ref: ../schemas/Params.yaml#/object_id
+    responses:
+      "204":
+        description: Forgotten
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound

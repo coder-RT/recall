@@ -9,6 +9,7 @@ from sqlalchemy import Engine, text
 
 from recall_api.domain.memory import (
     BBox,
+    Corrections,
     FurnitureFootprint,
     Home,
     Landmark,
@@ -180,6 +181,15 @@ class SqliteObjects:
                     home_id=r["home_id"],
                     label=r["label"],
                     aliases=tuple(json.loads(r["aliases"])),
+                    color=r["color"],
+                    size_m=tuple(json.loads(r["size_m"])) if r["size_m"] else None,
+                    corrections=Corrections(
+                        name=r["user_name"],
+                        color=r["user_color"],
+                        height_m=r["user_height_m"],
+                        note=r["user_note"],
+                        confirmed=bool(r["confirmed"]),
+                    ),
                     observations=[
                         Observation(
                             id=o["id"],
@@ -208,12 +218,33 @@ class SqliteObjects:
             found = self._load(c, rows)
         return found[0] if found else None
 
+    def delete(self, object_id: str) -> None:
+        with self.engine.begin() as c:
+            c.execute(text("DELETE FROM observations WHERE object_id = :id"), {"id": object_id})
+            c.execute(text("DELETE FROM objects WHERE id = :id"), {"id": object_id})
+
     def save(self, obj: TrackedObject) -> None:
         with self.engine.begin() as c:
             c.execute(
-                text("""INSERT INTO objects (id, home_id, label, aliases) VALUES (:id, :h, :l, :a)
-                              ON CONFLICT(id) DO UPDATE SET label = :l, aliases = :a"""),
-                {"id": obj.id, "h": obj.home_id, "l": obj.label, "a": json.dumps(list(obj.aliases))},
+                text("""INSERT INTO objects (id, home_id, label, aliases, color, size_m, user_name, user_color,
+                                                user_height_m, user_note, confirmed)
+                        VALUES (:id, :h, :l, :a, :color, :size, :un, :uc, :uh, :note, :ok)
+                        ON CONFLICT(id) DO UPDATE SET label = :l, aliases = :a, color = :color, size_m = :size,
+                            user_name = :un, user_color = :uc, user_height_m = :uh, user_note = :note,
+                            confirmed = :ok"""),
+                {
+                    "id": obj.id,
+                    "h": obj.home_id,
+                    "l": obj.label,
+                    "a": json.dumps(list(obj.aliases)),
+                    "color": obj.color,
+                    "size": json.dumps(list(obj.size_m)) if obj.size_m else None,
+                    "un": obj.corrections.name,
+                    "uc": obj.corrections.color,
+                    "uh": obj.corrections.height_m,
+                    "note": obj.corrections.note,
+                    "ok": int(obj.corrections.confirmed),
+                },
             )
             for o in obj.observations:
                 c.execute(

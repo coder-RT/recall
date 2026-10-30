@@ -50,3 +50,6 @@ apps/ios/Recall.xcodeproj/
 apps/ios/build/
 **/.build/
 **/.swiftpm/
+
+# local notes for Rachit, never pushed
+/docs/private/

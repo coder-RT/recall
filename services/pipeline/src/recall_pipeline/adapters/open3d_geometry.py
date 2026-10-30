@@ -30,9 +30,15 @@ class Open3DGeometry:
         o3d.utility.random.seed(seed)  # RANSAC is seeded: same input, same planes
 
     def clean(self, points: np.ndarray) -> np.ndarray:
-        pcd = _pcd(points).voxel_down_sample(self.voxel)
-        pcd, _ = pcd.remove_statistical_outlier(nb_neighbors=self.nb, std_ratio=self.std)
-        return np.asarray(pcd.points)
+        return points[self.clean_indices(points)]
+
+    def clean_indices(self, points: np.ndarray) -> np.ndarray:
+        """Which points survive: one per voxel (the first seen), then Open3D's statistical outlier removal.
+        Indices, so colours and confidence can follow the points."""
+        _, first = np.unique(np.floor(points / self.voxel).astype(np.int64), axis=0, return_index=True)
+        first = np.sort(first)
+        _, inliers = _pcd(points[first]).remove_statistical_outlier(nb_neighbors=self.nb, std_ratio=self.std)
+        return first[np.asarray(inliers, dtype=np.int64)]
 
     def floor_and_walls(self, points: np.ndarray) -> tuple[Plane, list[Plane]]:
         """Points are z-up. Floor: the lowest large near-horizontal plane; walls: near-vertical, largest first."""

@@ -14,6 +14,7 @@ def main(argv: list[str] | None = None) -> int:
     proc.add_argument("episode_dir")
     proc.add_argument("--scan-id", required=True)
     proc.add_argument("--no-post", action="store_true", help="write result.json only; don't post to the API")
+    proc.add_argument("--out", help="where to write the result (default: <episode>/result.json)")
     args = p.parse_args(argv)
     fmt = "%(asctime)s %(levelname)s %(message)s"
     logging.basicConfig(level=logging.INFO, format=fmt, stream=sys.stdout, force=True)
@@ -22,7 +23,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "process":
         from recall_pipeline.adapters.run import process  # heavy imports (torch) only when processing
 
-        return process(args.episode_dir, args.scan_id, post=not args.no_post)
+        return process(args.episode_dir, args.scan_id, post=not args.no_post, out=args.out)
     return 2
 
 

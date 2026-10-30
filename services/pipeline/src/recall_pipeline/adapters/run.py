@@ -24,12 +24,13 @@ def _env() -> dict[str, str]:
     return env
 
 
-def process(episode_dir: str, scan_id: str, post: bool = True) -> int:
+def process(episode_dir: str, scan_id: str, post: bool = True, out: str | None = None) -> int:
     from recall_pipeline.adapters.api_client import ApiResultSink
     from recall_pipeline.adapters.mapanything_local import MapAnythingLocal
     from recall_pipeline.adapters.open3d_geometry import Open3DGeometry
     from recall_pipeline.adapters.rerun_log import NoDebug, RerunDebug
     from recall_pipeline.adapters.sam31_meta_api import Sam31MetaApi
+    from recall_pipeline.adapters.sam_cache import CachedSegmenter
 
     env = _env()
     if not env.get("META_MUSE_API_KEY"):
@@ -44,17 +45,20 @@ def process(episode_dir: str, scan_id: str, post: bool = True) -> int:
         sink = ApiResultSink(env.get("RECALL_API_URL", "http://localhost:8000"), key)
     debug = RerunDebug(f"recall-{scan_id}") if env.get("RERUN") == "1" else NoDebug()
     cfg = PipelineConfig()
+    sam = CachedSegmenter(Sam31MetaApi(env["META_MUSE_API_KEY"]), Path(episode_dir) / "cache" / "sam")
     result = process_episode(
         DiskEpisodeSource(episode_dir),
         MapAnythingLocal(),
-        Sam31MetaApi(env["META_MUSE_API_KEY"]),
+        sam,
         Open3DGeometry(),
         sink,
         debug,
         cfg,
     )
-    out = Path(episode_dir) / "result.json"
-    out.write_text(json.dumps(result, indent=1))
+    result["stats"]["sam_cached"] = sam.hits
+    target = Path(out) if out else Path(episode_dir) / "result.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(result, indent=1))
     print(json.dumps(result["stats"]))
-    print(f"{len(result['landmarks'])} landmarks, {len(result['objects'])} objects -> {out}")
+    print(f"{len(result['landmarks'])} landmarks, {len(result['objects'])} objects -> {target}")
     return 0

@@ -21,6 +21,7 @@ from recall_pipeline.application.ports import (
 from recall_pipeline.domain import home_frame, room_model
 from recall_pipeline.domain.appearance import dominant_color, vote
 from recall_pipeline.domain.lift import lift_box
+from recall_pipeline.domain.merge import Piece, merge
 
 log = logging.getLogger("recall_pipeline")
 
@@ -54,6 +55,14 @@ class PipelineConfig:
     stats: dict = field(default_factory=dict)
 
 
+def _resample(image: np.ndarray, shape: tuple[int, int]) -> np.ndarray:
+    """Nearest-neighbour resize of an (h, w, 3) image to `shape` (the view's output grid)."""
+    h, w = shape
+    rows = (np.arange(h) * image.shape[0] / h).astype(int)
+    cols = (np.arange(w) * image.shape[1] / w).astype(int)
+    return image[rows][:, cols]
+
+
 def _subsample(n: int, k: int) -> list[int]:
     return list(range(n)) if n <= k else [int(round(i)) for i in np.linspace(0, n - 1, k)]
 
@@ -77,7 +86,11 @@ def process_episode(
     t_recon = time.perf_counter() - t0
     log.info("reconstruction done in %.1f s", t_recon)
     world = np.concatenate([v.points[v.valid] for v in views])
-    cloud = geo.clean(world)
+    # each point's photo colour and MapAnything confidence follow it through the clean-up (for the viewer)
+    rgb_all = np.concatenate([_resample(source.image_rgb(v.index), v.valid.shape)[v.valid] for v in views])
+    conf_all = np.concatenate([v.confidence[v.valid] for v in views])
+    keep = geo.clean_indices(world)
+    cloud, cloud_rgb, cloud_conf = world[keep], rgb_all[keep], conf_all[keep]
 
     # planes in ARKit world (y up), then the home frame (z up, floor at 0)
     T_y = home_frame.Y_UP_TO_Z_UP
@@ -126,7 +139,7 @@ def process_episode(
 
     # one thing per cluster of sightings of the same label
     things = {"landmarks": [], "objects": []}
-    furniture_pts: list[tuple[str, np.ndarray]] = []
+    pieces: list[Piece] = []
     for label, seen in sightings.items():
         centers = np.array([c for c, *_ in seen])
         labels = geo.clusters(centers, cfg.cluster_eps, cfg.cluster_min) if len(centers) > 1 else np.zeros(1, int)
@@ -135,23 +148,45 @@ def process_episode(
             pts = np.concatenate([m[3] for m in members])
             lo, hi = np.percentile(pts, 5, axis=0), np.percentile(pts, 95, axis=0)
             best = max(members, key=lambda m: m[1])
-            thing = {
-                "label": label,
-                "centroid": np.round(np.median([m[0] for m in members], axis=0), 3).tolist(),
-                "bbox_min": np.round(lo, 3).tolist(),
-                "bbox_max": np.round(hi, 3).tolist(),
-                "confidence": round(float(np.mean([m[1] for m in members])), 3),
-                "sightings": len(members),
-                "keyframe_index": int(best[2]),
-            }
-            thing["size_m"] = np.round(hi - lo, 3).tolist()
+            score = float(np.mean([m[1] for m in members]))
             if label in cfg.furniture:
-                thing["front_dir"] = None
-                things["landmarks"].append(thing)
-                furniture_pts.append((label, pts))
-            else:
-                thing["color"] = vote([(m[4], m[1]) for m in members])
-                things["objects"].append(thing)
+                pieces.append(Piece(label, lo, hi, score, len(members), int(best[2]), pts))
+                continue
+            things["objects"].append(
+                {
+                    "label": label,
+                    "centroid": np.round(np.median([m[0] for m in members], axis=0), 3).tolist(),
+                    "bbox_min": np.round(lo, 3).tolist(),
+                    "bbox_max": np.round(hi, 3).tolist(),
+                    "size_m": np.round(hi - lo, 3).tolist(),
+                    "confidence": round(score, 3),
+                    "sightings": len(members),
+                    "keyframe_index": int(best[2]),
+                    "color": vote([(m[4], m[1]) for m in members]),
+                }
+            )
+
+    # furniture: "table" and "desk" boxes of one desk, and the parts of one big piece, become one landmark
+    furniture_pts: list[tuple[str, np.ndarray]] = []
+    merged = merge(pieces)
+    log.info("furniture: %d boxes merged into %d", len(pieces), len(merged))
+    for p, names in merged:
+        centroid = np.concatenate([(p.lo[:2] + p.hi[:2]) / 2, [np.median(p.points[:, 2])]])
+        things["landmarks"].append(
+            {
+                "label": p.label,
+                "also_seen_as": names[1:],
+                "centroid": np.round(centroid, 3).tolist(),
+                "bbox_min": np.round(p.lo, 3).tolist(),
+                "bbox_max": np.round(p.hi, 3).tolist(),
+                "size_m": np.round(p.hi - p.lo, 3).tolist(),
+                "confidence": round(p.confidence, 3),
+                "sightings": p.sightings,
+                "keyframe_index": p.keyframe_index,
+                "front_dir": None,
+            }
+        )
+        furniture_pts.append((p.label, p.points))
 
     floor_xy = home_frame.apply(T, home_frame.apply(np.linalg.inv(T_y), floor.inliers))  # back through T_y, then T
     wall_planes = []
@@ -182,6 +217,8 @@ def process_episode(
     )
     if hasattr(source, "save_array"):  # the cloud for route planning, next to the episode (home frame, float16)
         source.save_array("home_cloud.npy", home_cloud.astype(np.float16))
+        source.save_array("home_colors.npy", cloud_rgb.astype(np.uint8))
+        source.save_array("home_conf.npy", cloud_conf.astype(np.float16))
     result = {
         "scan_id": episode.scan_id,
         "room": room,

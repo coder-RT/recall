@@ -9,6 +9,7 @@ struct HomeView: View {
     @State private var askingRoom = false
     @State private var scanningRoom: String?
     @State private var showSettings = false
+    @State private var showReview = false
 
     var body: some View {
         NavigationStack {
@@ -27,6 +28,12 @@ struct HomeView: View {
                     BigButton("Scan a room", systemImage: "viewfinder", hint: "Walk slowly around one room with the phone.") {
                         askingRoom = true
                     }
+                    if model.isConfigured {
+                        BigButton("Check what Recall found", systemImage: "checklist",
+                                  hint: "Fix names, colours or heights the scan was unsure about.", style: .secondary) {
+                            showReview = true
+                        }
+                    }
 
                     Text("Your scans").font(.title2.weight(.bold)).foregroundStyle(Tokens.ink)
                         .accessibilityAddTraits(.isHeader)
@@ -34,7 +41,7 @@ struct HomeView: View {
                         Text("No scans yet.").foregroundStyle(Tokens.muted)
                     }
                     ForEach(model.scans) { scan in
-                        ScanRow(scan: scan)
+                        ScanRow(scan: scan) { showReview = true }
                     }
                 }
                 .padding(20)
@@ -55,6 +62,7 @@ struct HomeView: View {
                 ScanView(room: room.id) { scanningRoom = nil }
             }
             .sheet(isPresented: $showSettings) { SettingsView() }
+            .sheet(isPresented: $showReview) { ReviewView() }
         }
     }
 }
@@ -64,6 +72,7 @@ struct RoomName: Identifiable { let id: String }
 private struct ScanRow: View {
     @Environment(AppModel.self) private var model
     let scan: ScanRecord
+    let review: () -> Void
     @State private var shareURL: URL?
 
     var body: some View {
@@ -82,6 +91,11 @@ private struct ScanRow: View {
                 if scan.uploadPhase == nil || scan.uploadPhase == "failed" {
                     Button(scan.uploadPhase == "failed" ? "Retry upload" : "Upload to the Mac") { model.upload(scan) }
                         .buttonStyle(.borderedProminent).tint(Tokens.cta)
+                        .frame(minHeight: 44)
+                }
+                if scan.uploadPhase == "processed" {
+                    Button("Check what was found", action: review)
+                        .buttonStyle(.borderedProminent).tint(Tokens.blueDark)
                         .frame(minHeight: 44)
                 }
                 if let url = shareURL {

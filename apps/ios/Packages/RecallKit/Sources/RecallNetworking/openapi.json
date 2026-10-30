@@ -362,6 +362,77 @@
                 }
               }
             }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/homes/{home_id}/objects/{object_id}": {
+      "patch": {
+        "tags": [
+          "homes"
+        ],
+        "operationId": "correctObject",
+        "summary": "Fix what a scan was unsure about (name, colour, height, note) or confirm it",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/home_id"
+          },
+          {
+            "$ref": "#/components/parameters/object_id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObjectCorrection"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The object as it is now remembered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectLocation"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "homes"
+        ],
+        "operationId": "removeObject",
+        "summary": "Forget something a scan got wrong",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/home_id"
+          },
+          {
+            "$ref": "#/components/parameters/object_id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Forgotten"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       }
@@ -1089,6 +1160,25 @@
               "type": "number"
             },
             "description": "Unit vector (x, y) the front faces, landmarks only"
+          },
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Basic colour name measured from the photo pixels inside the box (objects only)"
+          },
+          "size_m": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3,
+            "description": "Bounding box x, y, z in metres"
           }
         }
       },
@@ -1135,6 +1225,62 @@
             "type": "object",
             "additionalProperties": true,
             "description": "Measured timings and counts for this run"
+          }
+        }
+      },
+      "ObjectCorrection": {
+        "type": "object",
+        "description": "What the user fixes after a scan. Send only the fields to change; null clears a field back to the measured value. The user's values win over measurements and later scans never overwrite them.",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 40,
+            "description": "The user's own name for it, e.g. work bag"
+          },
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "black",
+              "white",
+              "grey",
+              "red",
+              "orange",
+              "yellow",
+              "green",
+              "blue",
+              "purple",
+              "pink",
+              "brown",
+              "beige",
+              null
+            ]
+          },
+          "height_m": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 3,
+            "description": "Height above the floor in metres"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "confirmed": {
+            "type": "boolean",
+            "description": "The user checked it is right; it then counts as certain"
           }
         }
       },
@@ -1213,6 +1359,32 @@
           },
           "stale": {
             "type": "boolean"
+          },
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Basic colour name: the user's if they set one, else measured from the photo"
+          },
+          "size_m": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3,
+            "description": "Bounding box x, y, z in metres"
+          },
+          "corrections": {
+            "$ref": "#/components/schemas/ObjectCorrection"
+          },
+          "needs_review": {
+            "type": "boolean",
+            "description": "The models were unsure (confidence under 0.7) and the user hasn't confirmed it"
           }
         }
       },
@@ -1381,7 +1553,7 @@
           },
           "path": {
             "type": "array",
-            "description": "Waypoints [x, y] in the home frame for the phone's RouteFollower",
+            "description": "Waypoints [x, y] in the home frame (metres)",
             "items": {
               "type": "array",
               "items": {
@@ -1390,6 +1562,25 @@
               "minItems": 2,
               "maxItems": 2
             }
+          },
+          "path_arkit": {
+            "type": "array",
+            "description": "The same waypoints in the phone's ARKit world as [x, z], for the on-device RouteFollower",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "arrive_say": {
+            "type": "string",
+            "description": "What to say on arrival, e.g. where the object is relative to the person"
+          },
+          "object_label": {
+            "type": "string"
           }
         }
       },
@@ -1537,6 +1728,15 @@
         "schema": {
           "type": "string",
           "pattern": "^[a-z0-9-]{1,64}$"
+        }
+      },
+      "object_id": {
+        "name": "object_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^[a-z]+_[0-9a-f]{1,32}$"
         }
       }
     }

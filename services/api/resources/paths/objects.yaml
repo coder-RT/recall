@@ -14,6 +14,8 @@ objects:
               type: array
               items:
                 $ref: ../schemas/ObjectLocation.yaml
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound
 object:
   patch:
     tags: [homes]

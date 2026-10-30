@@ -103,6 +103,35 @@ final class AppModel {
         await uploader.observe { [weak self] id, progress in
             Task { @MainActor in self?.apply(id, progress) }
         }
+        while !Task.isCancelled {  // the Mac processes scans for a few minutes; ask until each one is done
+            await refreshProcessing()
+            try? await Task.sleep(for: .seconds(10))
+        }
+    }
+
+    private func refreshProcessing() async {
+        guard let api else { return }
+        for scan in scans where scan.uploadPhase == UploadProgress.Phase.processing.rawValue {
+            guard let (status, detail) = try? await api.scanStatus(scanId: scan.id),
+                  let i = scans.firstIndex(where: { $0.id == scan.id }) else { continue }
+            switch status {
+            case .processed:
+                scans[i].uploadPhase = UploadProgress.Phase.processed.rawValue
+                scans[i].uploadDetail = detail
+                save()
+                let objects = (try? await api.objects(homeId: homeId)) ?? []
+                let unsure = objects.filter(\.needsReview).count
+                let found = objects.count == 1 ? "1 thing found" : "\(objects.count) things found"
+                announcer.say("\(scan.room) is ready. \(found)" + (unsure > 0 ? ", \(unsure) to check." : "."))
+            case .failed:
+                scans[i].uploadPhase = UploadProgress.Phase.failed.rawValue
+                scans[i].uploadDetail = detail ?? "The Mac couldn't process this scan."
+                save()
+                announcer.say("Processing failed. The reason is on the scan.")
+            default:
+                break
+            }
+        }
     }
 
     func add(_ record: ScanRecord) {

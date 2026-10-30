@@ -72,3 +72,34 @@ extension AccessibilityTests {
         try audit(app)
     }
 }
+
+@MainActor
+extension AccessibilityTests {
+    /// The review screens against the real API on this Mac: run with TEST_RUNNER_RECALL_DEVICE_KEY set
+    /// (xcodebuild passes it to the test). Only opens screens; never saves.
+    func testReviewScreensPassTheAudit() throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let key = env["RECALL_DEVICE_KEY"], !key.isEmpty else {
+            throw XCTSkip("Needs RECALL_DEVICE_KEY and the API running on this Mac.")
+        }
+        let app = XCUIApplication()
+        app.launch()
+        var pair = URLComponents(string: "recall://pair")!
+        pair.queryItems = [.init(name: "url", value: "http://127.0.0.1:8000"), .init(name: "key", value: key),
+                           .init(name: "home", value: "flat")]
+        app.open(pair.url!)
+        let open = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Open"]
+        if open.waitForExistence(timeout: 3) { open.tap() }  // iOS asks before a link opens an app
+        let check = app.buttons["Check what Recall found"]
+        XCTAssertTrue(check.waitForExistence(timeout: 10))
+        check.tap()
+        XCTAssertTrue(app.staticTexts["Please check"].waitForExistence(timeout: 10) || app.staticTexts["Found"].exists)
+        shot("ios-review")
+        try audit(app)
+        app.scrollViews.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.buttons["Save, it's right"].waitForExistence(timeout: 5))
+        shot("ios-review-edit")
+        try audit(app)
+        app.buttons["Cancel"].tap()
+    }
+}

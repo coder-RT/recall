@@ -83,6 +83,41 @@ public struct RecallAPI: Sendable {
         }
     }
 
+    /// Everything memory holds for a home, with what the user corrected and what still needs checking.
+    public func objects(homeId: String) async throws -> [RememberedObject] {
+        let r = try await client.listObjects(path: .init(homeId: homeId))
+        switch r {
+        case .ok(let ok): return try ok.body.json.map(RememberedObject.init)
+        case .notFound: return []  // no scan of this home processed yet
+        case .undocumented(let code, _): throw APIError.status(code)
+        }
+    }
+
+    /// Sends the user's fixes. A plain request because a correction must be able to send `null` (back to the
+    /// measured value), which the generated client leaves out.
+    public func correct(homeId: String, objectId: String, _ fix: ObjectFix) async throws {
+        var req = URLRequest(url: baseURL.appending(path: "homes/\(homeId)/objects/\(objectId)"))
+        req.httpMethod = "PATCH"
+        req.setValue("Bearer \(deviceKey)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONSerialization.data(withJSONObject: fix.json)
+        let (data, response) = try await URLSession.shared.data(for: req)
+        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard code == 200 else {
+            let detail = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["detail"] as? String
+            throw detail.map { APIError.server($0) } ?? APIError.status(code)
+        }
+    }
+
+    public func remove(homeId: String, objectId: String) async throws {
+        let r = try await client.removeObject(path: .init(homeId: homeId, objectId: objectId))
+        switch r {
+        case .noContent: return
+        case .notFound: throw APIError.server("The Mac doesn't know this object any more.")
+        case .undocumented(let code, _): throw APIError.status(code)
+        }
+    }
+
     /// The part upload as a plain request, for the background URLSession (which needs a request and a file).
     public func partRequest(path: String, sha256: String) -> URLRequest {
         var req = URLRequest(url: path.hasPrefix("http") ? URL(string: path)! : baseURL.appending(path: path))
@@ -140,5 +175,81 @@ struct DeviceKey: ClientMiddleware {
         var request = request
         request.headerFields[.authorization] = "Bearer \(key)"
         return try await next(request, body, baseURL)
+    }
+}
+
+/// One remembered thing as the app shows it.
+public struct RememberedObject: Identifiable, Sendable, Equatable {
+    public let id: String
+    public let label: String
+    public let name: String?
+    public let color: String?
+    public let measuredColor: String?
+    public let heightM: Double
+    public let userHeightM: Double?
+    public let heightBand: String
+    public let landmark: String?
+    public let relation: String?
+    public let sizeCm: [Int]?
+    public let note: String?
+    public let confidence: Double
+    public let confirmed: Bool
+    public let needsReview: Bool
+    public let seenAt: Date
+
+    init(_ o: Components.Schemas.ObjectLocation) {
+        id = o.objectId
+        label = o.label
+        name = o.corrections?.name
+        color = o.color
+        measuredColor = o.corrections?.color == nil ? o.color : nil
+        heightM = o.position.count == 3 ? o.position[2] : 0
+        userHeightM = o.corrections?.heightM
+        heightBand = o.heightBand.rawValue
+        landmark = o.landmark
+        relation = o.relation?.rawValue
+        sizeCm = o.sizeM?.map { Int(($0 * 100).rounded()) }
+        note = o.corrections?.note
+        confidence = o.confidence
+        confirmed = o.corrections?.confirmed ?? false
+        needsReview = o.needsReview ?? false
+        seenAt = o.seenAt
+    }
+
+    /// What VoiceOver and the list say: "blue bag, on the desk, waist height".
+    public var title: String { name ?? [color, label].compactMap { $0 }.joined(separator: " ") }
+    public var place: String {
+        let rel = (relation ?? "near").replacingOccurrences(of: "_", with: " ")
+        let at = landmark.map { "\(rel) the \($0)" } ?? "in the room"
+        return "\(at), \(heightBand) height"
+    }
+}
+
+/// The fields a user changes; `.clear` sends null, which puts the measured value back.
+public struct ObjectFix: Sendable {
+    public enum Value<T: Sendable>: Sendable { case keep, set(T), clear }
+    public var name: Value<String> = .keep
+    public var color: Value<String> = .keep
+    public var heightM: Value<Double> = .keep
+    public var note: Value<String> = .keep
+    public var confirmed: Bool?
+
+    public init() {}
+
+    var json: [String: Any] {
+        var out: [String: Any] = [:]
+        func put<T>(_ key: String, _ v: Value<T>) {
+            switch v {
+            case .keep: break
+            case .set(let x): out[key] = x
+            case .clear: out[key] = NSNull()
+            }
+        }
+        put("name", name)
+        put("color", color)
+        put("height_m", heightM)
+        put("note", note)
+        if let confirmed { out["confirmed"] = confirmed }
+        return out
     }
 }

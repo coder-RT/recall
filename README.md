@@ -164,7 +164,7 @@ All images are our own captures: the landing page, and one real room reconstruct
   6. At most 6 agent steps; on failure, the best grounded partial answer.
 - **The Verifier can only downgrade.** The vision model may turn a result into "uncertain"; only SAM plus geometry can confirm.
 - **Prompt Guard on the door.** Every message from an external agent is screened by Llama Prompt Guard before any tool runs.
-- **Privacy.** Raw walkthrough video and frames are never committed; the sample room is processed output, reviewed for anything personal. Voice clips are sent for transcription and not stored. The phone holds no API keys and talks only to our backend. In local privacy mode the agent runs on the Mac.
+- **Privacy.** Raw walkthrough video and frames are never committed; the sample room is processed output, reviewed for anything personal. Voice clips are sent for transcription and not stored. The phone holds no API keys and talks only to our backend. In local privacy mode the agent runs on the Mac. Vercel Speed Insights: cookieless page-speed measurements, no personal data.
 - **Honesty.** Sample and recorded data are labelled as such in the UI and the docs; the demo shows only what was built.
 - **Rules.** Only Meta models at runtime; no non-Meta model anywhere, and no TTS model of any kind.
 

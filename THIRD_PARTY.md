@@ -41,7 +41,7 @@ Direct dependencies only. Licences below are as published by each project.
 | `@react-three/drei`, `postprocessing` (phase 4 only, not yet added) | Viewer labels, orbit controls, outline effect for the high-contrast toggle | MIT; Zlib. TODO(verify) before adding: https://github.com/pmndrs/drei , https://github.com/pmndrs/postprocessing |
 | GSAP, `@gsap/react` | Scroll storytelling (ScrollTrigger, SplitText, DrawSVG) | Standard "No Charge" GSAP License (Webflow; its own terms, not MIT): free for any website or web app, commercial included, no attribution required, keep its notices intact. https://gsap.com/community/standard-license/ (checked 2026-10-29). Used as an npm dependency, not copied into the repo. |
 | Motion | UI animation | MIT |
-| `@vercel/speed-insights` | Page-speed numbers (Core Web Vitals) on the Vercel deployment; no cookies | Apache-2.0 (package.json of 2.0.0, checked 2026-10-30), https://github.com/vercel/speed-insights |
+| `@vercel/speed-insights` | Page-speed numbers (Core Web Vitals) on the Vercel deployment; no cookies | Apache-2.0 (npm registry, version 2.0.0, checked 2026-10-30), https://www.npmjs.com/package/@vercel/speed-insights |
 
 ### Python (`services/api`, `services/pipeline`)
 

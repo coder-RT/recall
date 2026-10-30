@@ -13,7 +13,7 @@ AUTH = {"Authorization": "Bearer test-key"}
 
 
 def test_upload_parts_manifest_and_complete(tmp_path, monkeypatch):
-    s = Settings(RECALL_DATA_DIR=tmp_path, RECALL_DEVICE_KEY="test-key", pipeline_command="true")
+    s = Settings(RECALL_DATA_DIR=tmp_path, RECALL_DEVICE_KEY="test-key", pipeline_command="true", RECALL_TRACES="off")
     client = TestClient(create_app(s))
     files = {"frames/000000.jpg": b"x" * 3000, "poses.jsonl": b"{}\n"}
     archive = episode_zip(files)

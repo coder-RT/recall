@@ -16,6 +16,10 @@ dependencies = [
   "scipy>=1.14",
   "pyyaml>=6.0",
   "python-multipart>=0.0.12",
+  "opentelemetry-sdk>=1.30",
+  "opentelemetry-exporter-otlp-proto-http>=1.30",
+  "opentelemetry-instrumentation-fastapi>=0.51b0",
+  "opentelemetry-instrumentation-httpx>=0.51b0",
 ]
 
 [project.scripts]

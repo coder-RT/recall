@@ -47,6 +47,7 @@ Direct dependencies only. Licences below are as published by each project.
 | What | Used for | Licence |
 |---|---|---|
 | FastAPI, Uvicorn | HTTP API | MIT; BSD-3-Clause |
+| OpenTelemetry Python (`opentelemetry-sdk`, `-instrumentation-fastapi`, `-instrumentation-httpx`, `-exporter-otlp-proto-http`) | Request and model-call traces | Apache-2.0 (package metadata checked 2026-10-30), https://github.com/open-telemetry/opentelemetry-python |
 | Pydantic, pydantic-settings | Models and config | MIT |
 | SQLAlchemy, Alembic | Database access and migrations | MIT |
 | NumPy, SciPy | 3D maths | BSD-3-Clause |

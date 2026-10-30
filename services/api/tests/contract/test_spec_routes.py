@@ -10,7 +10,7 @@ from recall_api.infra.db import API_ROOT
 def test_spec_and_app_have_the_same_routes(tmp_path):
     spec = json.loads((API_ROOT / "build" / "openapi.json").read_text())
     documented = {(m.upper(), p) for p, ops in spec["paths"].items() for m in ops if m in {"get", "post", "put"}}
-    app = create_app(Settings(RECALL_DATA_DIR=tmp_path))
+    app = create_app(Settings(RECALL_DATA_DIR=tmp_path, RECALL_TRACES="off"))
 
     def walk(routes):  # FastAPI wraps each included router; look inside
         for r in routes:

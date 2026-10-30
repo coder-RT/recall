@@ -34,6 +34,14 @@ class Settings(BaseSettings):
 
     pipeline_command: str = "uv run --project services/pipeline recall-pipeline process"
 
+    log_level: str = Field("INFO", alias="RECALL_LOG_LEVEL")
+    # traces: "file" writes data/logs/traces.jsonl; "otlp" sends to OTEL_EXPORTER_OTLP_ENDPOINT; "off" for tests
+    traces: Literal["file", "otlp", "off"] = Field("file", alias="RECALL_TRACES")
+
+    @property
+    def log_dir(self) -> Path:
+        return self.data_dir / "logs"
+
     @property
     def db_url(self) -> str:
         return (

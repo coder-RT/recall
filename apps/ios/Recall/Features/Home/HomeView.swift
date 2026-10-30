@@ -16,8 +16,8 @@ struct HomeView: View {
                     Text("Recall remembers where you put things, and walks you back to them.")
                         .font(.title3).foregroundStyle(Tokens.muted)
 
-                    if !model.isConfigured {
-                        Label("Add your Mac's address and device key in Settings before uploading.", systemImage: "exclamationmark.circle")
+                    if let problem = model.setupProblem {
+                        Label(problem, systemImage: "exclamationmark.circle")
                             .font(.body).foregroundStyle(Tokens.ink)
                             .padding(14).frame(maxWidth: .infinity, alignment: .leading)
                             .background(Tokens.bluePale, in: RoundedRectangle(cornerRadius: 12))

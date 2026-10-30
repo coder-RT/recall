@@ -24,7 +24,14 @@ final class AppModel {
     static let sharedUploader = Uploader()
 
     var scans: [ScanRecord] = []
-    var serverURL: String { didSet { UserDefaults.standard.set(serverURL, forKey: "serverURL") } }
+    var serverURL: String {
+        didSet {
+            // Return in the multi-line field would add a newline; an address never has one
+            let clean = serverURL.filter { !$0.isNewline }
+            if clean != serverURL { serverURL = clean }
+            UserDefaults.standard.set(serverURL, forKey: "serverURL")
+        }
+    }
     var homeId: String { didSet { UserDefaults.standard.set(homeId, forKey: "homeId") } }
     var deviceKey: String { didSet { Keychain.write(deviceKey, account: "deviceKey") } }
 
@@ -40,10 +47,31 @@ final class AppModel {
 
     var isConfigured: Bool { api != nil }
 
+    /// The address as typed, tolerant of spaces and a missing "http://".
+    var baseURL: URL? {
+        let text = serverURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return nil }
+        let full = text.contains("://") ? text : "http://\(text)"
+        guard let url = URL(string: full), url.scheme?.hasPrefix("http") == true, url.host() != nil else { return nil }
+        return url
+    }
+
+    /// The key without the spaces or newline a paste can bring along.
+    var cleanKey: String { deviceKey.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    /// What is still missing, in words, or nil when uploads can start.
+    var setupProblem: String? {
+        switch (baseURL, cleanKey.isEmpty) {
+        case (nil, true): return "Add your Mac's address and device key in Settings before uploading."
+        case (nil, false): return "The Mac address in Settings isn't valid. It looks like 192.168.0.25:8000."
+        case (_, true): return "Add the device key in Settings before uploading."
+        default: return nil
+        }
+    }
+
     var api: RecallAPI? {
-        guard let url = URL(string: serverURL.trimmingCharacters(in: .whitespaces)), url.scheme?.hasPrefix("http") == true,
-              !deviceKey.isEmpty else { return nil }
-        return RecallAPI(baseURL: url, deviceKey: deviceKey)
+        guard let url = baseURL, !cleanKey.isEmpty else { return nil }
+        return RecallAPI(baseURL: url, deviceKey: cleanKey)
     }
 
     static var episodesDir: URL {
@@ -69,7 +97,7 @@ final class AppModel {
 
     func upload(_ record: ScanRecord) {
         guard let api else {
-            announcer.say("Set the Mac's address and device key in Settings first.")
+            announcer.say(setupProblem ?? "Check Settings first.")
             return
         }
         let dir = episodeDir(record.id)

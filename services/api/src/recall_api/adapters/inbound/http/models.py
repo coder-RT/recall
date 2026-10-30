@@ -2,64 +2,44 @@
 #   filename:  openapi.json
 
 from __future__ import annotations
-
 from enum import Enum, StrEnum
 from typing import Annotated, Any, Literal
-from uuid import UUID
-
 from pydantic import AwareDatetime, BaseModel, Field, RootModel
+from uuid import UUID
 
 
 class Status(StrEnum):
-    ok = 'ok'
+    ok = "ok"
 
 
 class Storage(StrEnum):
-    local = 'local'
-    r2 = 'r2'
+    local = "local"
+    r2 = "r2"
 
 
 class Health(BaseModel):
     status: Status
-    llm_provider: Annotated[
-        str, Field(description='Which Guide provider is configured')
-    ]
+    llm_provider: Annotated[str, Field(description="Which Guide provider is configured")]
     storage: Storage
 
 
 class Archive(BaseModel):
-    size: Annotated[
-        int, Field(description='Bytes; episodes stay under 200 MB', ge=1, le=209715200)
-    ]
-    sha256: Annotated[str, Field(pattern='^[0-9a-f]{64}$')]
-    part_size: Annotated[int, Field(description='About 8 MB', ge=5242880, le=67108864)]
+    size: Annotated[int, Field(description="Bytes; episodes stay under 200 MB", ge=1, le=209715200)]
+    sha256: Annotated[str, Field(pattern="^[0-9a-f]{64}$")]
+    part_size: Annotated[int, Field(description="About 8 MB", ge=5242880, le=67108864)]
 
 
 class ScanCreate(BaseModel):
     scan_id: UUID
-    home_id: Annotated[str, Field(pattern='^[a-z0-9-]{1,64}$')]
-    room: Annotated[
-        str,
-        Field(
-            description='Room name the user gave, e.g. "Living room"',
-            max_length=60,
-            min_length=1,
-        ),
-    ]
+    home_id: Annotated[str, Field(pattern="^[a-z0-9-]{1,64}$")]
+    room: Annotated[str, Field(description='Room name the user gave, e.g. "Living room"', max_length=60, min_length=1)]
     archive: Archive
 
 
 class Part(BaseModel):
     number: Annotated[int, Field(ge=1)]
-    url: Annotated[
-        str,
-        Field(
-            description='Where to PUT this part (relative to the API base, or absolute for R2)'
-        ),
-    ]
-    received: Annotated[
-        bool, Field(description='Already stored; skip it when resuming')
-    ]
+    url: Annotated[str, Field(description="Where to PUT this part (relative to the API base, or absolute for R2)")]
+    received: Annotated[bool, Field(description="Already stored; skip it when resuming")]
 
 
 class UploadPlan(BaseModel):
@@ -71,18 +51,16 @@ class UploadPlan(BaseModel):
 
 
 class Error(BaseModel):
-    error: Annotated[str, Field(description='Machine-readable code')]
-    detail: Annotated[
-        str | None, Field(description='One plain sentence for a person')
-    ] = None
+    error: Annotated[str, Field(description="Machine-readable code")]
+    detail: Annotated[str | None, Field(description="One plain sentence for a person")] = None
 
 
 class Status1(StrEnum):
-    uploading = 'uploading'
-    uploaded = 'uploaded'
-    processing = 'processing'
-    processed = 'processed'
-    failed = 'failed'
+    uploading = "uploading"
+    uploaded = "uploaded"
+    processing = "processing"
+    processed = "processed"
+    failed = "failed"
 
 
 class Scan(BaseModel):
@@ -90,9 +68,7 @@ class Scan(BaseModel):
     home_id: str
     room: str
     status: Status1
-    detail: Annotated[
-        str | None, Field(description='Why it failed, in one sentence')
-    ] = None
+    detail: Annotated[str | None, Field(description="Why it failed, in one sentence")] = None
     frame_count: int | None = None
     object_count: int | None = None
 
@@ -104,16 +80,13 @@ class PartReceipt(BaseModel):
 
 
 class Grade(StrEnum):
-    good = 'good'
-    usable = 'usable'
-    redo = 'redo'
+    good = "good"
+    usable = "usable"
+    redo = "redo"
 
 
 class CaptureMetrics(BaseModel):
-    directions_covered: Annotated[
-        int,
-        Field(description='Camera headings in 12 sectors of 30 degrees', ge=0, le=12),
-    ]
+    directions_covered: Annotated[int, Field(description="Camera headings in 12 sectors of 30 degrees", ge=0, le=12)]
     keyframes_kept: int
     keyframes_dropped_blurry: int
     tracking_normal_ratio: Annotated[float, Field(ge=0.0, le=1.0)]
@@ -133,8 +106,8 @@ class Image(BaseModel):
 class Depth(BaseModel):
     width: int
     height: int
-    unit: Literal['mm']
-    encoding: Literal['png16']
+    unit: Literal["mm"]
+    encoding: Literal["png16"]
 
 
 class Intrinsics(BaseModel):
@@ -147,13 +120,13 @@ class Intrinsics(BaseModel):
 class File(BaseModel):
     path: str
     size: int
-    sha256: Annotated[str, Field(pattern='^[0-9a-f]{64}$')]
+    sha256: Annotated[str, Field(pattern="^[0-9a-f]{64}$")]
 
 
 class Manifest(BaseModel):
     scan_id: UUID
-    format: Literal['recall-episode/1']
-    device: Annotated[str, Field(description='Hardware model, e.g. iPhone17,1')]
+    format: Literal["recall-episode/1"]
+    device: Annotated[str, Field(description="Hardware model, e.g. iPhone17,1")]
     app_version: str
     created_at: AwareDatetime
     duration_s: Annotated[float, Field(ge=0.0)]
@@ -162,16 +135,10 @@ class Manifest(BaseModel):
     depth: Depth
     intrinsics: Annotated[
         Intrinsics,
-        Field(
-            description="Pinhole intrinsics for the SAVED frame size (scaled from ARKit's full camera image)"
-        ),
+        Field(description="Pinhole intrinsics for the SAVED frame size (scaled from ARKit's full camera image)"),
     ]
-    world_map: Annotated[
-        str | None, Field(description='Relative path of the saved ARWorldMap, if any')
-    ] = None
-    files: Annotated[
-        list[File], Field(description='Every file in the episode with its SHA-256')
-    ]
+    world_map: Annotated[str | None, Field(description="Relative path of the saved ARWorldMap, if any")] = None
+    files: Annotated[list[File], Field(description="Every file in the episode with its SHA-256")]
     capture_metrics: CaptureMetrics
 
 
@@ -198,16 +165,11 @@ class Furniture(BaseModel):
 class RoomModel(BaseModel):
     floor_polygon: Annotated[
         list[FloorPolygonItem],
-        Field(
-            description='Closed outline of the floor, [x, y] vertices, counter-clockwise',
-            min_length=3,
-        ),
+        Field(description="Closed outline of the floor, [x, y] vertices, counter-clockwise", min_length=3),
     ]
     walls: list[Wall]
     furniture: list[Furniture]
-    height_m: Annotated[
-        float, Field(description='Floor to ceiling, or the tallest wall seen')
-    ]
+    height_m: Annotated[float, Field(description="Floor to ceiling, or the tallest wall seen")]
 
 
 class DetectedThing(BaseModel):
@@ -216,11 +178,10 @@ class DetectedThing(BaseModel):
     bbox_min: Annotated[list[float], Field(max_length=3, min_length=3)]
     bbox_max: Annotated[list[float], Field(max_length=3, min_length=3)]
     confidence: Annotated[float, Field(ge=0.0, le=1.0)]
-    sightings: Annotated[int, Field(description='Frames that saw it', ge=1)]
-    keyframe_index: Annotated[int | None, Field(description='The best frame')] = None
+    sightings: Annotated[int, Field(description="Frames that saw it", ge=1)]
+    keyframe_index: Annotated[int | None, Field(description="The best frame")] = None
     front_dir: Annotated[
-        list[float] | None,
-        Field(description='Unit vector (x, y) the front faces, landmarks only'),
+        list[float] | None, Field(description="Unit vector (x, y) the front faces, landmarks only")
     ] = None
 
 
@@ -237,24 +198,22 @@ class ScanResult(BaseModel):
             min_length=16,
         ),
     ] = None
-    stats: Annotated[
-        dict[str, Any], Field(description='Measured timings and counts for this run')
-    ]
+    stats: Annotated[dict[str, Any], Field(description="Measured timings and counts for this run")]
 
 
 class HeightBand(StrEnum):
-    floor = 'floor'
-    knee = 'knee'
-    waist = 'waist'
-    chest = 'chest'
-    head = 'head'
+    floor = "floor"
+    knee = "knee"
+    waist = "waist"
+    chest = "chest"
+    head = "head"
 
 
 class Relation(Enum):
-    on = 'on'
-    left_of = 'left_of'
-    right_of = 'right_of'
-    near = 'near'
+    on = "on"
+    left_of = "left_of"
+    right_of = "right_of"
+    near = "near"
     NoneType_None = None
 
 
@@ -275,25 +234,17 @@ class ObjectLocation(BaseModel):
 class AskRequest(BaseModel):
     home_id: str
     question: Annotated[str, Field(max_length=300, min_length=1)]
-    session_id: Annotated[
-        str | None,
-        Field(description='A guidance session, if the user is already being guided'),
-    ] = None
+    session_id: Annotated[str | None, Field(description="A guidance session, if the user is already being guided")] = (
+        None
+    )
 
 
 class Answer(BaseModel):
-    text: Annotated[str, Field(description='One or two short sentences to speak')]
-    grounded: Annotated[
-        bool,
-        Field(
-            description='Every place, distance and time in the text came from a tool'
-        ),
-    ]
+    text: Annotated[str, Field(description="One or two short sentences to speak")]
+    grounded: Annotated[bool, Field(description="Every place, distance and time in the text came from a tool")]
     object_id: str | None = None
     tool_calls: int | None = None
-    model: Annotated[
-        str | None, Field(description='The Meta model that phrased it')
-    ] = None
+    model: Annotated[str | None, Field(description="The Meta model that phrased it")] = None
     latency_ms: int | None = None
 
 
@@ -302,9 +253,9 @@ class Pose(BaseModel):
 
 
 class Tracking(StrEnum):
-    normal = 'normal'
-    limited = 'limited'
-    not_available = 'not_available'
+    normal = "normal"
+    limited = "limited"
+    not_available = "not_available"
 
 
 class GuidanceRequest(BaseModel):
@@ -315,18 +266,15 @@ class GuidanceRequest(BaseModel):
 
 
 class RouteStep(BaseModel):
-    clock: Annotated[
-        int,
-        Field(description='Turn as a clock face; 12 is straight ahead', ge=1, le=12),
-    ]
+    clock: Annotated[int, Field(description="Turn as a clock face; 12 is straight ahead", ge=1, le=12)]
     metres: float
     say: str
     waypoint: Annotated[list[float] | None, Field(max_length=2, min_length=2)] = None
 
 
 class Mode(StrEnum):
-    route = 'route'
-    landmarks = 'landmarks'
+    route = "route"
+    landmarks = "landmarks"
 
 
 class PathItem(RootModel[list[float]]):
@@ -335,35 +283,25 @@ class PathItem(RootModel[list[float]]):
 
 class GuidanceSession(BaseModel):
     session_id: str
-    mode: Annotated[
-        Mode,
-        Field(
-            description='landmarks when tracking is limited or there is no safe path'
-        ),
-    ]
+    mode: Annotated[Mode, Field(description="landmarks when tracking is limited or there is no safe path")]
     reason: str | None = None
     steps: list[RouteStep]
     path: Annotated[
-        list[PathItem] | None,
-        Field(
-            description="Waypoints [x, y] in the home frame for the phone's RouteFollower"
-        ),
+        list[PathItem] | None, Field(description="Waypoints [x, y] in the home frame for the phone's RouteFollower")
     ] = None
 
 
 class VerificationRequest(BaseModel):
-    image: Annotated[bytes, Field(description='JPEG arrival frame')]
-    depth: Annotated[bytes, Field(description='16-bit PNG depth in mm')]
-    pose: Annotated[
-        str, Field(description="JSON PoseRecord with the frame's intrinsics")
-    ]
+    image: Annotated[bytes, Field(description="JPEG arrival frame")]
+    depth: Annotated[bytes, Field(description="16-bit PNG depth in mm")]
+    pose: Annotated[str, Field(description="JSON PoseRecord with the frame's intrinsics")]
 
 
 class Outcome(StrEnum):
-    confirmed = 'confirmed'
-    found_nearby = 'found_nearby'
-    uncertain = 'uncertain'
-    not_here = 'not_here'
+    confirmed = "confirmed"
+    found_nearby = "found_nearby"
+    uncertain = "uncertain"
+    not_here = "not_here"
 
 
 class VerificationResult(BaseModel):

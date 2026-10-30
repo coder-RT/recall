@@ -24,8 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # add `python` once services/ (API and pipeline) is in the repo; CodeQL fails a language with no source
-        language: [javascript-typescript]
+        language: [python, javascript-typescript]
     steps:
       - uses: actions/checkout@v4
       - uses: github/codeql-action/init@v3

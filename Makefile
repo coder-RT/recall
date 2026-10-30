@@ -5,7 +5,7 @@ PIPE := services/pipeline
 WEB := apps/web
 REDOCLY := npx -y @redocly/cli@2.72.1
 
-.PHONY: help setup dev live demo probes rerun test lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
+.PHONY: help setup dev live demo probes pair rerun test lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -29,6 +29,9 @@ demo: ## Replay recordings of real runs (samples/replay/); none exist until a re
 
 probes: ## One real call per Meta model or service; appends results to docs/verification.md (never in CI)
 	cd $(API) && uv run python ../../scripts/probes/run.py
+
+pair: ## Pairing QR code for the iPhone: make pair URL=https://<mac>.ts.net:8445 [HOME_ID=flat]
+	swift scripts/pair.swift "$(URL)" "$(or $(HOME_ID),flat)"
 
 rerun: ## Replay a stored episode into the Rerun viewer: make rerun EPISODE=<path>
 	@test -n "$(EPISODE)" || (echo "usage: make rerun EPISODE=<path to an episode folder>"; exit 2)

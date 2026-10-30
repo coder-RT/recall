@@ -74,6 +74,21 @@ final class AppModel {
         return RecallAPI(baseURL: url, deviceKey: cleanKey)
     }
 
+    /// Settings from the Mac's pairing QR code (make pair): recall://pair?url=…&key=…&home=…
+    func pair(with link: URL) {
+        guard link.scheme == "recall", link.host() == "pair",
+              let items = URLComponents(url: link, resolvingAgainstBaseURL: false)?.queryItems else { return }
+        let value = { (name: String) in items.first { $0.name == name }?.value?.trimmingCharacters(in: .whitespacesAndNewlines) }
+        guard let url = value("url"), let key = value("key"), !url.isEmpty, !key.isEmpty else {
+            announcer.say("That pairing code is incomplete. Run make pair on the Mac again.")
+            return
+        }
+        serverURL = url
+        deviceKey = key
+        if let home = value("home"), !home.isEmpty { homeId = home }
+        announcer.say(setupProblem == nil ? "Paired with the Mac. Open Settings and test the connection." : setupProblem!)
+    }
+
     static var episodesDir: URL {
         let dir = URL.applicationSupportDirectory.appending(path: "Episodes")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

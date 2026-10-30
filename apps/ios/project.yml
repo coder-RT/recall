@@ -54,6 +54,9 @@ targets:
         NSLocalNetworkUsageDescription: "Recall sends your scans to your own Mac on this network."
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+        CFBundleURLTypes:
+          - CFBundleURLName: com.rachitthariani.recall.pair
+            CFBundleURLSchemes: [recall]
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
   RecallUITests:

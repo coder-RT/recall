@@ -14,6 +14,7 @@ struct RecallApp: App {
                 .environment(model)
                 .tint(Tokens.blueDark)
                 .task { await model.start() }
+                .onOpenURL { model.pair(with: $0) }
         }
     }
 }

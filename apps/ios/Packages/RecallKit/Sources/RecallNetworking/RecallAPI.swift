@@ -11,9 +11,14 @@ public struct RecallAPI: Sendable {
     let client: Client
 
     public init(baseURL: URL, deviceKey: String) {
+        self.init(baseURL: baseURL, deviceKey: deviceKey, transport: URLSessionTransport())
+    }
+
+    init(baseURL: URL, deviceKey: String, transport: any ClientTransport) {
         self.baseURL = baseURL
         self.deviceKey = deviceKey
-        client = Client(serverURL: baseURL, transport: URLSessionTransport(), middlewares: [DeviceKey(key: deviceKey)])
+        client = Client(serverURL: baseURL, configuration: .init(dateTranscoder: RFC3339Dates()),
+                        transport: transport, middlewares: [DeviceKey(key: deviceKey)])
     }
 
     public struct Plan: Sendable {
@@ -164,6 +169,25 @@ extension APIError {
         default:
             return "\(url.localizedDescription) (Error \(url.code.rawValue))"
         }
+    }
+}
+
+/// RFC 3339 times with or without fractional seconds: the Mac sends `2026-10-30T03:21:01.123632Z`, which the
+/// runtime's default (no fractions) refuses.
+struct RFC3339Dates: DateTranscoder {
+    func encode(_ date: Date) throws -> String { Self.formatter(fractions: false).string(from: date) }
+
+    func decode(_ text: String) throws -> Date {
+        for fractions in [true, false] {
+            if let date = Self.formatter(fractions: fractions).date(from: text) { return date }
+        }
+        throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Not an RFC 3339 time: \(text)"))
+    }
+
+    private static func formatter(fractions: Bool) -> ISO8601DateFormatter {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = fractions ? [.withInternetDateTime, .withFractionalSeconds] : [.withInternetDateTime]
+        return f
     }
 }
 

@@ -33,6 +33,11 @@ let package = Package(
         .target(name: "RecallVoice", dependencies: ["RecallDomain"]),
         .target(name: "RecallDesign", dependencies: ["RecallDomain"]),
         .testTarget(name: "RecallDomainTests", dependencies: ["RecallDomain"]),
+        .testTarget(name: "RecallNetworkingTests", dependencies: [
+            "RecallNetworking",
+            .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
+            .product(name: "HTTPTypes", package: "swift-http-types"),
+        ]),
     ],
     swiftLanguageModes: [.v6]
 )

@@ -1,6 +1,7 @@
 """Alembic environment: plain SQL revisions against the SQLite memory store."""
 
 from alembic import context
+
 from recall_api.config.settings import Settings
 from recall_api.infra.db import make_engine
 

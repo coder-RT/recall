@@ -7,16 +7,6 @@ from .deps import not_implemented, require_device_key
 router = APIRouter(dependencies=[Depends(require_device_key)])
 
 
-@router.get("/homes/{home_id}/room", tags=["homes"])
-def get_room(home_id: str):
-    raise not_implemented("The room model")
-
-
-@router.get("/homes/{home_id}/objects", tags=["homes"])
-def list_objects(home_id: str):
-    raise not_implemented("The object list")
-
-
 @router.post("/ask", tags=["ask"])
 def ask():
     raise not_implemented("The Guide agent")

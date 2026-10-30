@@ -8,11 +8,13 @@ from functools import cached_property
 from recall_api.adapters.outbound.persistence.sqlite import SqliteHomes, SqliteObjects, SqliteScans
 from recall_api.adapters.outbound.storage.local_disk import LocalDiskBlobStore
 from recall_api.adapters.outbound.storage.zip_unpacker import ZipEpisodeUnpacker
+from recall_api.application.ingest_scan import IngestScan
 from recall_api.application.upload_scan import UploadScan
 from recall_api.config.settings import REPO_ROOT, Settings
 from recall_api.infra.clock import SystemClock
 from recall_api.infra.db import make_engine, migrate
 from recall_api.infra.pipeline_trigger import SubprocessPipelineTrigger
+from recall_api.util.ids import new_id
 
 
 @dataclass
@@ -51,3 +53,7 @@ class Container:
     def upload_scan(self) -> UploadScan:
         trigger = SubprocessPipelineTrigger(self.settings.pipeline_command, REPO_ROOT, self.settings.data_dir / "logs")
         return UploadScan(self.scans, self.homes, self.blobs, ZipEpisodeUnpacker(self.blobs), trigger, self.clock)
+
+    @cached_property
+    def ingest_scan(self) -> IngestScan:
+        return IngestScan(self.scans, self.homes, self.objects, self.clock, new_id)

@@ -6,10 +6,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
+from recall_api.application.ingest_scan import IngestError
 from recall_api.application.upload_scan import UploadError
 from recall_api.domain.memory import Scan as ScanEntity
 
-from .deps import container, not_implemented, require_device_key
+from .deps import container, require_device_key
 from .models import Manifest, Part, PartReceipt, Scan, ScanCreate, ScanResult, UploadPlan
 
 router = APIRouter(tags=["scans"], dependencies=[Depends(require_device_key)])
@@ -89,5 +90,8 @@ def complete(scan_id: str, c=Depends(container)) -> Scan:
 
 
 @router.post("/scans/{scan_id}/results", response_model=Scan)
-def post_results(scan_id: str, body: ScanResult) -> Scan:
-    raise not_implemented("Ingesting pipeline results")
+def post_results(scan_id: str, body: ScanResult, c=Depends(container)) -> Scan:
+    try:
+        return _scan(c.ingest_scan(scan_id, body.model_dump(mode="json")))
+    except IngestError as e:
+        raise HTTPException(e.status, {"error": e.code, "detail": str(e)}) from e

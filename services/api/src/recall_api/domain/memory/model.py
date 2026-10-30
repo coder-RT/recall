@@ -1,0 +1,170 @@
+"""Entities and value objects of the memory. Home frame: metres, floor z = 0, z up."""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import StrEnum
+
+
+@dataclass(frozen=True)
+class Position:
+    x: float
+    y: float
+    z: float
+
+    def distance_to(self, other: Position) -> float:
+        return math.dist((self.x, self.y, self.z), (other.x, other.y, other.z))
+
+    def as_tuple(self) -> tuple[float, float, float]:
+        return (self.x, self.y, self.z)
+
+
+@dataclass(frozen=True)
+class Pose:
+    """ARKit camera-to-world, column-major 4x4 as 16 numbers."""
+
+    matrix: tuple[float, ...]
+
+    def __post_init__(self) -> None:
+        if len(self.matrix) != 16:
+            raise ValueError("a pose has 16 numbers")
+
+    @property
+    def position(self) -> Position:
+        m = self.matrix  # column-major: translation is elements 12, 13, 14
+        return Position(m[12], m[13], m[14])
+
+    @property
+    def forward_xy(self) -> tuple[float, float]:
+        """Unit heading on the floor plane; ARKit's camera looks along −Z (third column)."""
+        fx, fy = -self.matrix[8], -self.matrix[9]
+        n = math.hypot(fx, fy) or 1.0
+        return (fx / n, fy / n)
+
+
+@dataclass(frozen=True)
+class BBox:
+    lo: Position
+    hi: Position
+
+    @property
+    def top_z(self) -> float:
+        return self.hi.z
+
+    def contains_xy(self, p: Position, margin: float = 0.0) -> bool:
+        return self.lo.x - margin <= p.x <= self.hi.x + margin and self.lo.y - margin <= p.y <= self.hi.y + margin
+
+
+@dataclass(frozen=True)
+class WallSegment:
+    start: tuple[float, float]
+    end: tuple[float, float]
+    height_m: float
+
+
+@dataclass(frozen=True)
+class FurnitureFootprint:
+    label: str
+    footprint: tuple[tuple[float, float], ...]
+    top_z: float
+
+
+@dataclass(frozen=True)
+class RoomModel:
+    floor_polygon: tuple[tuple[float, float], ...]
+    walls: tuple[WallSegment, ...]
+    furniture: tuple[FurnitureFootprint, ...]
+    height_m: float
+
+
+@dataclass
+class Landmark:
+    id: str
+    label: str
+    bbox: BBox
+    centroid: Position
+    room: str | None = None
+    front_dir: tuple[float, float] | None = None
+
+
+@dataclass
+class Observation:
+    id: str
+    object_id: str
+    scan_id: str
+    seen_at: datetime
+    position: Position
+    confidence: float
+    keyframe_index: int | None = None
+    stale: bool = False
+
+
+@dataclass
+class TrackedObject:
+    """Aggregate: one thing in the home and every time it was seen."""
+
+    id: str
+    home_id: str
+    label: str
+    aliases: tuple[str, ...] = ()
+    observations: list[Observation] = field(default_factory=list)
+
+    def last_seen(self, min_confidence: float = 0.5) -> Observation | None:
+        fresh = [o for o in self.observations if not o.stale and o.confidence >= min_confidence]
+        return max(fresh, key=lambda o: o.seen_at, default=None)
+
+    def matches(self, name: str) -> bool:
+        n = name.strip().lower()
+        names = {self.label.lower(), *(a.lower() for a in self.aliases)}
+        singular = n[:-1] if n.endswith("s") else n
+        return n in names or singular in names or any(singular in x or x in n for x in names if len(x) >= 3)
+
+
+class ScanStatus(StrEnum):
+    UPLOADING = "uploading"
+    UPLOADED = "uploaded"
+    PROCESSING = "processing"
+    PROCESSED = "processed"
+    FAILED = "failed"
+
+
+@dataclass
+class Scan:
+    """Aggregate: one walkthrough episode, from upload to ingested results."""
+
+    id: str
+    home_id: str
+    room: str
+    status: ScanStatus
+    archive_size: int
+    archive_sha256: str
+    part_size: int
+    created_at: datetime
+    detail: str | None = None
+    frame_count: int | None = None
+    object_count: int | None = None
+    transform_to_home: tuple[float, ...] | None = None
+
+    @property
+    def part_count(self) -> int:
+        return max(1, math.ceil(self.archive_size / self.part_size))
+
+    def expected_part_size(self, number: int) -> int:
+        if not 1 <= number <= self.part_count:
+            raise ValueError(f"part {number} is outside 1..{self.part_count}")
+        if number < self.part_count:
+            return self.part_size
+        return self.archive_size - self.part_size * (self.part_count - 1)
+
+
+@dataclass
+class Home:
+    """Aggregate: the floor plane, the room model and the landmarks."""
+
+    id: str
+    name: str
+    room_model: RoomModel | None = None
+    landmarks: list[Landmark] = field(default_factory=list)
+    first_scan_id: str | None = None

@@ -1,0 +1,15 @@
+# Thresholds for spatial relations and navigation (metres). Tuned on real scans; see docs/verification.md.
+height_bands: [0.3, 0.7, 1.1, 1.5]   # floor < 0.3 <= knee < 0.7 <= waist < 1.1 <= chest < 1.5 <= head
+on_tolerance_m: 0.05
+near_radius_m: 1.5
+shelf_gap_m: 0.15
+min_confidence: 0.5
+moved_threshold_m: 0.30
+navigation:
+  cell_m: 0.10
+  obstacle_min_z: 0.10
+  obstacle_max_z: 1.80
+  body_radius_m: 0.30
+  clearance_weight: 2.0
+  replan_off_path_m: 1.0
+  arrival_radius_m: 0.5

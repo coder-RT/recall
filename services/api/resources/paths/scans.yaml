@@ -1,0 +1,135 @@
+scans:
+  post:
+    tags: [scans]
+    operationId: createScan
+    summary: Start a resumable upload of one episode archive
+    description: >
+      The phone creates the scan id, so retries are idempotent: posting the same id again returns the same upload plan
+      and the parts already received. The archive is split into parts of `part_size` bytes (the last may be shorter).
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/ScanCreate.yaml
+    responses:
+      "200":
+        description: Upload plan
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/UploadPlan.yaml
+      "422":
+        $ref: ../schemas/Responses.yaml#/Invalid
+scan:
+  get:
+    tags: [scans]
+    operationId: getScan
+    summary: Upload and processing status of one scan
+    parameters:
+      - $ref: ../schemas/Params.yaml#/scan_id
+    responses:
+      "200":
+        description: Scan status
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/Scan.yaml
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound
+part:
+  put:
+    tags: [scans]
+    operationId: putScanPart
+    summary: Upload one part of the archive
+    parameters:
+      - $ref: ../schemas/Params.yaml#/scan_id
+      - name: part_number
+        in: path
+        required: true
+        schema: {type: integer, minimum: 1}
+      - name: X-Content-SHA256
+        in: header
+        required: true
+        description: Lowercase hex SHA-256 of the part body
+        schema: {type: string, pattern: "^[0-9a-f]{64}$"}
+    requestBody:
+      required: true
+      content:
+        application/octet-stream:
+          schema: {type: string, format: binary}
+    responses:
+      "200":
+        description: Part stored
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/PartReceipt.yaml
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound
+      "422":
+        $ref: ../schemas/Responses.yaml#/Invalid
+manifest:
+  put:
+    tags: [scans]
+    operationId: putScanManifest
+    summary: Upload the episode manifest, after every part
+    parameters:
+      - $ref: ../schemas/Params.yaml#/scan_id
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/Manifest.yaml
+    responses:
+      "200":
+        description: Manifest stored
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/Scan.yaml
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound
+      "422":
+        $ref: ../schemas/Responses.yaml#/Invalid
+complete:
+  post:
+    tags: [scans]
+    operationId: completeScan
+    summary: Verify the archive and every file against the manifest, then start the pipeline
+    parameters:
+      - $ref: ../schemas/Params.yaml#/scan_id
+    responses:
+      "200":
+        description: Accepted; processing started
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/Scan.yaml
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound
+      "409":
+        $ref: ../schemas/Responses.yaml#/Conflict
+results:
+  post:
+    tags: [scans]
+    operationId: postScanResults
+    summary: The pipeline posts its results; the API is the only writer of memory
+    parameters:
+      - $ref: ../schemas/Params.yaml#/scan_id
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/ScanResult.yaml
+    responses:
+      "200":
+        description: Ingested
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/Scan.yaml
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound

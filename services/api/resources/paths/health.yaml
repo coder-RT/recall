@@ -1,0 +1,13 @@
+health:
+  get:
+    tags: [health]
+    operationId: getHealth
+    security: []
+    summary: Liveness and which providers are configured (never their keys)
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/Health.yaml

@@ -1,0 +1,16 @@
+objects:
+  get:
+    tags: [homes]
+    operationId: listObjects
+    summary: Every remembered object with its last confident sighting
+    parameters:
+      - $ref: ../schemas/Params.yaml#/home_id
+    responses:
+      "200":
+        description: Objects
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../schemas/ObjectLocation.yaml

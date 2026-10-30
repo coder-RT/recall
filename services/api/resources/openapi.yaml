@@ -1,0 +1,61 @@
+openapi: 3.1.0
+info:
+  title: Recall API
+  version: 0.1.0
+  summary: Voice-first 3D memory of a home. Spec-first source of truth.
+  license:
+    name: Apache-2.0
+    identifier: Apache-2.0
+servers:
+  - url: http://localhost:8000
+    description: The Mac (reach it from the phone over the LAN or a Cloudflare Tunnel)
+security:
+  - deviceKey: []
+tags:
+  - name: health
+    description: Liveness; the only route without the device key
+  - name: scans
+    description: Resumable episode upload from the phone, and results from the pipeline
+  - name: homes
+    description: The remembered room model and objects
+  - name: ask
+    description: The Guide agent
+  - name: guidance
+    description: Routes and the arrival check
+  - name: voice
+    description: Speech to text through Muse Voice Transcribe
+components:
+  securitySchemes:
+    deviceKey:
+      type: http
+      scheme: bearer
+      description: >
+        A shared key from .env (RECALL_DEVICE_KEY), entered once on the phone and given to the pipeline. Pairing, not a
+        login: the API is reachable through a Cloudflare Tunnel, so every route except /health needs it.
+paths:
+  /health:
+    $ref: paths/health.yaml#/health
+  /scans:
+    $ref: paths/scans.yaml#/scans
+  /scans/{scan_id}:
+    $ref: paths/scans.yaml#/scan
+  /scans/{scan_id}/parts/{part_number}:
+    $ref: paths/scans.yaml#/part
+  /scans/{scan_id}/manifest:
+    $ref: paths/scans.yaml#/manifest
+  /scans/{scan_id}/complete:
+    $ref: paths/scans.yaml#/complete
+  /scans/{scan_id}/results:
+    $ref: paths/scans.yaml#/results
+  /homes/{home_id}/room:
+    $ref: paths/homes.yaml#/room
+  /homes/{home_id}/objects:
+    $ref: paths/objects.yaml#/objects
+  /ask:
+    $ref: paths/ask.yaml#/ask
+  /guidance/sessions:
+    $ref: paths/guidance.yaml#/sessions
+  /guidance/sessions/{session_id}/verify:
+    $ref: paths/guidance.yaml#/verify
+  /transcribe:
+    $ref: paths/voice.yaml#/transcribe

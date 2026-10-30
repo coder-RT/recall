@@ -1,0 +1,13 @@
+type: object
+required: [scan_id, home_id, room, archive]
+properties:
+  scan_id: {type: string, format: uuid}
+  home_id: {type: string, pattern: "^[a-z0-9-]{1,64}$"}
+  room: {type: string, minLength: 1, maxLength: 60, description: "Room name the user gave, e.g. \"Living room\""}
+  archive:
+    type: object
+    required: [size, sha256, part_size]
+    properties:
+      size: {type: integer, minimum: 1, maximum: 209715200, description: Bytes; episodes stay under 200 MB}
+      sha256: {type: string, pattern: "^[0-9a-f]{64}$"}
+      part_size: {type: integer, minimum: 5242880, maximum: 67108864, description: About 8 MB}

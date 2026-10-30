@@ -1,0 +1,16 @@
+room:
+  get:
+    tags: [homes]
+    operationId: getRoomModel
+    summary: The home's room model (floor polygon, walls, furniture boxes) for the phone's 3D map
+    parameters:
+      - $ref: ../schemas/Params.yaml#/home_id
+    responses:
+      "200":
+        description: Room model
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/RoomModel.yaml
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound

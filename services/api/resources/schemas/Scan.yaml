@@ -1,0 +1,12 @@
+type: object
+required: [scan_id, home_id, room, status]
+properties:
+  scan_id: {type: string, format: uuid}
+  home_id: {type: string}
+  room: {type: string}
+  status:
+    type: string
+    enum: [uploading, uploaded, processing, processed, failed]
+  detail: {type: string, description: "Why it failed, in one sentence"}
+  frame_count: {type: integer}
+  object_count: {type: integer}

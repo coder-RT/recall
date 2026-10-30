@@ -1,0 +1,9 @@
+type: object
+required: [text, grounded]
+properties:
+  text: {type: string, description: One or two short sentences to speak}
+  grounded: {type: boolean, description: "Every place, distance and time in the text came from a tool"}
+  object_id: {type: [string, "null"]}
+  tool_calls: {type: integer}
+  model: {type: string, description: The Meta model that phrased it}
+  latency_ms: {type: integer}

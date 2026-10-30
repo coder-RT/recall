@@ -1,0 +1,9 @@
+type: object
+description: One line of poses.jsonl
+required: [index, t, pose, tracking]
+properties:
+  index: {type: integer, minimum: 0}
+  t: {type: number, description: Seconds since the episode started}
+  pose: {type: array, items: {type: number}, minItems: 16, maxItems: 16, description: "ARKit camera-to-world, column-major"}
+  tracking: {type: string, enum: [normal, limited, not_available]}
+  reason: {type: [string, "null"], enum: [excessive_motion, insufficient_features, initializing, relocalizing, null]}

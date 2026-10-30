@@ -1,0 +1,6 @@
+type: object
+required: [image, depth, pose]
+properties:
+  image: {type: string, format: binary, description: JPEG arrival frame}
+  depth: {type: string, format: binary, description: 16-bit PNG depth in mm}
+  pose: {type: string, description: JSON PoseRecord with the frame's intrinsics}

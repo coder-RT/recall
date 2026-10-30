@@ -1,0 +1,22 @@
+type: object
+description: What the pipeline found, in the home frame (floor z = 0, z up, metres)
+required: [scan_id, room, landmarks, objects, stats]
+properties:
+  scan_id: {type: string, format: uuid}
+  room: {$ref: RoomModel.yaml}
+  landmarks:
+    type: array
+    items: {$ref: DetectedThing.yaml}
+  objects:
+    type: array
+    items: {$ref: DetectedThing.yaml}
+  transform_to_home:
+    type: array
+    description: 4x4 row-major transform from this scan's frame to the home frame (identity for the first scan)
+    items: {type: number}
+    minItems: 16
+    maxItems: 16
+  stats:
+    type: object
+    additionalProperties: true
+    description: Measured timings and counts for this run

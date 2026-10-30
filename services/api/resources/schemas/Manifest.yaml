@@ -1,0 +1,47 @@
+type: object
+description: The episode's manifest.json, written on the phone and uploaded last
+required: [scan_id, format, device, app_version, created_at, duration_s, frame_count, image, depth, intrinsics, files, capture_metrics]
+properties:
+  scan_id: {type: string, format: uuid}
+  format: {type: string, const: recall-episode/1}
+  device: {type: string, description: "Hardware model, e.g. iPhone17,1"}
+  app_version: {type: string}
+  created_at: {type: string, format: date-time}
+  duration_s: {type: number, minimum: 0}
+  frame_count: {type: integer, minimum: 1}
+  image:
+    type: object
+    required: [width, height]
+    properties:
+      width: {type: integer}
+      height: {type: integer}
+  depth:
+    type: object
+    required: [width, height, unit, encoding]
+    properties:
+      width: {type: integer}
+      height: {type: integer}
+      unit: {type: string, const: mm}
+      encoding: {type: string, const: png16}
+  intrinsics:
+    type: object
+    description: Pinhole intrinsics for the SAVED frame size (scaled from ARKit's full camera image)
+    required: [fx, fy, cx, cy]
+    properties:
+      fx: {type: number}
+      fy: {type: number}
+      cx: {type: number}
+      cy: {type: number}
+  world_map: {type: [string, "null"], description: "Relative path of the saved ARWorldMap, if any"}
+  files:
+    type: array
+    description: Every file in the episode with its SHA-256
+    items:
+      type: object
+      required: [path, size, sha256]
+      properties:
+        path: {type: string}
+        size: {type: integer}
+        sha256: {type: string, pattern: "^[0-9a-f]{64}$"}
+  capture_metrics:
+    $ref: CaptureMetrics.yaml

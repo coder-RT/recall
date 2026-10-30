@@ -1,0 +1,14 @@
+type: object
+required: [object_id, label, position, height_band, seen_at, confidence]
+properties:
+  object_id: {type: string}
+  label: {type: string}
+  position: {type: array, items: {type: number}, minItems: 3, maxItems: 3}
+  height_band: {type: string, enum: [floor, knee, waist, chest, head]}
+  room: {type: [string, "null"]}
+  landmark: {type: [string, "null"]}
+  relation: {type: [string, "null"], enum: [on, left_of, right_of, near, null]}
+  shelf_level: {type: [integer, "null"]}
+  seen_at: {type: string, format: date-time}
+  confidence: {type: number}
+  stale: {type: boolean}

@@ -1,0 +1,54 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "find_object",
+      "description": "Find remembered objects whose label or alias matches the name. Returns matches with label and minutes since last seen, or not_found.",
+      "parameters": {
+        "type": "object",
+        "properties": {"name": {"type": "string", "description": "What the user is looking for, e.g. 'keys'"}},
+        "required": ["name"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "describe_location",
+      "description": "Where an object is: room, landmark, relation, shelf level, height band and minutes since seen. Only use what this returns.",
+      "parameters": {
+        "type": "object",
+        "properties": {"object_id": {"type": "string"}},
+        "required": ["object_id"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "localize",
+      "description": "The user's current position and facing in the home frame, and the tracking state.",
+      "parameters": {
+        "type": "object",
+        "properties": {"session_id": {"type": "string"}},
+        "required": ["session_id"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "plan_route",
+      "description": "Steps from the user to the object as clock-face turns and metres, or no_safe_path.",
+      "parameters": {
+        "type": "object",
+        "properties": {"session_id": {"type": "string"}, "object_id": {"type": "string"}},
+        "required": ["session_id", "object_id"],
+        "additionalProperties": false
+      }
+    }
+  }
+]

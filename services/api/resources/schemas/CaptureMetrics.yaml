@@ -1,0 +1,13 @@
+type: object
+required: [directions_covered, keyframes_kept, keyframes_dropped_blurry, tracking_normal_ratio, mean_speed_mps, peak_speed_mps, slow_down_cues, grade]
+properties:
+  directions_covered: {type: integer, minimum: 0, maximum: 12, description: Camera headings in 12 sectors of 30 degrees}
+  keyframes_kept: {type: integer}
+  keyframes_dropped_blurry: {type: integer}
+  tracking_normal_ratio: {type: number, minimum: 0, maximum: 1}
+  mean_speed_mps: {type: number}
+  peak_speed_mps: {type: number}
+  slow_down_cues: {type: integer}
+  area_walked_m2: {type: number}
+  mean_light_lux: {type: number}
+  grade: {type: string, enum: [good, usable, redo]}

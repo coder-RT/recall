@@ -1,0 +1,13 @@
+type: object
+required: [session_id, mode, steps]
+properties:
+  session_id: {type: string}
+  mode: {type: string, enum: [route, landmarks], description: "landmarks when tracking is limited or there is no safe path"}
+  reason: {type: [string, "null"]}
+  steps:
+    type: array
+    items: {$ref: RouteStep.yaml}
+  path:
+    type: array
+    description: Waypoints [x, y] in the home frame for the phone's RouteFollower
+    items: {type: array, items: {type: number}, minItems: 2, maxItems: 2}

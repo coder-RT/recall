@@ -1,0 +1,25 @@
+NotFound:
+  description: Not found
+  content:
+    application/json:
+      schema: {$ref: Error.yaml}
+Invalid:
+  description: Invalid input
+  content:
+    application/json:
+      schema: {$ref: Error.yaml}
+Conflict:
+  description: Not in a state that allows this
+  content:
+    application/json:
+      schema: {$ref: Error.yaml}
+Unauthorized:
+  description: Missing or wrong device key
+  content:
+    application/json:
+      schema: {$ref: Error.yaml}
+Unavailable:
+  description: A required model or service is not configured or not reachable
+  content:
+    application/json:
+      schema: {$ref: Error.yaml}

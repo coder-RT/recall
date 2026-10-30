@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import time
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -27,6 +28,7 @@ log = logging.getLogger("recall_pipeline")
 class PipelineConfig:
     max_views: int = 120  # MapAnything views per run (memory on the Mac)
     sam_every: int = 3  # SAM on every Nth reconstructed view
+    sam_workers: int = 4  # SAM calls in flight at once (the adapter backs off on 429)
     min_score: float = 0.5
     furniture: tuple[str, ...] = ("sofa", "table", "desk", "shelf", "tv", "bed", "door", "chair", "cabinet")
     objects: tuple[str, ...] = (
@@ -95,14 +97,16 @@ def process_episode(
     calls = 0
     concepts = cfg.furniture + cfg.objects
     log.info("SAM 3.1: %d views x %d prompts = %d calls", len(sam_views), len(concepts), len(sam_views) * len(concepts))
+    pool = ThreadPoolExecutor(cfg.sam_workers)
     for n, v in enumerate(sam_views, 1):
         jpeg = source.jpeg(v.index)
         h, w = v.depth.shape
         img_w, img_h = episode.image_size
         sx, sy = w / img_w, h / img_h  # SAM boxes are in source-image pixels; depth is at the output size
-        for concept in concepts:
+        found = pool.map(lambda c, jpeg=jpeg: sam.boxes(jpeg, c), concepts)  # results come back in prompt order
+        for concept, boxes in zip(concepts, found, strict=True):
             calls += 1
-            for b in sam.boxes(jpeg, concept):
+            for b in boxes:
                 if b.score < cfg.min_score:
                     continue
                 box = (b.box[0] * sx, b.box[1] * sy, b.box[2] * sx, b.box[3] * sy)
@@ -114,6 +118,7 @@ def process_episode(
                 pts = home_frame.apply(T, lifted.points)
                 sightings[concept].append((np.median(pts, axis=0), b.score, v.index, pts))
         log.info("SAM view %d/%d done, %d sightings so far", n, len(sam_views), sum(map(len, sightings.values())))
+    pool.shutdown()
     t_sam = time.perf_counter() - t1
 
     # one thing per cluster of sightings of the same label

@@ -200,7 +200,7 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
   ```
 - Open:
   - `http://localhost:3000/` for the landing page;
-  - `http://localhost:3000/viewer` for your own scanned room; until you have one, the page lists the steps (section 2).
+  - `http://localhost:3000/homes/flat/viewer` for your own scanned home (`flat` is the app's default home name); until it has a scan, the page lists the steps (section 2).
 - Optional: "Ask by voice" on the landing page calls Muse Voice Transcribe through a server route. Create `.env` in the repo root with `META_MUSE_API_KEY=<your key>`; without it the card still works with the preset questions. Every spoken line on the site is the browser's own voice.
 - Checks:
   ```bash
@@ -210,12 +210,12 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
 
 ### 2. See your own room in the viewer
 
-- Scan a room with the iPhone app and upload it to your Mac (`make live` runs the API and the scan worker; the steps are on the `/viewer` page).
-- Export the newest processed scan, then open `http://localhost:3000/viewer`:
+- Scan a room with the iPhone app and upload it to your Mac (`make live` runs the API and the scan worker; the steps are on the viewer page).
+- Export the home's newest processed scan, then open `http://localhost:3000/homes/flat/viewer`:
   ```bash
-  make viewer
+  make viewer HOME_ID=flat
   ```
-- Output: `apps/web/public/local-scan/` (points, photo colours, confidence, the room model and what Recall found). Git ignores the folder, so your room never leaves your computer.
+- Output: `apps/web/public/local-scan/<home>/` (points, photo colours, confidence, the room model and what Recall found). Git ignores the folder, so your room never leaves your computer.
 
 ### 3. Backend and pipeline (planned, phases 0 to 2)
 

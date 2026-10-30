@@ -5,18 +5,20 @@ import { testFiles, testMeta as meta } from "./fixtures/test-room";
 import { open as openPage, prepare } from "./helpers";
 
 /**
- * The 3D viewer at /viewer: your own room from this computer's export (public/local-scan/), or the steps to make one.
+ * The 3D viewer at /homes/<home>/viewer: that home's export on this computer (public/local-scan/<home>/), or the steps.
  * The tests serve a made-up room (fixtures/test-room.ts) instead of anything on disk, so they never see a real home.
  */
 
-const URL = "/viewer";
+const PAGE = "/homes/flat/viewer";
 const s = en.app.viewer.scan;
 const steps = en.app.viewer.steps;
 
 /** Serve the made-up room as this computer's export, or say there is none. */
 async function serveScan(page: Page, present: boolean) {
   await page.route("**/local-scan/**", (route) => {
-    const file = route.request().url().split("/local-scan/")[1]?.split("?")[0] ?? "";
+    const url = new URL(route.request().url());
+    if (!url.pathname.startsWith("/local-scan/flat/")) return route.fulfill({ status: 404, body: "" }); // other homes: none
+    const file = url.pathname.split("/").pop() ?? "";
     const body = present ? testFiles[file] : undefined;
     return body ? route.fulfill({ status: 200, body }) : route.fulfill({ status: 404, body: "" });
   });
@@ -53,9 +55,16 @@ const tint = (page: Page) =>
   });
 
 test.describe("3D viewer: no scan on this computer", () => {
+  test("another home on this computer has no scan: its page lists the steps", async ({ page }) => {
+    await prepare(page);
+    await open(page, "/homes/kitchen-test/viewer");
+    await expect(page.getByRole("heading", { name: steps.title })).toBeVisible();
+    await expect(page.locator("[data-viewer]")).toHaveCount(0);
+  });
+
   test("lists the steps to scan your own room, and shows no viewer", async ({ page }) => {
     await prepare(page);
-    await open(page, URL, { scan: false });
+    await open(page, PAGE, { scan: false });
     await expect(page.getByRole("heading", { name: steps.title })).toBeVisible();
     await expect(page.locator("[data-no-scan] li")).toHaveCount(steps.items.length);
     await expect(page.getByText("make viewer")).toBeVisible();
@@ -65,7 +74,7 @@ test.describe("3D viewer: no scan on this computer", () => {
   test("without JavaScript the steps are still there", async ({ browser }) => {
     const context = await browser.newContext({ javaScriptEnabled: false });
     const page = await context.newPage();
-    await page.goto(URL);
+    await page.goto(PAGE);
     await expect(page.getByRole("heading", { name: steps.title })).toBeVisible();
     await expect(page.locator("[data-viewer]")).toHaveCount(0);
     await context.close();
@@ -73,7 +82,7 @@ test.describe("3D viewer: no scan on this computer", () => {
 
   test("the steps pass an automated WCAG 2.2 AA audit", async ({ page }) => {
     await prepare(page);
-    await open(page, URL, { scan: false });
+    await open(page, PAGE, { scan: false });
     await expect(page.getByRole("heading", { name: steps.title })).toBeVisible();
     const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
     expect(results.violations).toEqual([]);
@@ -83,7 +92,7 @@ test.describe("3D viewer: no scan on this computer", () => {
 test.describe("3D viewer: your scan", () => {
   test("names the scan and says when it was made", async ({ page }) => {
     await prepare(page);
-    await open(page, URL);
+    await open(page, PAGE);
     await expect(page.getByRole("img", { name: s.alt })).toBeVisible();
     const caption = page.locator("figcaption");
     await expect(caption).toContainText(s.alt);
@@ -94,10 +103,10 @@ test.describe("3D viewer: your scan", () => {
     await prepare(page);
     const sizes: Record<string, number> = {};
     page.on("response", async (r) => {
-      const file = r.url().match(/local-scan\/(\w+\.bin)$/)?.[1];
+      const file = r.url().match(/local-scan\/[^/]+\/(\w+\.bin)$/)?.[1];
       if (file && r.ok()) sizes[file] = (await r.body()).byteLength;
     });
-    await open(page, URL);
+    await open(page, PAGE);
     await page.waitForFunction(() => document.querySelector<HTMLElement>("[data-viewer]")?.dataset.progress === "0");
     await formed(page);
     expect(sizes["points.bin"]).toBe(meta.count * 12);
@@ -116,7 +125,7 @@ test.describe("3D viewer: your scan", () => {
     const context = await browser.newContext({ reducedMotion: "reduce" });
     const page = await context.newPage();
     await prepare(page);
-    await open(page, URL);
+    await open(page, PAGE);
     await formed(page);
     expect(await progress(page)).toBe("1");
     // nothing moves: two frames a moment apart are identical
@@ -132,7 +141,7 @@ test.describe("3D viewer: your scan", () => {
 
     test("photo colours replace the blue, and confidence greys it", async ({ page }) => {
       await prepare(page);
-      await open(page, URL);
+      await open(page, PAGE);
       await formed(page);
       const blueShare = async () => (await tint(page)).blue;
       // only the points: the grid, walls and pins are drawn in token colours too
@@ -152,7 +161,7 @@ test.describe("3D viewer: your scan", () => {
     for (const layer of ["room", "things", "grid", "bands", "surfaces"] as const) {
       test(`the ${layer} layer changes the picture and can be switched back`, async ({ page }) => {
         await prepare(page);
-        await open(page, URL);
+        await open(page, PAGE);
         await formed(page);
         const before = await canvas(page).screenshot();
         const box = page.getByRole("checkbox", { name: s[layer] });
@@ -167,7 +176,7 @@ test.describe("3D viewer: your scan", () => {
 
   test("the room, the things and the floor grid are on by default, the other layers off", async ({ page }) => {
     await prepare(page);
-    await open(page, URL);
+    await open(page, PAGE);
     await formed(page);
     await expect(page.getByRole("checkbox", { name: s.room })).toBeChecked();
     await expect(page.getByRole("checkbox", { name: s.things })).toBeChecked();
@@ -179,7 +188,7 @@ test.describe("3D viewer: your scan", () => {
   test("lists everything Recall found; choosing one highlights its pin", async ({ page }) => {
     await prepare(page);
     await page.emulateMedia({ reducedMotion: "reduce" });
-    await open(page, URL);
+    await open(page, PAGE);
     await formed(page);
     const list = page.getByRole("region", { name: new RegExp(s.found.title) });
     const items = list.getByRole("button");
@@ -196,7 +205,7 @@ test.describe("3D viewer: your scan", () => {
 
   test("stats show the run's measured numbers", async ({ page }) => {
     await prepare(page);
-    await open(page, URL);
+    await open(page, PAGE);
     const stats = page.getByRole("region", { name: s.stats.label });
     await expect(stats.locator("[data-stat]")).toHaveText([
       `${s.stats.frames}${meta.stats.frames}`,
@@ -208,7 +217,7 @@ test.describe("3D viewer: your scan", () => {
 
   test("lists the height bands and every flat surface the export found", async ({ page }) => {
     await prepare(page);
-    await open(page, URL);
+    await open(page, PAGE);
     await expect(page.locator("[data-band]")).toHaveText([
       `${s.bandNames.floor}under 0.3 m`,
       `${s.bandNames.knee}0.3 to 0.7 m`,
@@ -224,7 +233,7 @@ test.describe("3D viewer: your scan", () => {
 
   test("high contrast redraws the room in its tokens (no blue left)", async ({ page }) => {
     await prepare(page, { a11y: { contrast: true } });
-    await open(page, URL);
+    await open(page, PAGE);
     await formed(page);
     await expect.poll(async () => (await tint(page)).blue).toBeLessThan(0.02);
     expect((await tint(page)).drawn).toBeGreaterThan(1000);
@@ -232,7 +241,7 @@ test.describe("3D viewer: your scan", () => {
 
   test("passes an automated WCAG 2.2 AA audit", async ({ page }) => {
     await prepare(page);
-    await open(page, URL);
+    await open(page, PAGE);
     await formed(page);
     const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
     expect(results.violations).toEqual([]);

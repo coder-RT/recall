@@ -253,7 +253,7 @@ recall/
 │   ├── ios/                        see docs/private/ios-ARCHITECTURE.md: RecallKit package + thin Recall / RecallWatch targets
 │   └── web/
 │       ├── app/(marketing)/        landing page (finished; keep as it is)
-│       ├── app/(app)/              homes/[homeId], viewer (your own scan from public/local-scan/, gitignored; no auth)
+│       ├── app/(app)/              homes/[homeId], homes/[homeId]/viewer (that home's scan from public/local-scan/<home>/, gitignored; no auth)
 │       ├── components/scroll/      GSAP-owned
 │       ├── components/ui/          Motion-owned
 │       ├── components/viewer/      react-three-fiber

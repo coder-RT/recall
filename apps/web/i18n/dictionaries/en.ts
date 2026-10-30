@@ -345,7 +345,8 @@ export const en = {
     homes: { title: "Your homes", body: "Coming during the event: scanned homes appear here." },
     home: { title: "Home {id}", fallback: "Home", body: "Coming during the event: objects and when they were last seen." },
     viewer: {
-      title: "3D viewer: your room",
+      title: "3D viewer",
+      idSuffix: " · {id}",
       body: "Your own room, scanned with your iPhone and rebuilt on your Mac, with a pin on everything Recall found. A demo aid, not the product: the product is the voice and the walk back.",
       steps: {
         title: "No scan on this computer yet",
@@ -355,9 +356,9 @@ export const en = {
           { text: "Create .env in the repo root with your Meta Model API key, your Baseten key and a device key of your choice (any long random string).", code: "META_MUSE_API_KEY=…\nBASETEN_API_KEY=…\nRECALL_DEVICE_KEY=…" },
           { text: "Start the API and the scan worker.", code: "make live" },
           { text: "Install the iPhone app (an iPhone with LiDAR; a free Apple ID works). Open the project in Xcode and run it on your phone.", code: "cd apps/ios && xcodegen generate && open Recall.xcodeproj" },
-          { text: "Pair the phone: this shows a QR code; scan it with the iPhone’s Camera app.", code: "make pair URL=http://<your-mac-ip>:8000" },
+          { text: "Pair the phone: this shows a QR code; scan it with the iPhone’s Camera app. The home is called “flat” unless you name it.", code: "make pair URL=http://<your-mac-ip>:8000 HOME_ID=flat" },
           { text: "In the app, scan a room and tap Upload to the Mac. The app says when the room is ready." },
-          { text: "Export it to this page, start the website, and reload.", code: "make viewer\ncd apps/web && pnpm dev   # then open http://localhost:3000/viewer" },
+          { text: "Export it, start the website, and open your home’s page.", code: "make viewer HOME_ID=flat\ncd apps/web && pnpm dev   # then open http://localhost:3000/homes/flat/viewer" },
         ],
         privacy: "Your scan stays on your computer: the export goes to a folder git ignores, and nothing is uploaded anywhere.",
       },

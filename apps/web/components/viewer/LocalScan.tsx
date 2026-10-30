@@ -1,5 +1,6 @@
 "use client";
 
+import { useParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { format, getDictionary } from "@/i18n";
 import { BAND_EDGES, BANDS, bandOf } from "./bands";
@@ -8,8 +9,8 @@ import type { FurnitureBox, RoomShape, Surface, Thing } from "./Layers";
 import { ViewerStats } from "./ViewerStats";
 
 const s = getDictionary().app.viewer.scan;
-/** Where `make viewer` writes the export; gitignored, so it only ever exists on the computer that scanned. */
-const SRC = "/local-scan";
+/** Where `make viewer` writes a home's export; gitignored, so it only ever exists on the computer that scanned. */
+const folder = (homeId: string) => `/local-scan/${encodeURIComponent(homeId)}`;
 
 export interface ScanMeta {
   count: number;
@@ -29,17 +30,19 @@ function bandRange(i: number) {
 
 /** Your exported scan if this computer has one, else the steps to make one. */
 export function LocalScan({ steps }: { steps: ReactNode }) {
+  const { homeId } = useParams<{ homeId: string }>();
+  const src = folder(homeId);
   const [meta, setMeta] = useState<ScanMeta | null | "missing">(null);
   useEffect(() => {
     let cancelled = false;
-    fetch(`${SRC}/meta.json`, { cache: "no-store" })
+    fetch(`${src}/meta.json`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : "missing"))
       .catch(() => "missing")
       .then((m) => !cancelled && setMeta(m));
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [src]);
 
   if (meta === null) return <p className="mt-8 text-muted">{s.looking}</p>;
   if (meta === "missing") return <div data-no-scan>{steps}</div>;
@@ -65,7 +68,7 @@ export function LocalScan({ steps }: { steps: ReactNode }) {
   return (
     <>
       <FoundViewer
-        src={SRC}
+        src={src}
         bounds={meta.bounds}
         surfaces={meta.surfaces}
         room={meta.room}

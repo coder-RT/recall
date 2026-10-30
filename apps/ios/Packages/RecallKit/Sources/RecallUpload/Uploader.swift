@@ -65,7 +65,7 @@ public actor Uploader {
             set(scanId, .init(phase: status == .failed ? .failed : .processing, partsDone: done, partsTotal: done, detail: detail))
         } catch {
             set(scanId, .init(phase: .failed, partsDone: progress[scanId]?.partsDone ?? 0,
-                              partsTotal: progress[scanId]?.partsTotal ?? 0, detail: error.localizedDescription))
+                              partsTotal: progress[scanId]?.partsTotal ?? 0, detail: APIError.explain(error)))
         }
     }
 

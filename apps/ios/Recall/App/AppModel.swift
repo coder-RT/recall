@@ -136,7 +136,7 @@ final class AppModel {
         guard before != p.phase.rawValue else { return }
         switch p.phase {
         case .processing: announcer.say("\(scans[i].room) is uploaded. The Mac is processing it.")
-        case .failed: announcer.say("Upload failed. \(p.detail ?? "")")
+        case .failed: announcer.say("Upload failed. The reason is on the scan.")
         default: break
         }
     }

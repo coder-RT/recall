@@ -71,8 +71,14 @@ struct SettingsView: View {
                     }
                     .disabled(testing)
                     if let testResult {
-                        Text(testResult).font(.body).foregroundStyle(Tokens.ink)
-                            .fixedSize(horizontal: false, vertical: true)
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(testResult).font(.body).foregroundStyle(Tokens.ink)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .textSelection(.enabled)
+                            SmallButton("Copy message", systemImage: "doc.on.doc", label: "Copy the message") {
+                                UIPasteboard.general.string = testResult
+                            }
+                        }
                     }
                 }
                 .padding(20)
@@ -88,18 +94,18 @@ struct SettingsView: View {
         defer { testing = false }
         guard let api = model.api else {
             testResult = model.setupProblem ?? "Check the address and the device key."
-            model.announcer.say(testResult ?? "")
             return
         }
+        // errors stay on screen to read or copy; only success is spoken
         do {
             let provider = try await api.health()
             // a status call for a scan that doesn't exist checks the key: "not found" means the key was accepted
             do { _ = try await api.scanStatus(scanId: "00000000-0000-4000-8000-000000000000") } catch APIError.server {}
             testResult = "Connected. The Mac's Guide runs on \(provider)."
+            model.announcer.say("Connected.")
         } catch {
-            testResult = error.localizedDescription
+            testResult = APIError.explain(error)
         }
-        model.announcer.say(testResult ?? "")
     }
 }
 

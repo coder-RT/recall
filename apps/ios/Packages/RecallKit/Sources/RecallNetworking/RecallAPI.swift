@@ -106,6 +106,32 @@ public enum APIError: Error, LocalizedError {
     }
 }
 
+extension APIError {
+    /// A plain sentence for any error a call can throw: the generated client's wrapper is opened up to the network
+    /// error inside, and the common network failures say what to check.
+    public static func explain(_ error: Error) -> String {
+        var inner: Error = error
+        if let e = error as? ClientError { inner = e.underlyingError }
+        if let e = inner as? APIError { return e.localizedDescription }
+        guard let url = inner as? URLError else { return inner.localizedDescription }
+        switch url.code {
+        case .notConnectedToInternet:
+            return "The iPhone isn't allowed on the local network, or isn't on Wi-Fi. Turn on Settings, Privacy & Security, "
+                + "Local Network, Recall, and check the iPhone is on the same Wi-Fi as the Mac. (Error -1009)"
+        case .cannotConnectToHost:
+            return "The Mac refused the connection. Check the Recall API is running and the port is 8000. (Error -1004)"
+        case .timedOut:
+            return "The Mac didn't answer. Check the address and that both are on the same Wi-Fi. (Error -1001)"
+        case .cannotFindHost, .dnsLookupFailed:
+            return "The address can't be found. Check the Mac address in Settings. (Error \(url.code.rawValue))"
+        case .appTransportSecurityRequiresSecureConnection:
+            return "iOS blocked plain http to this address. Use the Mac's local IP address or an https tunnel. (Error -1022)"
+        default:
+            return "\(url.localizedDescription) (Error \(url.code.rawValue))"
+        }
+    }
+}
+
 /// Adds the shared device key (pairing, not a login) to every request.
 struct DeviceKey: ClientMiddleware {
     let key: String

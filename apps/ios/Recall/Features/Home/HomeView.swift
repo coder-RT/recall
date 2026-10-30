@@ -1,6 +1,7 @@
 import RecallDesign
 import RecallDomain
 import SwiftUI
+import UIKit
 
 /// Home: one big action (scan a room) and the scans this phone has made, with their upload state.
 struct HomeView: View {
@@ -135,6 +136,15 @@ private struct UploadStatus: View {
                     .accessibilityValue("\(Int(fraction * 100)) percent")
             }
             Text(text).font(.subheadline).foregroundStyle(phase == "failed" ? Tokens.danger : Tokens.ink)
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+            if phase == "failed" {
+                Button { UIPasteboard.general.string = text } label: {
+                    Label("Copy error", systemImage: "doc.on.doc").font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Tokens.blueDark).frame(minHeight: 44)
+                }
+                .accessibilityLabel("Copy the error")
+            }
         }
     }
 

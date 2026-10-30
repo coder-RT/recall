@@ -23,7 +23,8 @@ scans/
 *.mp4
 
 # the sample room's photo colours stay local (the viewer hides "Photo" when the file is missing)
-apps/web/public/samples/demo-flat/colors.bin
+# your own scan for /viewer (make viewer); it never leaves your computer
+apps/web/public/local-scan/
 
 .vscode
 

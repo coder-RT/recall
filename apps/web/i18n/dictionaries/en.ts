@@ -345,18 +345,28 @@ export const en = {
     homes: { title: "Your homes", body: "Coming during the event: scanned homes appear here." },
     home: { title: "Home {id}", fallback: "Home", body: "Coming during the event: objects and when they were last seen." },
     viewer: {
-      title: "3D viewer",
-      idSuffix: " · {id}",
-      body: "New during the event: the point cloud, the room model and a pin on everything Recall found. A demo aid, not the product.",
-      empty: "No scan for this home yet. Try the sample room: /homes/demo-flat/viewer.",
-      sample: {
-        alt: "A 3D scan of one room in our flat, with what Recall found in it.",
-        label:
-          "A real run of our pipeline: an iPhone walk-through with its own motion and depth data, rebuilt on the Mac, then searched for furniture and everyday things.",
-        scale: "Sizes are in metres, from the phone’s LiDAR.",
+      title: "3D viewer: your room",
+      body: "Your own room, scanned with your iPhone and rebuilt on your Mac, with a pin on everything Recall found. A demo aid, not the product: the product is the voice and the walk back.",
+      steps: {
+        title: "No scan on this computer yet",
+        body: "This page shows a room you scanned yourself. Nothing from anyone’s home ships with Recall, and the hosted site never has a scan. To see yours:",
+        items: [
+          { text: "On a Mac with Apple silicon, clone the repo and install everything.", code: "git clone https://github.com/coder-RT/recall && cd recall && make setup" },
+          { text: "Create .env in the repo root with your Meta Model API key, your Baseten key and a device key of your choice (any long random string).", code: "META_MUSE_API_KEY=…\nBASETEN_API_KEY=…\nRECALL_DEVICE_KEY=…" },
+          { text: "Start the API and the scan worker.", code: "make live" },
+          { text: "Install the iPhone app (an iPhone with LiDAR; a free Apple ID works). Open the project in Xcode and run it on your phone.", code: "cd apps/ios && xcodegen generate && open Recall.xcodeproj" },
+          { text: "Pair the phone: this shows a QR code; scan it with the iPhone’s Camera app.", code: "make pair URL=http://<your-mac-ip>:8000" },
+          { text: "In the app, scan a room and tap Upload to the Mac. The app says when the room is ready." },
+          { text: "Export it to this page, start the website, and reload.", code: "make viewer\ncd apps/web && pnpm dev   # then open http://localhost:3000/viewer" },
+        ],
+        privacy: "Your scan stays on your computer: the export goes to a folder git ignores, and nothing is uploaded anywhere.",
+      },
+      scan: {
+        looking: "Looking for a scan on this computer…",
+        alt: "A 3D scan of your room, with what Recall found in it.",
+        label: "Scanned {date} with your iPhone’s own motion and depth data, rebuilt on your Mac, then searched for furniture and everyday things. Sizes are in metres.",
         hint: "Drag sideways to turn the room.",
         loading: "Loading the scan…",
-        posterAlt: "A still picture of the scanned room with pins on the things Recall found.",
         colour: "Colour",
         modes: { height: "Height", photo: "Photo", confidence: "Confidence" },
         layers: "Layers",

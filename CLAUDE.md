@@ -253,7 +253,7 @@ recall/
 │   ├── ios/                        see docs/private/ios-ARCHITECTURE.md: RecallKit package + thin Recall / RecallWatch targets
 │   └── web/
 │       ├── app/(marketing)/        landing page (finished; keep as it is)
-│       ├── app/(app)/              homes/[homeId], homes/demo-flat/viewer (no auth: everything works signed out)
+│       ├── app/(app)/              homes/[homeId], viewer (your own scan from public/local-scan/, gitignored; no auth)
 │       ├── components/scroll/      GSAP-owned
 │       ├── components/ui/          Motion-owned
 │       ├── components/viewer/      react-three-fiber
@@ -321,7 +321,6 @@ recall/
 │   ├── verifier.yaml               20 arrival frames: 10 right spot, 10 wrong spot
 │   └── results.md                  dated accuracy table
 ├── examples/a2a-client/home_robot.py  external agent asking Recall over A2A (Muse Spark)
-├── samples/demo-flat/              processed scan only, privacy-reviewed
 ├── samples/replay/                 recorded scan + recorded model responses for `make demo` (labelled as recorded)
 └── docs/                           (docs/private/ is gitignored: planning docs, ADRs, progress notes, the key list)
     ├── architecture.md             hexagon diagram + both paths (mermaid)

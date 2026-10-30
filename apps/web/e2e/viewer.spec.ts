@@ -1,13 +1,32 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { en } from "../i18n/dictionaries/en";
-import meta from "../public/samples/demo-flat/meta.json";
-import { open, prepare } from "./helpers";
+import { testFiles, testMeta as meta } from "./fixtures/test-room";
+import { open as openPage, prepare } from "./helpers";
 
-/** The 3D viewer's sample room: the real point cloud from our pipeline, its layers, caption, stats and fallbacks. */
+/**
+ * The 3D viewer at /viewer: your own room from this computer's export (public/local-scan/), or the steps to make one.
+ * The tests serve a made-up room (fixtures/test-room.ts) instead of anything on disk, so they never see a real home.
+ */
 
-const URL = "/homes/demo-flat/viewer";
-const s = en.app.viewer.sample;
+const URL = "/viewer";
+const s = en.app.viewer.scan;
+const steps = en.app.viewer.steps;
+
+/** Serve the made-up room as this computer's export, or say there is none. */
+async function serveScan(page: Page, present: boolean) {
+  await page.route("**/local-scan/**", (route) => {
+    const file = route.request().url().split("/local-scan/")[1]?.split("?")[0] ?? "";
+    const body = present ? testFiles[file] : undefined;
+    return body ? route.fulfill({ status: 200, body }) : route.fulfill({ status: 404, body: "" });
+  });
+}
+
+/** Open the viewer with the made-up room present (the default) or absent. */
+async function open(page: Page, path: string, { scan = true } = {}) {
+  await serveScan(page, scan);
+  await openPage(page, path);
+}
 const progress = (page: Page) => page.locator("[data-viewer]").getAttribute("data-progress");
 const formed = (page: Page) => page.waitForFunction(() => document.querySelector<HTMLElement>("[data-viewer]")?.dataset.progress === "1");
 const canvas = (page: Page) => page.locator("[data-viewer] canvas");
@@ -33,22 +52,49 @@ const tint = (page: Page) =>
     return { drawn, blue: blue / (drawn || 1) };
   });
 
-test.describe("3D viewer: sample room", () => {
-  test("names the scan and labels it as a sample, with an honest scale note", async ({ page }) => {
+test.describe("3D viewer: no scan on this computer", () => {
+  test("lists the steps to scan your own room, and shows no viewer", async ({ page }) => {
+    await prepare(page);
+    await open(page, URL, { scan: false });
+    await expect(page.getByRole("heading", { name: steps.title })).toBeVisible();
+    await expect(page.locator("[data-no-scan] li")).toHaveCount(steps.items.length);
+    await expect(page.getByText("make viewer")).toBeVisible();
+    await expect(page.locator("[data-viewer]")).toHaveCount(0);
+  });
+
+  test("without JavaScript the steps are still there", async ({ browser }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    const page = await context.newPage();
+    await page.goto(URL);
+    await expect(page.getByRole("heading", { name: steps.title })).toBeVisible();
+    await expect(page.locator("[data-viewer]")).toHaveCount(0);
+    await context.close();
+  });
+
+  test("the steps pass an automated WCAG 2.2 AA audit", async ({ page }) => {
+    await prepare(page);
+    await open(page, URL, { scan: false });
+    await expect(page.getByRole("heading", { name: steps.title })).toBeVisible();
+    const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
+    expect(results.violations).toEqual([]);
+  });
+});
+
+test.describe("3D viewer: your scan", () => {
+  test("names the scan and says when it was made", async ({ page }) => {
     await prepare(page);
     await open(page, URL);
     await expect(page.getByRole("img", { name: s.alt })).toBeVisible();
     const caption = page.locator("figcaption");
     await expect(caption).toContainText(s.alt);
-    await expect(caption).toContainText(s.label);
-    await expect(caption).toContainText(s.scale);
+    await expect(caption).toContainText(meta.stats.captured);
   });
 
   test("loads the point cloud with its colours and confidence, and gathers it into the room", async ({ page }) => {
     await prepare(page);
     const sizes: Record<string, number> = {};
     page.on("response", async (r) => {
-      const file = r.url().match(/samples\/demo-flat\/(\w+\.bin)$/)?.[1];
+      const file = r.url().match(/local-scan\/(\w+\.bin)$/)?.[1];
       if (file && r.ok()) sizes[file] = (await r.body()).byteLength;
     });
     await open(page, URL);
@@ -182,28 +228,6 @@ test.describe("3D viewer: sample room", () => {
     await formed(page);
     await expect.poll(async () => (await tint(page)).blue).toBeLessThan(0.02);
     expect((await tint(page)).drawn).toBeGreaterThan(1000);
-  });
-
-  test("without JavaScript the caption, stats, lists and poster are still there, and the controls are not", async ({ browser }) => {
-    const context = await browser.newContext({ javaScriptEnabled: false });
-    const page = await context.newPage();
-    await page.goto(URL);
-    await expect(page.locator("figcaption")).toContainText(s.alt);
-    await expect(page.getByRole("region", { name: s.stats.label }).locator("[data-stat]")).toHaveCount(4);
-    await expect(page.locator("[data-band]")).toHaveCount(5);
-    await expect(page.locator("[data-surface]")).toHaveCount(meta.surfaces.length);
-    await expect(page.locator("[data-viewer-controls]")).toHaveCount(0);
-    const poster = page.getByRole("img", { name: s.posterAlt });
-    await expect(poster).toBeVisible();
-    expect(await poster.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
-    await context.close();
-  });
-
-  test("other homes say there is no scan yet", async ({ page }) => {
-    await prepare(page);
-    await open(page, "/homes/elsewhere/viewer");
-    await expect(page.getByText(en.app.viewer.empty)).toBeVisible();
-    await expect(page.locator("[data-viewer]")).toHaveCount(0);
   });
 
   test("passes an automated WCAG 2.2 AA audit", async ({ page }) => {

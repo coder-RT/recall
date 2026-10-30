@@ -26,11 +26,10 @@ interface Props {
   viewer: ViewerStrings;
   found: FoundStrings;
   caption: React.ReactNode;
-  poster: React.ReactNode;
 }
 
 /** The 3D room and, beside it in plain HTML, the list of what Recall found; choosing one highlights its pin. */
-export function FoundViewer({ src, bounds, surfaces, room, furniture, things, viewer, found, caption, poster }: Props) {
+export function FoundViewer({ src, bounds, surfaces, room, furniture, things, viewer, found, caption }: Props) {
   const [selected, setSelected] = useState<number | null>(null);
   const kinds = [...new Set(furniture.map((f) => f.label))];
   return (
@@ -38,7 +37,6 @@ export function FoundViewer({ src, bounds, surfaces, room, furniture, things, vi
       <figure className="self-start overflow-hidden rounded-xl border border-fb-line bg-white">
         <div className="aspect-[4/5] sm:aspect-square">
           <RoomViewer src={src} bounds={bounds} surfaces={surfaces} room={room} furniture={furniture} things={things} selected={selected} t={viewer} />
-          {poster}
         </div>
         <figcaption className="border-t border-fb-line px-4 py-3 text-sm text-muted">{caption}</figcaption>
       </figure>

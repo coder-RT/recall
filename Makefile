@@ -5,7 +5,7 @@ PIPE := services/pipeline
 WEB := apps/web
 REDOCLY := npx -y @redocly/cli@2.72.1
 
-.PHONY: help setup dev worker regression live demo probes pair rerun test lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
+.PHONY: help setup dev worker regression viewer live demo probes pair rerun test lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -24,6 +24,12 @@ worker: ## The scan job worker (Huey on SQLite): processes uploaded scans one at
 
 regression: ## Re-run every processed scan now (no posting; cached SAM answers) and compare with the last run
 	cd $(API) && uv run python -c "from recall_api.infra import jobs, regression; print('\n'.join(regression.run(jobs.settings, jobs.run_pipeline)))"
+
+viewer: ## Export your newest processed scan for http://localhost:3000/viewer (apps/web/public/local-scan/, gitignored)
+	@E=$$(ls -d data/blobs/scans/*/episode 2>/dev/null | sort -r | while read d; do \
+		if [ -f "$$d/result.json" ] && [ -f "$$d/home_colors.npy" ]; then echo "$$d"; break; fi; done); \
+	if [ -z "$$E" ]; then echo "No processed scan yet: run make live, scan a room with the iPhone app and upload it."; exit 1; fi; \
+	cd $(PIPE)/scripts && uv run --project .. python export_viewer_scan.py "$(CURDIR)/$$E" "$(CURDIR)/$(WEB)/public/local-scan"
 
 live: ## The API with real Meta model calls (keys from .env), and the scan worker
 	( cd $(API) && uv run recall-api ) & $(MAKE) worker ; wait

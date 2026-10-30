@@ -60,15 +60,9 @@ Indie track · Theme: <strong>Build for Your World</strong></p>
 
 ## Screenshots
 
-All images are our own captures: the landing page, and one real room reconstructed by the pipeline.
+The landing page. No image of anyone's home is in this repo: the 3D viewer shows only a room you scan yourself.
 
-| Landing page | 3D viewer with layers |
-|---|---|
-| ![The landing page hero](docs/media/hero.png) | ![The scanned room as a point cloud with the floor grid, height bands and flat surfaces](docs/media/viewer-layers.png) |
-
-| The point cloud gathering into the room |
-|---|
-| ![Three moments of the gather animation](docs/media/gather.png) |
+![The landing page hero](docs/media/hero.png)
 
 ## What it is
 
@@ -163,7 +157,7 @@ All images are our own captures: the landing page, and one real room reconstruct
   6. At most 6 agent steps; on failure, the best grounded partial answer.
 - **The Verifier can only downgrade.** The vision model may turn a result into "uncertain"; only SAM plus geometry can confirm.
 - **Prompt Guard on the door.** Every message from an external agent is screened by Llama Prompt Guard before any tool runs.
-- **Privacy.** Raw walkthrough video and frames are never committed; the sample room is processed output, reviewed for anything personal. Voice clips are sent for transcription and not stored. The phone holds no API keys and talks only to our backend. In local privacy mode the agent runs on the Mac. Vercel Speed Insights: cookieless page-speed measurements, no personal data.
+- **Privacy.** No scan of anyone's home is in the repo or on the hosted site: raw video, frames and point clouds stay on the Mac that made them, and the viewer reads your own export from a gitignored folder. Voice clips are sent for transcription and not stored. The phone holds no API keys and talks only to our backend. In local privacy mode the agent runs on the Mac. Vercel Speed Insights: cookieless page-speed measurements, no personal data.
 - **Honesty.** Sample and recorded data are labelled as such in the UI and the docs; the demo shows only what was built.
 - **Rules.** Only Meta models at runtime; no non-Meta model anywhere, and no TTS model of any kind.
 
@@ -206,7 +200,7 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
   ```
 - Open:
   - `http://localhost:3000/` for the landing page;
-  - `http://localhost:3000/homes/demo-flat/viewer` for the sample room (our own scan).
+  - `http://localhost:3000/viewer` for your own scanned room; until you have one, the page lists the steps (section 2).
 - Optional: "Ask by voice" on the landing page calls Muse Voice Transcribe through a server route. Create `.env` in the repo root with `META_MUSE_API_KEY=<your key>`; without it the card still works with the preset questions. Every spoken line on the site is the browser's own voice.
 - Checks:
   ```bash
@@ -214,14 +208,14 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
   pnpm exec playwright test        # the browser suite; starts the dev server if needed
   ```
 
-### 2. Export a scan to the viewer (runs now)
+### 2. See your own room in the viewer
 
-- Input: a MapAnything run saved as an `.npz` with per-view points, masks, confidence, colours and poses (see `docs/verification.md` for how the sample was produced).
-- Run:
+- Scan a room with the iPhone app and upload it to your Mac (`make live` runs the API and the scan worker; the steps are on the `/viewer` page).
+- Export the newest processed scan, then open `http://localhost:3000/viewer`:
   ```bash
-  uv run services/pipeline/scripts/export_viewer_points.py VIEWS.npz apps/web/public/samples/demo-flat --stats stats.json
+  make viewer
   ```
-- Output: `points.bin`, `colors.bin` (kept out of git), `conf.bin` and `meta.json` with the detected flat surfaces.
+- Output: `apps/web/public/local-scan/` (points, photo colours, confidence, the room model and what Recall found). Git ignores the folder, so your room never leaves your computer.
 
 ### 3. Backend and pipeline (planned, phases 0 to 2)
 

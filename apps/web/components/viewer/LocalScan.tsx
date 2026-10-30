@@ -1,11 +1,25 @@
+"use client";
+
+import { useEffect, useState, type ReactNode } from "react";
 import { format, getDictionary } from "@/i18n";
-import meta from "@/public/samples/demo-flat/meta.json";
 import { BAND_EDGES, BANDS, bandOf } from "./bands";
 import { FoundViewer } from "./FoundViewer";
+import type { FurnitureBox, RoomShape, Surface, Thing } from "./Layers";
 import { ViewerStats } from "./ViewerStats";
 
-const s = getDictionary().app.viewer.sample;
-const SAMPLE = "/samples/demo-flat";
+const s = getDictionary().app.viewer.scan;
+/** Where `make viewer` writes the export; gitignored, so it only ever exists on the computer that scanned. */
+const SRC = "/local-scan";
+
+export interface ScanMeta {
+  count: number;
+  bounds: { min: number[]; max: number[] };
+  surfaces: Surface[];
+  room: RoomShape;
+  furniture: FurnitureBox[];
+  objects: Thing[];
+  stats: { frames: number; total_s: number; sam_calls: number; captured: string };
+}
 
 function bandRange(i: number) {
   if (i === 0) return format(s.bandBelow, { to: BAND_EDGES[0] });
@@ -13,8 +27,23 @@ function bandRange(i: number) {
   return format(s.bandRange, { from: BAND_EDGES[i - 1], to: BAND_EDGES[i] });
 }
 
-/** The sample room: a real run of our pipeline on one room. Caption, stats, bands and the found list are plain HTML. */
-export function SampleScan() {
+/** Your exported scan if this computer has one, else the steps to make one. */
+export function LocalScan({ steps }: { steps: ReactNode }) {
+  const [meta, setMeta] = useState<ScanMeta | null | "missing">(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${SRC}/meta.json`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : "missing"))
+      .catch(() => "missing")
+      .then((m) => !cancelled && setMeta(m));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (meta === null) return <p className="mt-8 text-muted">{s.looking}</p>;
+  if (meta === "missing") return <div data-no-scan>{steps}</div>;
+
   const stats = [
     { value: String(meta.stats.frames), label: s.stats.frames },
     { value: String(Math.round(meta.stats.total_s)), label: s.stats.rebuild },
@@ -36,7 +65,7 @@ export function SampleScan() {
   return (
     <>
       <FoundViewer
-        src={SAMPLE}
+        src={SRC}
         bounds={meta.bounds}
         surfaces={meta.surfaces}
         room={meta.room}
@@ -46,14 +75,9 @@ export function SampleScan() {
         found={{ ...s.found, bandNames: s.bandNames }}
         caption={
           <>
-            <span className="font-semibold text-ink">{s.alt}</span> {s.label} {s.scale} <span data-viewer-hint>{s.hint}</span>
+            <span className="font-semibold text-ink">{s.alt}</span> {format(s.label, { date: meta.stats.captured })}{" "}
+            <span data-viewer-hint>{s.hint}</span>
           </>
-        }
-        poster={
-          <noscript>
-            {/* eslint-disable-next-line @next/next/no-img-element -- a static poster for visitors without JavaScript */}
-            <img src={`${SAMPLE}/poster.webp`} alt={s.posterAlt} className="size-full object-contain" />
-          </noscript>
         }
       />
 

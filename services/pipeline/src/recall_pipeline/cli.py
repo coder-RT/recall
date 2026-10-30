@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 
 
@@ -14,6 +15,9 @@ def main(argv: list[str] | None = None) -> int:
     proc.add_argument("--scan-id", required=True)
     proc.add_argument("--no-post", action="store_true", help="write result.json only; don't post to the API")
     args = p.parse_args(argv)
+    fmt = "%(asctime)s %(levelname)s %(message)s"
+    logging.basicConfig(level=logging.INFO, format=fmt, stream=sys.stdout, force=True)
+    sys.stdout.reconfigure(line_buffering=True)  # type: ignore[union-attr]  # the API's log file shows progress live
     if args.cmd == "process":
         from recall_pipeline.adapters.run import process  # heavy imports (torch) only when processing
 

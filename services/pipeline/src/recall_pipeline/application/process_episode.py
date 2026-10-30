@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -18,6 +19,8 @@ from recall_pipeline.application.ports import (
 )
 from recall_pipeline.domain import home_frame, room_model
 from recall_pipeline.domain.lift import lift_box
+
+log = logging.getLogger("recall_pipeline")
 
 
 @dataclass
@@ -65,9 +68,11 @@ def process_episode(
     t0 = time.perf_counter()
     episode = source.load()
     indices = _subsample(len(episode.frames), cfg.max_views)
+    log.info("episode %s: %d frames, reconstructing %d views", episode.scan_id, len(episode.frames), len(indices))
 
     views = recon.reconstruct(episode, source, indices)
     t_recon = time.perf_counter() - t0
+    log.info("reconstruction done in %.1f s", t_recon)
     world = np.concatenate([v.points[v.valid] for v in views])
     cloud = geo.clean(world)
 
@@ -78,6 +83,7 @@ def process_episode(
     T = T_y.copy()
     T[2, 3] = -floor_z
     home_cloud = home_frame.apply(T, cloud)
+    log.info("cloud %d points; floor found, %d walls", len(home_cloud), len(walls))
     for v in views:
         debug.frame(v, source.image_rgb(v.index))
     debug.points("cloud", home_cloud)
@@ -87,12 +93,14 @@ def process_episode(
     sam_views = views[:: cfg.sam_every]
     t1 = time.perf_counter()
     calls = 0
-    for v in sam_views:
+    concepts = cfg.furniture + cfg.objects
+    log.info("SAM 3.1: %d views x %d prompts = %d calls", len(sam_views), len(concepts), len(sam_views) * len(concepts))
+    for n, v in enumerate(sam_views, 1):
         jpeg = source.jpeg(v.index)
         h, w = v.depth.shape
         img_w, img_h = episode.image_size
         sx, sy = w / img_w, h / img_h  # SAM boxes are in source-image pixels; depth is at the output size
-        for concept in cfg.furniture + cfg.objects:
+        for concept in concepts:
             calls += 1
             for b in sam.boxes(jpeg, concept):
                 if b.score < cfg.min_score:
@@ -105,6 +113,7 @@ def process_episode(
                     continue
                 pts = home_frame.apply(T, lifted.points)
                 sightings[concept].append((np.median(pts, axis=0), b.score, v.index, pts))
+        log.info("SAM view %d/%d done, %d sightings so far", n, len(sam_views), sum(map(len, sightings.values())))
     t_sam = time.perf_counter() - t1
 
     # one thing per cluster of sightings of the same label
@@ -171,6 +180,13 @@ def process_episode(
         "transform_to_home": T.reshape(-1).round(6).tolist(),
         "stats": cfg.stats,
     }
+    log.info(
+        "%d landmarks, %d objects; total %.1f s",
+        len(things["landmarks"]),
+        len(things["objects"]),
+        cfg.stats["total_s"],
+    )
     if sink is not None:
         sink.post(episode.scan_id, result)
+        log.info("results posted to the API")
     return result

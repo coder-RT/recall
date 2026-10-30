@@ -51,7 +51,7 @@ struct ScanView: View {
                         .accessibilityLabel(model.spokenProgress)
                         .accessibilityAddTraits(.updatesFrequently)
                         if model.phase == .finishing {
-                            ProgressView("Saving the scan…").foregroundStyle(Tokens.ink).glassCard()
+                            ProgressView("Saving the scan…").foregroundStyle(Tokens.ink).card()
                         } else {
                             BigButton("Stop", systemImage: "stop.fill", hint: "Finish the scan and hear the report.", style: .stop) {
                                 Task { await model.stop(model: app) }
@@ -87,7 +87,7 @@ private struct Unsupported: View {
     let close: () -> Void
     var body: some View {
         VStack(spacing: 20) {
-            Image(systemName: "sensor.tag.radiowaves.forward").font(.system(size: 56)).foregroundStyle(.white)
+            Image(systemName: "sensor.tag.radiowaves.forward").font(.system(size: 56)).foregroundStyle(Tokens.blueDark)
                 .accessibilityHidden(true)
             VStack(spacing: 12) {
                 Text("Scanning needs an iPhone with LiDAR").font(.title2.weight(.bold)).multilineTextAlignment(.center)
@@ -97,12 +97,12 @@ private struct Unsupported: View {
                     .multilineTextAlignment(.center).foregroundStyle(Tokens.muted)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .glassCard()
+            .card()
             BigButton("Back", systemImage: "chevron.left", hint: "Return to your scans.", style: .secondary, action: close)
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background { GlassBackground() }
+        .background(Tokens.grey.ignoresSafeArea())
     }
 }
 
@@ -118,11 +118,11 @@ private struct Failed: View {
                 Text(message).multilineTextAlignment(.center).foregroundStyle(Tokens.ink)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .glassCard()
+            .card()
             BigButton("Back", systemImage: "chevron.left", hint: "Return to your scans.", style: .secondary, action: close)
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background { GlassBackground() }
+        .background(Tokens.grey.ignoresSafeArea())
     }
 }

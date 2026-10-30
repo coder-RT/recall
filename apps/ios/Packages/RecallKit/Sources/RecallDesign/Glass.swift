@@ -1,96 +1,144 @@
 import SwiftUI
 
-/// The sky behind every screen: deep old-Facebook blue at the top (where the white titles sit) fading to pale, with a
-/// few soft lights. Static, so nothing moves for people who turn motion off.
-public struct GlassBackground: View {
-    public init() {}
-
-    public var body: some View {
-        ZStack {
-            LinearGradient(stops: [
-                .init(color: Tokens.blueDeep, location: 0),
-                .init(color: Tokens.blueDark, location: 0.22),
-                .init(color: Tokens.blue, location: 0.42),
-                .init(color: Tokens.bluePale, location: 0.78),
-                .init(color: Tokens.grey, location: 1),
-            ], startPoint: .top, endPoint: .bottom)
-            GeometryReader { geo in
-                let w = geo.size.width
-                // lights stay below the titles, so white headings keep the deep blue behind them
-                Circle().fill(Color(red: 0.55, green: 0.62, blue: 0.95).opacity(0.5))
-                    .frame(width: w * 0.9).blur(radius: 70).offset(x: w * 0.35, y: geo.size.height * 0.45)
-                Circle().fill(.white.opacity(0.35))
-                    .frame(width: w * 0.7).blur(radius: 60).offset(x: -w * 0.3, y: geo.size.height * 0.62)
-            }
-        }
-        .ignoresSafeArea()
-        .accessibilityHidden(true)
-    }
-}
+// The content layer: a light canvas and white cards. Liquid Glass belongs to the layer above it (tab bar, toolbars,
+// search, buttons, the scan HUD over the camera), which the system draws; we don't paint behind the bars.
 
 extension View {
-    /// A Liquid Glass card. The glass is a layer behind a frosted white fill, never around the text: glass gives text
-    /// "vibrancy" (its colour shifts with what is behind), which breaks contrast. So ink reads at full strength.
-    public func glassCard(cornerRadius: CGFloat = 24, padding: CGFloat = 16) -> some View {
+    /// A white card on the canvas: rounded, a hairline edge and a soft shadow. Ink text keeps full contrast.
+    public func card(padding: CGFloat = Tokens.cardPadding) -> some View {
         self.padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Tokens.glassTint, in: .rect(cornerRadius: cornerRadius))
-            .glassRim(.rect(cornerRadius: cornerRadius))
+            .background(.white, in: .rect(cornerRadius: Tokens.cardRadius))
+            .overlay(RoundedRectangle(cornerRadius: Tokens.cardRadius).stroke(Tokens.line.opacity(0.6), lineWidth: 0.5))
+            .shadow(color: Tokens.blueDeep.opacity(0.06), radius: 10, y: 4)
     }
 
-    /// Liquid Glass behind a view (its rim and light), without putting the view's own content inside the glass.
+    /// Liquid Glass behind a view (its rim and light), not around its text: glass gives text "vibrancy" (its colour
+    /// shifts with what is behind), which breaks contrast.
     public func glassRim(_ shape: some Shape, _ glass: Glass = .regular) -> some View {
         self.background { Color.clear.glassEffect(glass, in: shape) }
     }
 
-    /// Glass screen chrome: the sky behind the content, and white navigation titles and buttons on its dark top.
+    /// The canvas behind a screen's scroll view (light grey, like the reference); bars stay the system's own glass.
     public func recallScreen() -> some View {
         self.scrollContentBackground(.hidden)
-            .background { GlassBackground() }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.dark, for: .navigationBar)
-            // iOS 26 fades content under the bars with a light blur; on the deep sky it washed out the white titles
-            .scrollEdgeEffectHidden(true, for: .top)
+            .background(Tokens.grey.ignoresSafeArea())
     }
 }
 
-/// The big round button at the heart of the Home screen: a glowing glass orb with an icon and a word under it.
-public struct GlowOrb: View {
+/// Recall's mark: a rounded tile in old-Facebook blue with the viewfinder glyph and the warm ring as a thin edge.
+public struct AppMark: View {
+    let size: CGFloat
+    public init(size: CGFloat = 52) { self.size = size }
+
+    public var body: some View {
+        RoundedRectangle(cornerRadius: size * 0.28)
+            .fill(LinearGradient(colors: [Tokens.blue, Tokens.blueDeep], startPoint: .topLeading, endPoint: .bottomTrailing))
+            .overlay {
+                RoundedRectangle(cornerRadius: size * 0.28)
+                    .strokeBorder(LinearGradient(colors: [Tokens.ringWarm, Tokens.ringCool], startPoint: .topLeading,
+                                                 endPoint: .bottomTrailing), lineWidth: 1.5)
+            }
+            .overlay {
+                Image(systemName: "viewfinder").font(.system(size: size * 0.46, weight: .semibold)).foregroundStyle(.white)
+            }
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
+    }
+}
+
+/// A section title with an optional count on the right ("Your scans · 3 scans").
+public struct SectionTitle: View {
+    let title: String
+    let count: String?
+    public init(_ title: String, count: String? = nil) { self.title = title; self.count = count }
+
+    public var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title).font(.title3.weight(.bold)).foregroundStyle(Tokens.ink)
+                .accessibilityAddTraits(.isHeader)
+            Spacer()
+            if let count { Text(count).font(.subheadline).foregroundStyle(Tokens.muted) }
+        }
+        .padding(.top, 8)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// A small square with an SF Symbol on pale blue, at the start of a row.
+public struct IconTile: View {
+    let systemImage: String
+    let tint: Color
+    @ScaledMetric(relativeTo: .title3) private var side: CGFloat = 44  // grows with the text beside it
+    public init(_ systemImage: String, tint: Color = Tokens.blueDark) { self.systemImage = systemImage; self.tint = tint }
+
+    public var body: some View {
+        Image(systemName: systemImage)
+            .font(.title3.weight(.semibold))
+            .foregroundStyle(tint)
+            .frame(width: side, height: side)
+            .background(Tokens.bluePale.opacity(0.7), in: .rect(cornerRadius: 12))
+            .accessibilityHidden(true)
+    }
+}
+
+/// A status chip: an icon and a word on a pale fill in the same hue, never colour alone.
+public struct Chip: View {
     let title: String
     let systemImage: String
-    let hint: String
-    let action: () -> Void
+    let color: Color
+    public init(_ title: String, systemImage: String, color: Color) {
+        self.title = title; self.systemImage = systemImage; self.color = color
+    }
 
-    public init(_ title: String, systemImage: String, hint: String, action: @escaping () -> Void) {
-        self.title = title; self.systemImage = systemImage; self.hint = hint; self.action = action
+    public var body: some View {
+        Label(title, systemImage: systemImage)
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 10).padding(.vertical, 5)
+            .background(color.opacity(0.1), in: Capsule())
+    }
+}
+
+/// A filter choice in a row of chips (like "All · To check · Checked"); the selected one is filled.
+public struct FilterChip: View {
+    let title: String
+    let selected: Bool
+    let action: () -> Void
+    public init(_ title: String, selected: Bool, action: @escaping () -> Void) {
+        self.title = title; self.selected = selected; self.action = action
     }
 
     public var body: some View {
         Button(action: action) {
-            VStack(spacing: 14) {
-                ZStack {
-                    Circle()
-                        .fill(RadialGradient(colors: [.white.opacity(0.95), Color(red: 0.62, green: 0.70, blue: 1.0), Tokens.blue],
-                                             center: .init(x: 0.4, y: 0.35), startRadius: 4, endRadius: 90))
-                        .frame(width: 150, height: 150)
-                        .shadow(color: Color(red: 0.6, green: 0.7, blue: 1).opacity(0.8), radius: 30)
-                    Image(systemName: systemImage)
-                        .font(.system(size: 48, weight: .semibold))
-                        .foregroundStyle(Tokens.blueDeep)
-                }
-                .glassEffect(.clear.interactive(), in: .circle)
-                .accessibilityHidden(true)
-                // the word sits on its own deep-blue glass, so it reads wherever the sky has turned pale
-                Text(title).font(.title2.weight(.bold)).foregroundStyle(.white)
-                    .padding(.horizontal, 22).padding(.vertical, 10)
-                    .background(Tokens.blueDeep, in: Capsule())
-                    .glassRim(.capsule)
-            }
-            .frame(maxWidth: .infinity)
-            .contentShape(Rectangle())
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(selected ? .white : Tokens.ink)
+                .padding(.horizontal, 16)
+                .frame(minHeight: 44)
+                .background(selected ? Tokens.blueDark : .white, in: Capsule())
+                .overlay(Capsule().stroke(selected ? .clear : Tokens.line, lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .accessibilityHint(hint)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+/// A centred icon and a sentence for an empty list.
+public struct EmptyState: View {
+    let systemImage: String
+    let text: String
+    public init(_ systemImage: String, _ text: String) { self.systemImage = systemImage; self.text = text }
+
+    public var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: systemImage).font(.system(size: 44, weight: .regular)).foregroundStyle(Tokens.line)
+                .accessibilityHidden(true)
+            Text(text).font(.body.weight(.medium)).foregroundStyle(Tokens.muted).multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 32)
     }
 }
 
@@ -118,28 +166,11 @@ public struct CoverageDial: View {
         }
         .frame(width: 112, height: 112)
         .padding(10)
+        // solid enough that white text reads over any camera image; the glass is the rim and the light
         .background(Tokens.blueDeep.opacity(0.85), in: .circle)
         .glassRim(.circle)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(count) of 12 directions covered")
         .accessibilityAddTraits(.updatesFrequently)
-    }
-}
-
-/// A choice among a few (room names): white pill with deep-blue text inside a glass rim.
-public struct PillButtonStyle: ButtonStyle {
-    public init() {}
-
-    public func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.body.weight(.semibold))
-            .multilineTextAlignment(.center)
-            .foregroundStyle(Tokens.blueDeep)
-            .frame(maxWidth: .infinity, minHeight: Tokens.minTarget)
-            .padding(.horizontal, 10)
-            .background(.white, in: Capsule())
-            .overlay(Capsule().stroke(Tokens.line, lineWidth: 1))
-            .opacity(configuration.isPressed ? 0.7 : 1)
-            .glassRim(.capsule, .regular.interactive())
     }
 }

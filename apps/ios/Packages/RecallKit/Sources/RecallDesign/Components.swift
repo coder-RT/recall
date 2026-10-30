@@ -14,32 +14,23 @@ public struct BigButton: View {
         self.title = title; self.systemImage = systemImage; self.hint = hint; self.style = style; self.action = action
     }
 
-    // text sits on a solid fill (contrast never depends on what is behind); glass is the rim and the touch response
     public var body: some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.title3.weight(.semibold))
-                .frame(maxWidth: .infinity, minHeight: Tokens.minTarget)
-                .padding(.horizontal, 16)
-                .foregroundStyle(style == .secondary ? Tokens.blueDeep : .white)
-                .background(fill, in: Capsule())
-                .overlay(Capsule().stroke(style == .secondary ? Tokens.line : .clear, lineWidth: 1))
+        let label = Label(title, systemImage: systemImage)
+            .font(.headline)
+            .frame(maxWidth: .infinity, minHeight: Tokens.minTarget - 14)
+        Group {
+            if style == .secondary {
+                Button(action: action) { label.foregroundStyle(Tokens.blueDark) }.buttonStyle(.glass)
+            } else {
+                Button(action: action) { label }.buttonStyle(.glassProminent).tint(style == .stop ? Tokens.danger : Tokens.cta)
+            }
         }
-        .buttonStyle(.plain)
-        .glassRim(.capsule, .regular.interactive())
+        .controlSize(.large)
         .accessibilityHint(hint)
-    }
-
-    private var fill: Color {
-        switch style {
-        case .primary: Tokens.cta
-        case .secondary: .white
-        case .stop: Tokens.danger
-        }
     }
 }
 
-/// A big number with a label on glass, read by VoiceOver as one sentence.
+/// A big number with a label, read by VoiceOver as one sentence.
 public struct StatTile: View {
     let value: String
     let label: String
@@ -48,10 +39,10 @@ public struct StatTile: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(value).font(.title.weight(.bold)).monospacedDigit().foregroundStyle(Tokens.ink)
-            Text(label).font(.subheadline).foregroundStyle(Tokens.muted)
+            Text(value).font(.title2.weight(.bold)).monospacedDigit().foregroundStyle(Tokens.ink)
+            Text(label).font(.footnote).foregroundStyle(Tokens.muted)
         }
-        .glassCard(cornerRadius: 18, padding: 12)
+        .card(padding: 12)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(value) \(label)")
     }

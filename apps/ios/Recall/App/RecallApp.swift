@@ -16,6 +16,7 @@ struct RecallApp: App {
                 Tab("Found", systemImage: "checklist", value: AppTab.found) { ReviewView() }
                 Tab("Settings", systemImage: "gearshape", value: AppTab.settings) { SettingsView() }
             }
+            .tabBarMinimizeBehavior(.onScrollDown)
             .environment(model)
             .tint(Tokens.blueDark)
             .task { await model.start() }

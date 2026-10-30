@@ -8,16 +8,17 @@ struct RoomNameView: View {
     @State private var name = ""
     @FocusState private var focused: Bool
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     private let common = ["Living room", "Kitchen", "Bedroom", "Hallway", "Bathroom", "Office"]
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    Text("Which room is this?").font(.title.weight(.bold)).foregroundStyle(.white)
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Which room is this?").font(.title2.weight(.bold)).foregroundStyle(Tokens.ink)
                         .accessibilityAddTraits(.isHeader)
-                    TextField("Room name", text: $name, prompt: Text("For example, Living room").foregroundStyle(Tokens.muted),
+                    TextField("Room name", text: $name, prompt: Text("e.g. Living room").foregroundStyle(Tokens.muted),
                               axis: .vertical)
                         .accessibilityLabel("Room name")
                         .accessibilityIdentifier("roomName")
@@ -25,31 +26,36 @@ struct RoomNameView: View {
                         .focused($focused)
                         .submitLabel(.go)
                         .onSubmit { go() }
-                        .frame(minHeight: Tokens.minTarget)
-                        .glassCard(cornerRadius: 20, padding: 14)
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Or pick one").font(.headline).foregroundStyle(Tokens.ink)
-                            .accessibilityAddTraits(.isHeader)
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                            ForEach(common, id: \.self) { room in
-                                Button(room) { name = room; go() }
-                                    .buttonStyle(PillButtonStyle())
+                        .frame(minHeight: Tokens.minTarget - 16, alignment: .leading)
+                        .card(padding: 16)
+                    SectionTitle("Or pick one")
+                        .padding(.top, 8)
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: typeSize.isAccessibilitySize ? 1 : 2),
+                              spacing: 10) {
+                        ForEach(common, id: \.self) { room in
+                            Button { name = room; go() } label: {
+                                HStack(spacing: 10) {
+                                    IconTile(RoomIcon.for(room))
+                                    Text(room).font(.subheadline.weight(.semibold)).foregroundStyle(Tokens.ink)
+                                        .multilineTextAlignment(.leading)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                    Spacer(minLength: 0)
+                                }
+                                .card(padding: 10)
                             }
+                            .buttonStyle(.plain)
                         }
                     }
-                    .glassCard()
                 }
-                .padding(20)
+                .padding(Tokens.gutter)
             }
             .recallScreen()
-            .navigationTitle("Scan a room")
+            .navigationTitle("New scan")
+            .navigationBarTitleDisplayMode(.inline)
+            .tint(Tokens.blueDark)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button { dismiss() } label: { Text("Cancel").foregroundStyle(.white) }
-                    .buttonStyle(.glassProminent).tint(Tokens.blueDeep) }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button { go() } label: { Text("Start").foregroundStyle(.white) }
-                        .buttonStyle(.glassProminent).tint(Tokens.cta)
-                }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel", role: .cancel) { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("Start", role: .confirm) { go() }.buttonStyle(.glassProminent).tint(Tokens.cta) }
             }
         }
     }

@@ -11,14 +11,20 @@ struct ReportView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                Text(record.room).font(.largeTitle.weight(.bold)).foregroundStyle(.white)
-                    .accessibilityAddTraits(.isHeader)
-                GradeBadge(grade: record.grade).font(.title3)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 14) {
+                    IconTile(RoomIcon.for(record.room))
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(record.room).font(.title.weight(.bold)).foregroundStyle(Tokens.ink)
+                            .accessibilityAddTraits(.isHeader)
+                        GradeBadge(grade: record.grade)
+                    }
+                }
+                .padding(.top, 12)
                 if let metrics {
-                    Text(ScanGrade.reason(for: metrics)).font(.title3).foregroundStyle(Tokens.ink)
+                    Text(ScanGrade.reason(for: metrics)).font(.body).foregroundStyle(Tokens.ink)
                         .fixedSize(horizontal: false, vertical: true)
-                        .glassCard()
+                        .card()
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                         StatTile("\(metrics.directionsCovered)/12", "directions covered")
                         StatTile("\(metrics.keyframesKept)", "sharp frames")
@@ -34,12 +40,12 @@ struct ReportView: View {
                 }
                 if record.grade == .redo {
                     Text("This scan is likely too thin to use. You can still upload it, or scan the room again.")
-                        .foregroundStyle(Tokens.ink).glassCard()
+                        .foregroundStyle(Tokens.ink).card()
                 }
                 BigButton("Done", systemImage: "checkmark", hint: "Keep the scan on this phone for now.", style: .secondary,
                           action: close)
             }
-            .padding(20)
+            .padding(Tokens.gutter)
         }
         .recallScreen()
         .task {

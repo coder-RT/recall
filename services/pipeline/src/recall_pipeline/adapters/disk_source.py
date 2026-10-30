@@ -43,6 +43,9 @@ class DiskEpisodeSource:
             depth[conf < self.min_confidence] = 0.0
         return cv2.resize(depth, size, interpolation=cv2.INTER_NEAREST)  # nearest: never blend across edges
 
+    def save_array(self, name: str, array: np.ndarray) -> None:
+        np.save(self.folder / name, array)
+
     def sharpness(self, index: int) -> float:
         """Variance of the Laplacian on the grey image (OpenCV classic functions only)."""
         grey = cv2.cvtColor(self.image_rgb(index), cv2.COLOR_RGB2GRAY)

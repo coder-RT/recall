@@ -161,6 +161,8 @@ def process_episode(
             "total_s": round(time.perf_counter() - t0, 1),
         }
     )
+    if hasattr(source, "save_array"):  # the cloud for route planning, next to the episode (home frame, float16)
+        source.save_array("home_cloud.npy", home_cloud.astype(np.float16))
     result = {
         "scan_id": episode.scan_id,
         "room": room,

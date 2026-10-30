@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import logging
+
+import numpy as np
 import torch
 
 from recall_pipeline.application.ports import EpisodeSource, ViewGeometry
 from recall_pipeline.domain.episode import Episode
 from recall_pipeline.domain.geometry import arkit_to_opencv
+
+log = logging.getLogger("recall_pipeline")
 
 WEIGHTS = "facebook/map-anything-apache"
 REVISION = "00f9c245bbcb60522d1ed7f9e9d88462c6e3f38a"
@@ -48,17 +53,26 @@ class MapAnythingLocal:
                 apply_mask=True,
                 mask_edges=True,
             )
+        # MapAnything expresses everything in view 0's camera frame (model.py,
+        # _compute_pose_quats_and_trans_for_across_views_in_ref_view); move it back into the ARKit world
+        pred0 = out[0]["camera_poses"][0].float().cpu().numpy()
+        to_world = arkit_to_opencv(episode.frames[indices[0]].pose_arkit) @ np.linalg.inv(pred0)
         result = []
+        drift = []
         for i, pred in zip(indices, out, strict=True):
+            pts = pred["pts3d"][0].float().cpu().numpy()
+            cam2world = to_world @ pred["camera_poses"][0].float().cpu().numpy()
+            drift.append(np.linalg.norm(cam2world[:3, 3] - episode.frames[i].pose_arkit[:3, 3]))
             result.append(
                 ViewGeometry(
                     index=i,
-                    points=pred["pts3d"][0].float().cpu().numpy(),
+                    points=pts @ to_world[:3, :3].T + to_world[:3, 3],
                     valid=pred["mask"][0].squeeze(-1).bool().cpu().numpy(),
                     confidence=pred["conf"][0].float().cpu().numpy(),
-                    cam2world=pred["camera_poses"][0].float().cpu().numpy(),
+                    cam2world=cam2world,
                     intrinsics=pred["intrinsics"][0].float().cpu().numpy(),
                     depth=pred["depth_z"][0].squeeze(-1).float().cpu().numpy(),
                 )
             )
+        log.info("camera drift vs ARKit: median %.3f m, max %.3f m", float(np.median(drift)), float(np.max(drift)))
         return result

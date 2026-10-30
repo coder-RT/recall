@@ -281,14 +281,24 @@ class PathItem(RootModel[list[float]]):
     root: Annotated[list[float], Field(max_length=2, min_length=2)]
 
 
+class PathArkitItem(RootModel[list[float]]):
+    root: Annotated[list[float], Field(max_length=2, min_length=2)]
+
+
 class GuidanceSession(BaseModel):
     session_id: str
     mode: Annotated[Mode, Field(description="landmarks when tracking is limited or there is no safe path")]
     reason: str | None = None
     steps: list[RouteStep]
-    path: Annotated[
-        list[PathItem] | None, Field(description="Waypoints [x, y] in the home frame for the phone's RouteFollower")
+    path: Annotated[list[PathItem] | None, Field(description="Waypoints [x, y] in the home frame (metres)")] = None
+    path_arkit: Annotated[
+        list[PathArkitItem] | None,
+        Field(description="The same waypoints in the phone's ARKit world as [x, z], for the on-device RouteFollower"),
     ] = None
+    arrive_say: Annotated[
+        str | None, Field(description="What to say on arrival, e.g. where the object is relative to the person")
+    ] = None
+    object_label: str | None = None
 
 
 class VerificationRequest(BaseModel):

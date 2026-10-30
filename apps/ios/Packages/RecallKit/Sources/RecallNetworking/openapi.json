@@ -1,0 +1,1544 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Recall API",
+    "version": "0.1.0",
+    "summary": "Voice-first 3D memory of a home. Spec-first source of truth.",
+    "license": {
+      "name": "Apache-2.0",
+      "identifier": "Apache-2.0"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "The Mac (reach it from the phone over the LAN or a Cloudflare Tunnel)"
+    }
+  ],
+  "security": [
+    {
+      "deviceKey": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "health",
+      "description": "Liveness; the only route without the device key"
+    },
+    {
+      "name": "scans",
+      "description": "Resumable episode upload from the phone, and results from the pipeline"
+    },
+    {
+      "name": "homes",
+      "description": "The remembered room model and objects"
+    },
+    {
+      "name": "ask",
+      "description": "The Guide agent"
+    },
+    {
+      "name": "guidance",
+      "description": "Routes and the arrival check"
+    },
+    {
+      "name": "voice",
+      "description": "Speech to text through Muse Voice Transcribe"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "operationId": "getHealth",
+        "security": [],
+        "summary": "Liveness and which providers are configured (never their keys)",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scans": {
+      "post": {
+        "tags": [
+          "scans"
+        ],
+        "operationId": "createScan",
+        "summary": "Start a resumable upload of one episode archive",
+        "description": "The phone creates the scan id, so retries are idempotent: posting the same id again returns the same upload plan and the parts already received. The archive is split into parts of `part_size` bytes (the last may be shorter).\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Upload plan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadPlan"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        }
+      }
+    },
+    "/scans/{scan_id}": {
+      "get": {
+        "tags": [
+          "scans"
+        ],
+        "operationId": "getScan",
+        "summary": "Upload and processing status of one scan",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/scan_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Scan status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Scan"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/scans/{scan_id}/parts/{part_number}": {
+      "put": {
+        "tags": [
+          "scans"
+        ],
+        "operationId": "putScanPart",
+        "summary": "Upload one part of the archive",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/scan_id"
+          },
+          {
+            "name": "part_number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Content-SHA256",
+            "in": "header",
+            "required": true,
+            "description": "Lowercase hex SHA-256 of the part body",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Part stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartReceipt"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        }
+      }
+    },
+    "/scans/{scan_id}/manifest": {
+      "put": {
+        "tags": [
+          "scans"
+        ],
+        "operationId": "putScanManifest",
+        "summary": "Upload the episode manifest, after every part",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/scan_id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Manifest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Manifest stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Scan"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        }
+      }
+    },
+    "/scans/{scan_id}/complete": {
+      "post": {
+        "tags": [
+          "scans"
+        ],
+        "operationId": "completeScan",
+        "summary": "Verify the archive and every file against the manifest, then start the pipeline",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/scan_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted; processing started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Scan"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/scans/{scan_id}/results": {
+      "post": {
+        "tags": [
+          "scans"
+        ],
+        "operationId": "postScanResults",
+        "summary": "The pipeline posts its results; the API is the only writer of memory",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/scan_id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanResult"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ingested",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Scan"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/homes/{home_id}/room": {
+      "get": {
+        "tags": [
+          "homes"
+        ],
+        "operationId": "getRoomModel",
+        "summary": "The home's room model (floor polygon, walls, furniture boxes) for the phone's 3D map",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/home_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Room model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomModel"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/homes/{home_id}/objects": {
+      "get": {
+        "tags": [
+          "homes"
+        ],
+        "operationId": "listObjects",
+        "summary": "Every remembered object with its last confident sighting",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/home_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Objects",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ObjectLocation"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ask": {
+      "post": {
+        "tags": [
+          "ask"
+        ],
+        "operationId": "ask",
+        "summary": "Ask where something is; the Guide agent answers from tool output only",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Grounded answer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Answer"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/guidance/sessions": {
+      "post": {
+        "tags": [
+          "guidance"
+        ],
+        "operationId": "startGuidance",
+        "summary": "Plan a route from the user's relocalised pose to an object",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuidanceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Route",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuidanceSession"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/guidance/sessions/{session_id}/verify": {
+      "post": {
+        "tags": [
+          "guidance"
+        ],
+        "operationId": "verifyArrival",
+        "summary": "Confirm the object from one arrival frame (SAM 3.1 + geometry; Muse Spark 1.1 may only downgrade)",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/VerificationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verification result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificationResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/transcribe": {
+      "post": {
+        "tags": [
+          "voice"
+        ],
+        "operationId": "transcribe",
+        "summary": "Speech to text through Muse Voice Transcribe (the only speech model)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "audio"
+                ],
+                "properties": {
+                  "audio": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "The recorded question"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transcript",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transcript"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "deviceKey": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "A shared key from .env (RECALL_DEVICE_KEY), entered once on the phone and given to the pipeline. Pairing, not a login: the API is reachable through a Cloudflare Tunnel, so every route except /health needs it.\n"
+      }
+    },
+    "schemas": {
+      "Health": {
+        "type": "object",
+        "required": [
+          "status",
+          "llm_provider",
+          "storage"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          },
+          "llm_provider": {
+            "type": "string",
+            "description": "Which Guide provider is configured"
+          },
+          "storage": {
+            "type": "string",
+            "enum": [
+              "local",
+              "r2"
+            ]
+          }
+        }
+      },
+      "ScanCreate": {
+        "type": "object",
+        "required": [
+          "scan_id",
+          "home_id",
+          "room",
+          "archive"
+        ],
+        "properties": {
+          "scan_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "home_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]{1,64}$"
+          },
+          "room": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60,
+            "description": "Room name the user gave, e.g. \"Living room\""
+          },
+          "archive": {
+            "type": "object",
+            "required": [
+              "size",
+              "sha256",
+              "part_size"
+            ],
+            "properties": {
+              "size": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 209715200,
+                "description": "Bytes; episodes stay under 200 MB"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "part_size": {
+                "type": "integer",
+                "minimum": 5242880,
+                "maximum": 67108864,
+                "description": "About 8 MB"
+              }
+            }
+          }
+        }
+      },
+      "UploadPlan": {
+        "type": "object",
+        "required": [
+          "scan_id",
+          "part_size",
+          "parts",
+          "manifest_url",
+          "complete_url"
+        ],
+        "properties": {
+          "scan_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "part_size": {
+            "type": "integer"
+          },
+          "parts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "number",
+                "url",
+                "received"
+              ],
+              "properties": {
+                "number": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "url": {
+                  "type": "string",
+                  "description": "Where to PUT this part (relative to the API base, or absolute for R2)"
+                },
+                "received": {
+                  "type": "boolean",
+                  "description": "Already stored; skip it when resuming"
+                }
+              }
+            }
+          },
+          "manifest_url": {
+            "type": "string"
+          },
+          "complete_url": {
+            "type": "string"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Machine-readable code"
+          },
+          "detail": {
+            "type": "string",
+            "description": "One plain sentence for a person"
+          }
+        }
+      },
+      "Scan": {
+        "type": "object",
+        "required": [
+          "scan_id",
+          "home_id",
+          "room",
+          "status"
+        ],
+        "properties": {
+          "scan_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "home_id": {
+            "type": "string"
+          },
+          "room": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "uploading",
+              "uploaded",
+              "processing",
+              "processed",
+              "failed"
+            ]
+          },
+          "detail": {
+            "type": "string",
+            "description": "Why it failed, in one sentence"
+          },
+          "frame_count": {
+            "type": "integer"
+          },
+          "object_count": {
+            "type": "integer"
+          }
+        }
+      },
+      "PartReceipt": {
+        "type": "object",
+        "required": [
+          "number",
+          "size",
+          "sha256"
+        ],
+        "properties": {
+          "number": {
+            "type": "integer"
+          },
+          "size": {
+            "type": "integer"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        }
+      },
+      "CaptureMetrics": {
+        "type": "object",
+        "required": [
+          "directions_covered",
+          "keyframes_kept",
+          "keyframes_dropped_blurry",
+          "tracking_normal_ratio",
+          "mean_speed_mps",
+          "peak_speed_mps",
+          "slow_down_cues",
+          "grade"
+        ],
+        "properties": {
+          "directions_covered": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 12,
+            "description": "Camera headings in 12 sectors of 30 degrees"
+          },
+          "keyframes_kept": {
+            "type": "integer"
+          },
+          "keyframes_dropped_blurry": {
+            "type": "integer"
+          },
+          "tracking_normal_ratio": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "mean_speed_mps": {
+            "type": "number"
+          },
+          "peak_speed_mps": {
+            "type": "number"
+          },
+          "slow_down_cues": {
+            "type": "integer"
+          },
+          "area_walked_m2": {
+            "type": "number"
+          },
+          "mean_light_lux": {
+            "type": "number"
+          },
+          "grade": {
+            "type": "string",
+            "enum": [
+              "good",
+              "usable",
+              "redo"
+            ]
+          }
+        }
+      },
+      "Manifest": {
+        "type": "object",
+        "description": "The episode's manifest.json, written on the phone and uploaded last",
+        "required": [
+          "scan_id",
+          "format",
+          "device",
+          "app_version",
+          "created_at",
+          "duration_s",
+          "frame_count",
+          "image",
+          "depth",
+          "intrinsics",
+          "files",
+          "capture_metrics"
+        ],
+        "properties": {
+          "scan_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "format": {
+            "type": "string",
+            "const": "recall-episode/1"
+          },
+          "device": {
+            "type": "string",
+            "description": "Hardware model, e.g. iPhone17,1"
+          },
+          "app_version": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "duration_s": {
+            "type": "number",
+            "minimum": 0
+          },
+          "frame_count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "image": {
+            "type": "object",
+            "required": [
+              "width",
+              "height"
+            ],
+            "properties": {
+              "width": {
+                "type": "integer"
+              },
+              "height": {
+                "type": "integer"
+              }
+            }
+          },
+          "depth": {
+            "type": "object",
+            "required": [
+              "width",
+              "height",
+              "unit",
+              "encoding"
+            ],
+            "properties": {
+              "width": {
+                "type": "integer"
+              },
+              "height": {
+                "type": "integer"
+              },
+              "unit": {
+                "type": "string",
+                "const": "mm"
+              },
+              "encoding": {
+                "type": "string",
+                "const": "png16"
+              }
+            }
+          },
+          "intrinsics": {
+            "type": "object",
+            "description": "Pinhole intrinsics for the SAVED frame size (scaled from ARKit's full camera image)",
+            "required": [
+              "fx",
+              "fy",
+              "cx",
+              "cy"
+            ],
+            "properties": {
+              "fx": {
+                "type": "number"
+              },
+              "fy": {
+                "type": "number"
+              },
+              "cx": {
+                "type": "number"
+              },
+              "cy": {
+                "type": "number"
+              }
+            }
+          },
+          "world_map": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Relative path of the saved ARWorldMap, if any"
+          },
+          "files": {
+            "type": "array",
+            "description": "Every file in the episode with its SHA-256",
+            "items": {
+              "type": "object",
+              "required": [
+                "path",
+                "size",
+                "sha256"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "size": {
+                  "type": "integer"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            }
+          },
+          "capture_metrics": {
+            "$ref": "#/components/schemas/CaptureMetrics"
+          }
+        }
+      },
+      "RoomModel": {
+        "type": "object",
+        "description": "room.json, built from planes and footprints in the home frame (metres)",
+        "required": [
+          "floor_polygon",
+          "walls",
+          "furniture",
+          "height_m"
+        ],
+        "properties": {
+          "floor_polygon": {
+            "type": "array",
+            "description": "Closed outline of the floor, [x, y] vertices, counter-clockwise",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "minItems": 3
+          },
+          "walls": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "start",
+                "end",
+                "height_m"
+              ],
+              "properties": {
+                "start": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "end": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "height_m": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "furniture": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "label",
+                "footprint",
+                "top_z"
+              ],
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "footprint": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 2,
+                    "maxItems": 2
+                  },
+                  "minItems": 3
+                },
+                "top_z": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "height_m": {
+            "type": "number",
+            "description": "Floor to ceiling, or the tallest wall seen"
+          }
+        }
+      },
+      "DetectedThing": {
+        "type": "object",
+        "required": [
+          "label",
+          "centroid",
+          "bbox_min",
+          "bbox_max",
+          "confidence",
+          "sightings"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "centroid": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "bbox_min": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "bbox_max": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "sightings": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Frames that saw it"
+          },
+          "keyframe_index": {
+            "type": "integer",
+            "description": "The best frame"
+          },
+          "front_dir": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            },
+            "description": "Unit vector (x, y) the front faces, landmarks only"
+          }
+        }
+      },
+      "ScanResult": {
+        "type": "object",
+        "description": "What the pipeline found, in the home frame (floor z = 0, z up, metres)",
+        "required": [
+          "scan_id",
+          "room",
+          "landmarks",
+          "objects",
+          "stats"
+        ],
+        "properties": {
+          "scan_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "room": {
+            "$ref": "#/components/schemas/RoomModel"
+          },
+          "landmarks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DetectedThing"
+            }
+          },
+          "objects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DetectedThing"
+            }
+          },
+          "transform_to_home": {
+            "type": "array",
+            "description": "4x4 row-major transform from this scan's frame to the home frame (identity for the first scan)",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 16,
+            "maxItems": 16
+          },
+          "stats": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Measured timings and counts for this run"
+          }
+        }
+      },
+      "ObjectLocation": {
+        "type": "object",
+        "required": [
+          "object_id",
+          "label",
+          "position",
+          "height_band",
+          "seen_at",
+          "confidence"
+        ],
+        "properties": {
+          "object_id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "position": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "height_band": {
+            "type": "string",
+            "enum": [
+              "floor",
+              "knee",
+              "waist",
+              "chest",
+              "head"
+            ]
+          },
+          "room": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "landmark": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "relation": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "on",
+              "left_of",
+              "right_of",
+              "near",
+              null
+            ]
+          },
+          "shelf_level": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "seen_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "confidence": {
+            "type": "number"
+          },
+          "stale": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AskRequest": {
+        "type": "object",
+        "required": [
+          "home_id",
+          "question"
+        ],
+        "properties": {
+          "home_id": {
+            "type": "string"
+          },
+          "question": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "session_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A guidance session, if the user is already being guided"
+          }
+        }
+      },
+      "Answer": {
+        "type": "object",
+        "required": [
+          "text",
+          "grounded"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "One or two short sentences to speak"
+          },
+          "grounded": {
+            "type": "boolean",
+            "description": "Every place, distance and time in the text came from a tool"
+          },
+          "object_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tool_calls": {
+            "type": "integer"
+          },
+          "model": {
+            "type": "string",
+            "description": "The Meta model that phrased it"
+          },
+          "latency_ms": {
+            "type": "integer"
+          }
+        }
+      },
+      "Pose": {
+        "type": "object",
+        "description": "ARKit camera-to-world transform, column-major, metres (ARKit camera convention)",
+        "required": [
+          "matrix"
+        ],
+        "properties": {
+          "matrix": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 16,
+            "maxItems": 16
+          }
+        }
+      },
+      "GuidanceRequest": {
+        "type": "object",
+        "required": [
+          "home_id",
+          "object_id",
+          "pose",
+          "tracking"
+        ],
+        "properties": {
+          "home_id": {
+            "type": "string"
+          },
+          "object_id": {
+            "type": "string"
+          },
+          "pose": {
+            "$ref": "#/components/schemas/Pose"
+          },
+          "tracking": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "limited",
+              "not_available"
+            ]
+          }
+        }
+      },
+      "RouteStep": {
+        "type": "object",
+        "required": [
+          "clock",
+          "metres",
+          "say"
+        ],
+        "properties": {
+          "clock": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12,
+            "description": "Turn as a clock face; 12 is straight ahead"
+          },
+          "metres": {
+            "type": "number"
+          },
+          "say": {
+            "type": "string"
+          },
+          "waypoint": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          }
+        }
+      },
+      "GuidanceSession": {
+        "type": "object",
+        "required": [
+          "session_id",
+          "mode",
+          "steps"
+        ],
+        "properties": {
+          "session_id": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "route",
+              "landmarks"
+            ],
+            "description": "landmarks when tracking is limited or there is no safe path"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RouteStep"
+            }
+          },
+          "path": {
+            "type": "array",
+            "description": "Waypoints [x, y] in the home frame for the phone's RouteFollower",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          }
+        }
+      },
+      "VerificationRequest": {
+        "type": "object",
+        "required": [
+          "image",
+          "depth",
+          "pose"
+        ],
+        "properties": {
+          "image": {
+            "type": "string",
+            "format": "binary",
+            "description": "JPEG arrival frame"
+          },
+          "depth": {
+            "type": "string",
+            "format": "binary",
+            "description": "16-bit PNG depth in mm"
+          },
+          "pose": {
+            "type": "string",
+            "description": "JSON PoseRecord with the frame's intrinsics"
+          }
+        }
+      },
+      "VerificationResult": {
+        "type": "object",
+        "required": [
+          "outcome",
+          "say"
+        ],
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "found_nearby",
+              "uncertain",
+              "not_here"
+            ]
+          },
+          "say": {
+            "type": "string"
+          },
+          "distance_cm": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "sam_score": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "position": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            }
+          }
+        }
+      },
+      "Transcript": {
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "latency_ms": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "responses": {
+      "Invalid": {
+        "description": "Invalid input",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Not in a state that allows this",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unavailable": {
+        "description": "A required model or service is not configured or not reachable",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "parameters": {
+      "scan_id": {
+        "name": "scan_id",
+        "in": "path",
+        "required": true,
+        "description": "Created on the phone (UUID), so retries are idempotent",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "home_id": {
+        "name": "home_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]{1,64}$"
+        }
+      }
+    }
+  }
+}

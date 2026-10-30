@@ -13,6 +13,7 @@ from recall_api.adapters.outbound.storage.zip_unpacker import ZipEpisodeUnpacker
 from recall_api.adapters.outbound.voice.muse_transcribe import MuseTranscriber
 from recall_api.application.ask_where_is import AskWhereIs
 from recall_api.application.ingest_scan import IngestScan
+from recall_api.application.plan_guidance import PlanGuidance
 from recall_api.application.tools import Tools
 from recall_api.application.upload_scan import UploadScan
 from recall_api.config.settings import REPO_ROOT, Settings
@@ -64,8 +65,12 @@ class Container:
         return IngestScan(self.scans, self.homes, self.objects, self.clock, new_id)
 
     @cached_property
+    def guidance(self) -> PlanGuidance:
+        return PlanGuidance(self.homes, self.scans, self.objects, self.blobs, new_id)
+
+    @cached_property
     def tools(self) -> Tools:
-        return Tools(self.homes, self.objects, self.clock)
+        return Tools(self.homes, self.objects, self.clock, self.guidance)
 
     @cached_property
     def ask(self) -> AskWhereIs:

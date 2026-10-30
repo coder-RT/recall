@@ -44,3 +44,9 @@ __pycache__/
 .ruff_cache/
 services/api/build/
 /data/
+
+# iOS: generated project and build output
+apps/ios/Recall.xcodeproj/
+apps/ios/build/
+**/.build/
+**/.swiftpm/

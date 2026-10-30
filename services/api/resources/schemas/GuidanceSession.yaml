@@ -9,5 +9,11 @@ properties:
     items: {$ref: RouteStep.yaml}
   path:
     type: array
-    description: Waypoints [x, y] in the home frame for the phone's RouteFollower
+    description: "Waypoints [x, y] in the home frame (metres)"
     items: {type: array, items: {type: number}, minItems: 2, maxItems: 2}
+  path_arkit:
+    type: array
+    description: "The same waypoints in the phone's ARKit world as [x, z], for the on-device RouteFollower"
+    items: {type: array, items: {type: number}, minItems: 2, maxItems: 2}
+  arrive_say: {type: string, description: "What to say on arrival, e.g. where the object is relative to the person"}
+  object_label: {type: string}

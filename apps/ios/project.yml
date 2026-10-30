@@ -1,0 +1,80 @@
+name: Recall
+options:
+  bundleIdPrefix: com.rachitthariani
+  deploymentTarget:
+    iOS: "18.0"
+  developmentLanguage: en
+  createIntermediateGroups: true
+settings:
+  base:
+    DEVELOPMENT_TEAM: 4QM97V9YAR
+    CODE_SIGN_STYLE: Automatic
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+packages:
+  RecallKit:
+    path: Packages/RecallKit
+targets:
+  Recall:
+    type: application
+    platform: iOS
+    sources:
+      - path: Recall
+    dependencies:
+      - package: RecallKit
+        product: RecallDomain
+      - package: RecallKit
+        product: RecallCapture
+      - package: RecallKit
+        product: RecallUpload
+      - package: RecallKit
+        product: RecallNetworking
+      - package: RecallKit
+        product: RecallVoice
+      - package: RecallKit
+        product: RecallDesign
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.rachitthariani.recall
+        INFOPLIST_FILE: Recall/Resources/Info.plist
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    info:
+      path: Recall/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: Recall
+        UILaunchScreen: {}
+        UIApplicationSupportsIndirectInputEvents: true
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIRequiredDeviceCapabilities: [arm64, arkit]
+        NSCameraUsageDescription: "Recall uses the camera and LiDAR to remember where things are in your home. Nothing is shared except with your own Mac."
+        NSLocalNetworkUsageDescription: "Recall sends your scans to your own Mac on this network."
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+  RecallUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: RecallUITests
+    dependencies:
+      - target: Recall
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.rachitthariani.recall.uitests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  Recall:
+    build:
+      targets:
+        Recall: all
+        RecallUITests: [test]
+    test:
+      targets:
+        - RecallUITests
+      environmentVariables:
+        RECALL_SHOTS: /tmp/recall-shots

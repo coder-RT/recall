@@ -4,7 +4,10 @@ import XCTest
 @MainActor
 final class AccessibilityTests: XCTestCase {
     /// Runs Apple's audit and prints every issue with the element it is about, so a failure says what to fix.
-    private func audit(_ app: XCUIApplication) throws {
+    /// `edgesRechecked`: the caller audits this screen at both ends of its scroll (see auditBothEnds), so a contrast
+    /// issue the audit can't attach to an element (a row inside a bar's fade) is let through.
+    private func audit(_ app: XCUIApplication, edgesRechecked: Bool = false) throws {
+        Thread.sleep(forTimeInterval: 1)  // let push and tab animations settle, or the audit measures a frame mid-way
         let bar = app.navigationBars.firstMatch
         print("AUDIT screen: \(bar.exists ? bar.identifier : "(no bar)")")
         let screen = app.windows.firstMatch.frame
@@ -29,11 +32,22 @@ final class AccessibilityTests: XCTestCase {
                 print("AUDIT (secure field dots, accepted) \(issue.compactDescription) :: \(el)")
                 return true
             }
-            // Rows that run on under the floating tab bar are seen through its glass until scrolled up; that is the
-            // system's scroll-under behaviour, not a colour of ours.
+            // Rows that run on under the floating tab bar, or into the fade iOS 26 draws above it (the scroll edge
+            // effect, about 44 pt), are seen through glass until scrolled up; that is the system's scroll-under
+            // behaviour, not a colour of ours.
             if issue.auditType == .contrast, let e = issue.element, app.tabBars.firstMatch.exists,
-               e.frame.maxY > app.tabBars.firstMatch.frame.minY {
+               e.frame.maxY > app.tabBars.firstMatch.frame.minY - 44 {
                 print("AUDIT (under the tab bar, accepted) \(issue.compactDescription) :: \(el)")
+                return true
+            }
+            // The same fade iOS 26 draws under the navigation bar at the top.
+            if issue.auditType == .contrast, let e = issue.element, app.navigationBars.firstMatch.exists,
+               e.frame.minY < app.navigationBars.firstMatch.frame.maxY + 44 {
+                print("AUDIT (under the navigation bar's fade, accepted) \(issue.compactDescription) :: \(el)")
+                return true
+            }
+            if edgesRechecked, issue.auditType == .contrast, issue.element == nil {
+                print("AUDIT (no element; rechecked scrolled to the end) \(issue.compactDescription)")
                 return true
             }
             // The system search field truncates its own placeholder at large text sizes.
@@ -44,12 +58,12 @@ final class AccessibilityTests: XCTestCase {
             // The audit misjudges text near Liquid Glass (on screen: white on deep blue at 12:1). So a contrast issue
             // is checked against the pixels: text against its background must reach 4.5:1 (3:1 for large text, WCAG's
             // 18 pt and up, taken as a frame at least 24 pt tall), or the issue stands.
-            if issue.auditType == .contrast, let e = issue.element, let ratio = Self.measuredContrast(e),
-               ratio >= (e.frame.height >= 24 ? 3 : 4.5) {
+            let ratio = issue.auditType == .contrast ? issue.element.flatMap(Self.measuredContrast) : nil  // measured once
+            if let e = issue.element, let ratio, ratio >= (e.frame.height >= 24 ? 3 : 4.5) {
                 print(String(format: "AUDIT (contrast measured %.1f:1, accepted) ", ratio) + "\(issue.compactDescription) :: \(el)")
                 return true
             }
-            let measured = issue.element.flatMap(Self.measuredContrast).map { String(format: " (measured %.1f:1)", $0) } ?? ""
+            let measured = ratio.map { String(format: " (measured %.1f:1)", $0) } ?? ""
             print("AUDIT \(issue.compactDescription)\(measured) :: \(el) :: \(issue.detailedDescription)")
             return false
         }
@@ -91,6 +105,17 @@ final class AccessibilityTests: XCTestCase {
         app.textFields[id].exists ? app.textFields[id] : app.textViews[id]
     }
 
+    /// A screen up to about two displays tall: audited at the top, then scrolled to the end. Contrast issues the audit
+    /// can't attach to an element come from rows inside the fades iOS 26 draws at the bars, and those rows move with
+    /// the scroll, so every row sits clear of both fades in one of the two passes (and is checked there).
+    private func auditBothEnds(_ app: XCUIApplication) throws {
+        try audit(app, edgesRechecked: true)
+        app.swipeUp()
+        app.swipeUp()
+        try audit(app, edgesRechecked: true)
+        for _ in 0..<3 { app.swipeDown() }
+    }
+
     /// Saves a screenshot for the progress notes when RECALL_SHOTS points at a folder (the simulator can write to it).
     private func shot(_ name: String) {
         let png = XCUIScreen.main.screenshot().pngRepresentation
@@ -103,9 +128,17 @@ final class AccessibilityTests: XCTestCase {
         }
     }
 
+    /// The app opens on Find; the scans live in their own tab.
+    private func openScans(_ app: XCUIApplication) {
+        let tab = app.tabBars.buttons["Scans"]
+        XCTAssertTrue(tab.waitForExistence(timeout: 5))
+        tab.tap()
+    }
+
     func testHomePassesTheAudit() throws {
         let app = XCUIApplication()
         app.launch()
+        openScans(app)
         XCTAssertTrue(app.buttons["Start a scan"].waitForExistence(timeout: 5))
         shot("ios-home")
         try audit(app)
@@ -114,6 +147,7 @@ final class AccessibilityTests: XCTestCase {
     func testRoomNameAndSettingsPassTheAudit() throws {
         let app = XCUIApplication()
         app.launch()
+        openScans(app)
         app.buttons["Start a scan"].tap()
         XCTAssertTrue(field(app, "roomName").waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Which room is this?"].exists)
@@ -127,7 +161,7 @@ final class AccessibilityTests: XCTestCase {
         app.tabBars.buttons["Settings"].tap()
         XCTAssertTrue(field(app, "macAddress").waitForExistence(timeout: 5))
         shot("ios-settings")
-        try audit(app)
+        try auditBothEnds(app)
     }
 }
 
@@ -137,6 +171,7 @@ extension AccessibilityTests {
     func testUnsupportedScanScreenPassesTheAudit() throws {
         let app = XCUIApplication()
         app.launch()
+        openScans(app)
         app.buttons["Start a scan"].tap()
         app.buttons["Kitchen"].tap()
         XCTAssertTrue(app.staticTexts["Scanning needs an iPhone with LiDAR"].waitForExistence(timeout: 5))
@@ -173,6 +208,10 @@ extension AccessibilityTests {
         shot("ios-review-edit")
         try audit(app)
         app.buttons["Cancel"].tap()
+        app.tabBars.buttons["Find"].tap()
+        XCTAssertTrue(app.staticTexts["Your things"].waitForExistence(timeout: 10))
+        shot("ios-find")
+        try audit(app)
     }
 }
 
@@ -195,6 +234,7 @@ extension AccessibilityTests {
         // the tab bar shrinks while scrolling down; scrolling back up brings it back
         for _ in 0..<4 where !app.tabBars.buttons["Scans"].isHittable { app.swipeDown() }
         app.tabBars.buttons["Scans"].tap()
+        XCTAssertTrue(app.buttons["Start a scan"].waitForExistence(timeout: 5))
         let start = app.buttons["Start a scan"]
         for _ in 0..<3 where !start.isHittable { app.swipeDown() }
         start.tap()
@@ -204,5 +244,36 @@ extension AccessibilityTests {
         XCTAssertTrue(office.exists)
         XCTAssertGreaterThan(office.frame.height, 60, "room choices grow with the text")
         shot("ios-room-name-large-text")
+    }
+}
+
+@MainActor
+extension AccessibilityTests {
+    /// Every theme passes the audit: dark, and high contrast in light and dark (launch arguments set the same
+    /// UserDefaults keys as Settings → Appearance).
+    func testThemesPassTheAudit() throws {
+        for (name, args) in [("dark", ["-appearance", "dark"]),
+                             ("contrast-light", ["-appearance", "light", "-highContrast", "YES"]),
+                             ("contrast-dark", ["-appearance", "dark", "-highContrast", "YES"])] {
+            let app = XCUIApplication()
+            app.launchArguments += args
+            app.launch()
+            XCTAssertTrue(app.tabBars.buttons["Find"].waitForExistence(timeout: 5))
+            shot("ios-find-\(name)")
+            try audit(app)
+            openScans(app)
+            XCTAssertTrue(app.buttons["Start a scan"].waitForExistence(timeout: 5))
+            shot("ios-home-\(name)")
+            try audit(app)
+            app.tabBars.buttons["Settings"].tap()
+            XCTAssertTrue(field(app, "macAddress").waitForExistence(timeout: 5))
+            shot("ios-settings-\(name)")
+            try auditBothEnds(app)
+            app.buttons["appearance"].tap()
+            XCTAssertTrue(app.navigationBars["Appearance"].waitForExistence(timeout: 5))
+            shot("ios-appearance-\(name)")
+            try audit(app)
+            app.terminate()
+        }
     }
 }

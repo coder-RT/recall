@@ -52,10 +52,11 @@ struct RoomNameView: View {
             .recallScreen()
             .navigationTitle("New scan")
             .navigationBarTitleDisplayMode(.inline)
-            .tint(Tokens.blueDark)
+            .tint(Tokens.accent)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel", role: .cancel) { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("Start", role: .confirm) { go() }.buttonStyle(.glassProminent).tint(Tokens.cta) }
+                ToolbarItem(placement: .confirmationAction) { Button(role: .confirm) { go() } label: { Text("Start").foregroundStyle(Tokens.onGo) }
+                    .buttonStyle(.glassProminent).tint(Tokens.go) }
             }
         }
     }

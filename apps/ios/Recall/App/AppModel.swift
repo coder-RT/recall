@@ -18,8 +18,14 @@ struct ScanRecord: Codable, Identifiable, Equatable {
     var uploadFraction: Double?
 }
 
-/// The app's three tabs.
-enum AppTab: Hashable { case scans, found, settings }
+/// The app's tabs.
+enum AppTab: Hashable { case find, scans, found, settings }
+
+/// Something to walk to: what the Guide screen needs to start.
+struct GuideTarget: Identifiable, Equatable {
+    let id: String  // the object id
+    let title: String
+}
 
 /// App state: settings, the local scan library, uploads. Feature screens talk to it; it talks to RecallKit's ports.
 @MainActor @Observable
@@ -27,7 +33,9 @@ final class AppModel {
     static let sharedUploader = Uploader()
 
     var scans: [ScanRecord] = []
-    var tab: AppTab = .scans
+    var tab: AppTab = .find
+    /// Set to walk the user to an object; the app shows the Guide screen over every tab.
+    var guiding: GuideTarget?
     var serverURL: String {
         didSet {
             // Return in the multi-line field would add a newline; an address never has one
@@ -102,6 +110,14 @@ final class AppModel {
     static var libraryFile: URL { URL.applicationSupportDirectory.appending(path: "scans.json") }
 
     func episodeDir(_ id: String) -> URL { Self.episodesDir.appending(path: "scan-\(id)") }
+
+    /// The saved room map to relocalise into: the home's first processed scan made on this phone, since routes are
+    /// planned in that scan's world.
+    var roomMapURL: URL? {
+        scans.filter { $0.uploadPhase == "processed" }.sorted { $0.createdAt < $1.createdAt }
+            .map { episodeDir($0.id).appending(path: "worldmap.arworldmap") }
+            .first { FileManager.default.fileExists(atPath: $0.path) }
+    }
 
     func start() async {
         await uploader.observe { [weak self] id, progress in

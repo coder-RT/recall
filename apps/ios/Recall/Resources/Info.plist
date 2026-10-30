@@ -42,6 +42,8 @@
 	<string>Recall uses the camera and LiDAR to remember where things are in your home. Nothing is shared except with your own Mac.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Recall sends your scans to your own Mac on this network.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Recall listens after you tap the microphone, so you can ask where something is. The recording goes only to your own Mac.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIFileSharingEnabled</key>

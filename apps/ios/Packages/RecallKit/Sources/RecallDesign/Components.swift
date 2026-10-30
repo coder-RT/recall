@@ -19,10 +19,14 @@ public struct BigButton: View {
             .font(.headline)
             .frame(maxWidth: .infinity, minHeight: Tokens.minTarget - 14)
         Group {
-            if style == .secondary {
-                Button(action: action) { label.foregroundStyle(Tokens.blueDark) }.buttonStyle(.glass)
-            } else {
-                Button(action: action) { label }.buttonStyle(.glassProminent).tint(style == .stop ? Tokens.danger : Tokens.cta)
+            switch style {
+            case .secondary:
+                Button(action: action) { label.foregroundStyle(Tokens.accent) }.buttonStyle(.glass)
+            case .primary:
+                Button(action: action) { label.foregroundStyle(Tokens.onGo) }.buttonStyle(.glassProminent).tint(Tokens.go)
+            case .stop:
+                Button(action: action) { label.foregroundStyle(Tokens.onDanger) }.buttonStyle(.glassProminent)
+                    .tint(Tokens.dangerFill)
             }
         }
         .controlSize(.large)
@@ -62,5 +66,31 @@ public struct CueBanner: View {
             .background(Tokens.amber, in: .rect(cornerRadius: 22))
             .glassRim(.rect(cornerRadius: 22))
             .accessibilityAddTraits(.updatesFrequently)
+    }
+}
+
+/// A capsule button with its words on a solid fill (glass would tint them and cost contrast); the glass is the rim
+/// and the touch response.
+public struct SolidPillStyle: ButtonStyle {
+    let fill: Color
+    let text: Color
+    let edge: Color?
+    let compact: Bool
+
+    /// `compact`: sized to its words (44 pt tall) for a row of small actions, instead of full width.
+    public init(fill: Color, text: Color, edge: Color? = nil, compact: Bool = false) {
+        self.fill = fill; self.text = text; self.edge = edge; self.compact = compact
+    }
+
+    public func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(compact ? .subheadline.weight(.semibold) : .headline)
+            .foregroundStyle(text)
+            .frame(maxWidth: compact ? nil : .infinity, minHeight: compact ? 44 : Tokens.minTarget)
+            .padding(.horizontal, compact ? 14 : 12)
+            .background(fill, in: Capsule())
+            .overlay(Capsule().stroke(edge ?? .clear, lineWidth: 1.5))
+            .opacity(configuration.isPressed ? 0.75 : 1)
+            .glassRim(.capsule, .regular.interactive())
     }
 }

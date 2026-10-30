@@ -10,18 +10,39 @@ struct RecallApp: App {
 
     var body: some Scene {
         WindowGroup {
-            @Bindable var model = model
-            TabView(selection: $model.tab) {
-                Tab("Scans", systemImage: "viewfinder", value: AppTab.scans) { HomeView() }
-                Tab("Found", systemImage: "checklist", value: AppTab.found) { ReviewView() }
-                Tab("Settings", systemImage: "gearshape", value: AppTab.settings) { SettingsView() }
-            }
-            .tabBarMinimizeBehavior(.onScrollDown)
-            .environment(model)
-            .tint(Tokens.blueDark)
-            .task { await model.start() }
-            .onOpenURL { model.pair(with: $0) }
+            ThemedRoot().environment(model)
         }
+    }
+}
+
+/// The tabs, with the user's theme applied: light, dark or automatic, and high contrast (the Settings switch or
+/// iOS's Increase Contrast).
+private struct ThemedRoot: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.colorSchemeContrast) private var systemContrast
+    @AppStorage(Theme.appearanceKey) private var appearance = Appearance.system
+    @AppStorage(Theme.highContrastKey) private var highContrast = false
+
+    var body: some View {
+        @Bindable var model = model
+        TabView(selection: $model.tab) {
+            Tab("Find", systemImage: "location.magnifyingglass", value: AppTab.find) { FindView() }
+            Tab("Scans", systemImage: "viewfinder", value: AppTab.scans) { HomeView() }
+            Tab("Found", systemImage: "checklist", value: AppTab.found) { ReviewView() }
+            Tab("Settings", systemImage: "gearshape", value: AppTab.settings) { SettingsView() }
+        }
+        .tabBarMinimizeBehavior(.onScrollDown)
+        .tint(Tokens.accent)
+        .fullScreenCover(item: $model.guiding) { target in
+            GuideView(target: target) { model.guiding = nil }
+        }
+        .environment(\.highContrast, highContrast || systemContrast == .increased)
+        .preferredColorScheme(appearance.scheme)
+        // dynamic colours read the switch when they resolve; a new identity redraws them all
+        .id(highContrast)
+        .onChange(of: highContrast, initial: true) { Theme.highContrast = highContrast }
+        .task { await model.start() }
+        .onOpenURL { model.pair(with: $0) }
     }
 }
 

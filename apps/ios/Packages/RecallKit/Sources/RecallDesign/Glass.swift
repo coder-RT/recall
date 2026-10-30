@@ -4,13 +4,9 @@ import SwiftUI
 // search, buttons, the scan HUD over the camera), which the system draws; we don't paint behind the bars.
 
 extension View {
-    /// A white card on the canvas: rounded, a hairline edge and a soft shadow. Ink text keeps full contrast.
+    /// A card on the canvas: rounded, a hairline edge and a soft shadow (a solid 2 pt edge in high contrast).
     public func card(padding: CGFloat = Tokens.cardPadding) -> some View {
-        self.padding(padding)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.white, in: .rect(cornerRadius: Tokens.cardRadius))
-            .overlay(RoundedRectangle(cornerRadius: Tokens.cardRadius).stroke(Tokens.line.opacity(0.6), lineWidth: 0.5))
-            .shadow(color: Tokens.blueDeep.opacity(0.06), radius: 10, y: 4)
+        modifier(Card(padding: padding))
     }
 
     /// Liquid Glass behind a view (its rim and light), not around its text: glass gives text "vibrancy" (its colour
@@ -22,28 +18,64 @@ extension View {
     /// The canvas behind a screen's scroll view (light grey, like the reference); bars stay the system's own glass.
     public func recallScreen() -> some View {
         self.scrollContentBackground(.hidden)
-            .background(Tokens.grey.ignoresSafeArea())
+            .background(Tokens.canvas.ignoresSafeArea())
     }
 }
 
-/// Recall's mark: a rounded tile in old-Facebook blue with the viewfinder glyph and the warm ring as a thin edge.
-public struct AppMark: View {
+private struct Card: ViewModifier {
+    let padding: CGFloat
+    @Environment(\.highContrast) private var hc
+
+    func body(content: Content) -> some View {
+        content.padding(padding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Tokens.card, in: .rect(cornerRadius: Tokens.cardRadius))
+            .overlay(RoundedRectangle(cornerRadius: Tokens.cardRadius).stroke(Tokens.line.opacity(hc ? 1 : 0.6),
+                                                                               lineWidth: hc ? 2 : 0.5))
+            .shadow(color: .black.opacity(hc ? 0 : 0.06), radius: 10, y: 4)
+    }
+}
+
+/// Recall's mark, as on the website: the Braille cell for "R" (dots 1, 2, 3 and 5 raised) on a rounded tile.
+public struct BrailleMark: View {
     let size: CGFloat
+    @Environment(\.highContrast) private var hc
     public init(size: CGFloat = 52) { self.size = size }
 
     public var body: some View {
-        RoundedRectangle(cornerRadius: size * 0.28)
-            .fill(LinearGradient(colors: [Tokens.blue, Tokens.blueDeep], startPoint: .topLeading, endPoint: .bottomTrailing))
+        let dot = size * 0.19
+        RoundedRectangle(cornerRadius: size * 0.25)
+            .fill(hc ? Tokens.card : .white)
+            .overlay(RoundedRectangle(cornerRadius: size * 0.25).stroke(Tokens.line.opacity(hc ? 1 : 0.5), lineWidth: hc ? 2 : 1))
             .overlay {
-                RoundedRectangle(cornerRadius: size * 0.28)
-                    .strokeBorder(LinearGradient(colors: [Tokens.ringWarm, Tokens.ringCool], startPoint: .topLeading,
-                                                 endPoint: .bottomTrailing), lineWidth: 1.5)
-            }
-            .overlay {
-                Image(systemName: "viewfinder").font(.system(size: size * 0.46, weight: .semibold)).foregroundStyle(.white)
+                Grid(horizontalSpacing: size * 0.06, verticalSpacing: size * 0.06) {
+                    ForEach(0..<3, id: \.self) { row in
+                        GridRow {
+                            ForEach(0..<2, id: \.self) { col in
+                                let n = col * 3 + row + 1  // Braille numbering: 1-2-3 down the left, 4-5-6 down the right
+                                Circle().fill(Self.raised.contains(n) ? (hc ? Tokens.ink : Tokens.blue)
+                                                                       : (hc ? Tokens.card : Tokens.bluePale))
+                                    .overlay(Circle().stroke(hc && !Self.raised.contains(n) ? Tokens.ink : .clear, lineWidth: 1))
+                                    .frame(width: dot, height: dot)
+                            }
+                        }
+                    }
+                }
             }
             .frame(width: size, height: size)
+            .shadow(color: .black.opacity(hc ? 0 : 0.08), radius: 6, y: 2)
             .accessibilityHidden(true)
+    }
+
+    static let raised: Set<Int> = [1, 2, 3, 5]
+}
+
+/// The wordmark: RECALL in heavy capitals with wide tracking, as on the website.
+public struct Wordmark: View {
+    public init() {}
+    public var body: some View {
+        Text("RECALL").font(.title2.weight(.heavy)).tracking(3).foregroundStyle(Tokens.ink)
+            .accessibilityLabel("Recall")
     }
 }
 
@@ -70,14 +102,14 @@ public struct IconTile: View {
     let systemImage: String
     let tint: Color
     @ScaledMetric(relativeTo: .title3) private var side: CGFloat = 44  // grows with the text beside it
-    public init(_ systemImage: String, tint: Color = Tokens.blueDark) { self.systemImage = systemImage; self.tint = tint }
+    public init(_ systemImage: String, tint: Color = Tokens.accent) { self.systemImage = systemImage; self.tint = tint }
 
     public var body: some View {
         Image(systemName: systemImage)
             .font(.title3.weight(.semibold))
             .foregroundStyle(tint)
             .frame(width: side, height: side)
-            .background(Tokens.bluePale.opacity(0.7), in: .rect(cornerRadius: 12))
+            .background(Tokens.tile, in: .rect(cornerRadius: 12))
             .accessibilityHidden(true)
     }
 }
@@ -87,6 +119,7 @@ public struct Chip: View {
     let title: String
     let systemImage: String
     let color: Color
+    @Environment(\.highContrast) private var hc
     public init(_ title: String, systemImage: String, color: Color) {
         self.title = title; self.systemImage = systemImage; self.color = color
     }
@@ -96,7 +129,8 @@ public struct Chip: View {
             .font(.footnote.weight(.semibold))
             .foregroundStyle(color)
             .padding(.horizontal, 10).padding(.vertical, 5)
-            .background(color.opacity(0.1), in: Capsule())
+            .background(color.opacity(0.12), in: Capsule())
+            .overlay(Capsule().stroke(color.opacity(hc ? 1 : 0), lineWidth: 1.5))
     }
 }
 
@@ -113,10 +147,10 @@ public struct FilterChip: View {
         Button(action: action) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(selected ? .white : Tokens.ink)
+                .foregroundStyle(selected ? Tokens.onAccent : Tokens.ink)
                 .padding(.horizontal, 16)
                 .frame(minHeight: 44)
-                .background(selected ? Tokens.blueDark : .white, in: Capsule())
+                .background(selected ? Tokens.accentFill : Tokens.card, in: Capsule())
                 .overlay(Capsule().stroke(selected ? .clear : Tokens.line, lineWidth: 1))
         }
         .buttonStyle(.plain)
@@ -132,7 +166,7 @@ public struct EmptyState: View {
 
     public var body: some View {
         VStack(spacing: 12) {
-            Image(systemName: systemImage).font(.system(size: 44, weight: .regular)).foregroundStyle(Tokens.line)
+            Image(systemName: systemImage).font(.system(size: 44, weight: .regular)).foregroundStyle(Tokens.muted)
                 .accessibilityHidden(true)
             Text(text).font(.body.weight(.medium)).foregroundStyle(Tokens.muted).multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)

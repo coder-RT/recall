@@ -87,7 +87,7 @@ private struct Unsupported: View {
     let close: () -> Void
     var body: some View {
         VStack(spacing: 20) {
-            Image(systemName: "sensor.tag.radiowaves.forward").font(.system(size: 56)).foregroundStyle(Tokens.blueDark)
+            Image(systemName: "sensor.tag.radiowaves.forward").font(.system(size: 56)).foregroundStyle(Tokens.accent)
                 .accessibilityHidden(true)
             VStack(spacing: 12) {
                 Text("Scanning needs an iPhone with LiDAR").font(.title2.weight(.bold)).multilineTextAlignment(.center)
@@ -102,7 +102,7 @@ private struct Unsupported: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Tokens.grey.ignoresSafeArea())
+        .background(Tokens.canvas.ignoresSafeArea())
     }
 }
 
@@ -123,6 +123,6 @@ private struct Failed: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Tokens.grey.ignoresSafeArea())
+        .background(Tokens.canvas.ignoresSafeArea())
     }
 }

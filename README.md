@@ -224,10 +224,15 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
 - `make live`: real Meta model calls with the keys from `.env`. The minimum is one Meta Model API key from [dev.meta.ai](https://dev.meta.ai) with `LLM_PROVIDER=meta`; the demo video uses Muse Spark Open on Baseten (`LLM_PROVIDER=baseten_spark_open`); the local privacy mode uses Muse Glimmer in LM Studio (`LLM_PROVIDER=lmstudio`).
 - `make test`, `make lint`, `make lint-imports`: tests, ruff and ESLint, and the architecture rule (domain ← application ← adapters).
 
-### 4. iPhone and Watch (planned, phases 1 and 3)
+### 4. iPhone app (Watch planned, phase 3)
 
-- XcodeGen generates the project (`apps/ios/project.yml`); it needs an iPhone with LiDAR and a free Apple ID for signing.
-- The phone talks only to the backend through a Cloudflare Tunnel URL set in `Config/Debug.xcconfig`; no keys in the app.
+- XcodeGen generates the project (`cd apps/ios && xcodegen generate`); it needs an iPhone with LiDAR running iOS 26 and a free Apple ID for signing.
+- In the app's Settings, enter the Mac's address (the API on your network, a Tailscale HTTPS address or a Cloudflare Tunnel URL) and the device key from `.env`. No other keys live on the phone.
+- Tabs:
+  - **Find**: ask "where are my keys?" by typing or speaking (Muse Voice Transcribe on the Mac), hear the answer, then **Take me there**. The phone relocalises in the saved room map, the Mac plans a route, and the phone speaks clock-face turns and distances, with a tick when you face the right way.
+  - **Scans**: record a room and upload it.
+  - **Found**: check what Recall found and correct the name, colour or height.
+  - **Settings**: the Mac's address and key, and Appearance (automatic, light or dark, plus high contrast in black, white and yellow).
 
 ### 5. Hosted version (optional)
 

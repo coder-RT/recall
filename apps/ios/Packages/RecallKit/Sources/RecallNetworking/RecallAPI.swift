@@ -123,6 +123,60 @@ public struct RecallAPI: Sendable {
         }
     }
 
+    /// Asks the Guide agent where something is. The answer comes from tool output only; `objectId` is the thing it
+    /// found, so the app can offer to walk there.
+    public func ask(homeId: String, question: String) async throws -> Answer {
+        let r = try await client.ask(body: .json(.init(homeId: homeId, question: question)))
+        switch r {
+        case .ok(let ok):
+            let a = try ok.body.json
+            return Answer(text: a.text, objectId: a.objectId, grounded: a.grounded)
+        case .serviceUnavailable: throw APIError.server("The Guide isn't available right now. Try again in a moment.")
+        case .undocumented(let code, _): throw APIError.status(code)
+        }
+    }
+
+    /// Speech to text on the Mac with Muse Voice Transcribe: mono 16-bit PCM WAV at 16 kHz. A plain multipart
+    /// request, since it carries a file.
+    public func transcribe(wav: Data) async throws -> String {
+        let boundary = "recall-\(UUID().uuidString)"
+        var body = Data()
+        body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"audio\"; filename=\"question.wav\"\r\n".utf8))
+        body.append(Data("Content-Type: audio/wav\r\n\r\n".utf8))
+        body.append(wav)
+        body.append(Data("\r\n--\(boundary)--\r\n".utf8))
+        var req = URLRequest(url: baseURL.appending(path: "transcribe"))
+        req.httpMethod = "POST"
+        req.setValue("Bearer \(deviceKey)", forHTTPHeaderField: "Authorization")
+        req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        req.httpBody = body
+        let (data, response) = try await URLSession.shared.data(for: req)
+        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        guard code == 200, let text = json?["text"] as? String else {
+            throw (json?["detail"] as? String).map { APIError.server($0) } ?? APIError.status(code)
+        }
+        return text
+    }
+
+    /// Plans a route from the phone's pose (ARKit camera-to-world, column-major, in the first scan's world, which
+    /// the phone has relocalised into) to an object.
+    public func startGuidance(homeId: String, objectId: String, pose: [Double], tracking: Tracking) async throws -> Route {
+        let body = Components.Schemas.GuidanceRequest(homeId: homeId, objectId: objectId, pose: .init(matrix: pose),
+                                                      tracking: .init(rawValue: tracking.rawValue) ?? .limited)
+        let r = try await client.startGuidance(body: .json(body))
+        switch r {
+        case .ok(let ok):
+            let g = try ok.body.json
+            return Route(sessionId: g.sessionId, landmarksOnly: g.mode == .landmarks, reason: g.reason,
+                         steps: g.steps.map { .init(clock: $0.clock, metres: $0.metres, say: $0.say) },
+                         waypoints: (g.pathArkit ?? []).compactMap { $0.count == 2 ? SIMD2($0[0], $0[1]) : nil },
+                         arriveSay: g.arriveSay, label: g.objectLabel)
+        case .notFound(let e): throw APIError.server(((try? e.body.json.detail) ?? nil) ?? "The Mac can't plan a route yet.")
+        case .undocumented(let code, _): throw APIError.status(code)
+        }
+    }
+
     /// The part upload as a plain request, for the background URLSession (which needs a request and a file).
     public func partRequest(path: String, sha256: String) -> URLRequest {
         var req = URLRequest(url: path.hasPrefix("http") ? URL(string: path)! : baseURL.appending(path: path))
@@ -276,4 +330,26 @@ public struct ObjectFix: Sendable {
         if let confirmed { out["confirmed"] = confirmed }
         return out
     }
+}
+
+/// The Guide's spoken answer to a question.
+public struct Answer: Sendable, Equatable {
+    public let text: String
+    public let objectId: String?
+    public let grounded: Bool
+}
+
+public enum Tracking: String, Sendable { case normal, limited, notAvailable = "not_available" }
+
+/// A planned route. `waypoints` are in the phone's ARKit world as (x, z); empty when only landmark directions
+/// are possible (`landmarksOnly`, with the reason).
+public struct Route: Sendable {
+    public struct Step: Sendable { public let clock: Int; public let metres: Double; public let say: String }
+    public let sessionId: String
+    public let landmarksOnly: Bool
+    public let reason: String?
+    public let steps: [Step]
+    public let waypoints: [SIMD2<Double>]
+    public let arriveSay: String?
+    public let label: String?
 }

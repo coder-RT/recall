@@ -33,7 +33,7 @@ struct ReviewView: View {
                     } else if let error {
                         ErrorBox(text: error)
                         Button("Open Settings", systemImage: "gearshape") { model.tab = .settings }
-                            .font(.subheadline.weight(.semibold)).foregroundStyle(Tokens.blueDark)
+                            .font(.subheadline.weight(.semibold)).foregroundStyle(Tokens.accent)
                             .buttonStyle(.glass).controlSize(.large)
                     } else if objects.isEmpty {
                         EmptyState("shippingbox", "Nothing remembered yet. Scan a room and upload it first.")
@@ -53,6 +53,12 @@ struct ReviewView: View {
                             Button { editing = obj } label: { ObjectRow(object: obj) }
                                 .buttonStyle(.plain)
                                 .accessibilityHint("Opens it to correct or confirm.")
+                                .accessibilityAction(named: "Take me there") { model.guiding = GuideTarget(id: obj.id, title: obj.title) }
+                                .contextMenu {
+                                    Button("Take me there", systemImage: "figure.walk") {
+                                        model.guiding = GuideTarget(id: obj.id, title: obj.title)
+                                    }
+                                }
                         }
                     }
                 }
@@ -113,7 +119,7 @@ private struct ObjectRow: View {
                     if object.needsReview {
                         Chip("Check", systemImage: "questionmark.circle.fill", color: Tokens.danger).fixedSize()
                     } else if object.confirmed {
-                        Chip("Checked", systemImage: "checkmark.circle.fill", color: Tokens.cta).fixedSize()
+                        Chip("Checked", systemImage: "checkmark.circle.fill", color: Tokens.goText).fixedSize()
                     }
                 }
                 Text(object.place.capitalizedFirst).font(.subheadline).foregroundStyle(Tokens.ink)
@@ -142,11 +148,11 @@ private struct Swatch: View {
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 12).fill(Tokens.bluePale.opacity(0.7))
+            RoundedRectangle(cornerRadius: 12).fill(Tokens.tile)
             if let c = color.flatMap(Self.colors.index(forKey:)).map({ Self.colors.values[$0] }) {
                 Circle().fill(c).frame(width: 22, height: 22).overlay(Circle().stroke(Tokens.line, lineWidth: 1))
             } else {
-                Image(systemName: "shippingbox").font(.title3.weight(.semibold)).foregroundStyle(Tokens.blueDark)
+                Image(systemName: "shippingbox").font(.title3.weight(.semibold)).foregroundStyle(Tokens.accent)
             }
         }
         .frame(width: side, height: side)
@@ -191,70 +197,76 @@ struct EditObjectView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Recall saw a \(object.label), \(object.place).").font(.body).foregroundStyle(Tokens.ink)
-                        if let size = object.sizeCm {
-                            Text("About \(size[0]) by \(size[1]) by \(size[2]) centimetres.").font(.subheadline)
-                                .foregroundStyle(Tokens.muted)
+                Group {
+                    Section {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Recall saw a \(object.label), \(object.place).").font(.body).foregroundStyle(Tokens.ink)
+                            if let size = object.sizeCm {
+                                Text("About \(size[0]) by \(size[1]) by \(size[2]) centimetres.").font(.subheadline)
+                                    .foregroundStyle(Tokens.muted)
+                            }
                         }
+                        .fixedSize(horizontal: false, vertical: true)
                     }
-                    .fixedSize(horizontal: false, vertical: true)
-                }
 
-                Section {
-                    TextField("Your name for it", text: $name, prompt: Text("e.g. work bag").foregroundStyle(Tokens.muted))
-                        .textInputAutocapitalization(.never)
-                        .accessibilityIdentifier("objectName")
-                } header: { FormHeader("Your name for it") } footer: {
-                    FormNote("Optional. You can then ask for it by this name.")
-                }
-
-                Section {
-                    Picker("Colour", selection: $color) {
-                        Text(object.measuredColor.map { "As seen: \($0)" } ?? "Not set").tag("")
-                        ForEach(Self.colors, id: \.self) { Text($0.capitalizedFirst).tag($0) }
+                    Section {
+                        TextField("Your name for it", text: $name, prompt: Text("e.g. work bag").foregroundStyle(Tokens.muted))
+                            .textInputAutocapitalization(.never)
+                            .accessibilityIdentifier("objectName")
+                    } header: { FormHeader("Your name for it") } footer: {
+                        FormNote("Optional. You can then ask for it by this name.")
                     }
-                    .tint(Tokens.blueDark)
-                } footer: { FormNote("Helps tell two of the same thing apart.") }
 
-                Section {
-                    // the visible words are the spoken label; the value is read in centimetres
-                    Stepper(String(format: "%.2f m", Double(heightCm) / 100), value: $heightCm, in: 0...300, step: 5)
-                        .font(.body.monospacedDigit()).foregroundStyle(Tokens.ink)
-                        .onChange(of: heightCm) { heightChanged = true }
-                        .accessibilityValue("\(heightCm) centimetres")
-                    if heightChanged {
-                        Button("Use the measured height (\(String(format: "%.2f m", object.heightM)))") {
-                            heightCm = Int((object.heightM * 100).rounded())
-                            DispatchQueue.main.async { heightChanged = false }
+                    Section {
+                        Picker("Colour", selection: $color) {
+                            Text(object.measuredColor.map { "As seen: \($0)" } ?? "Not set").tag("")
+                            ForEach(Self.colors, id: \.self) { Text($0.capitalizedFirst).tag($0) }
                         }
-                        .foregroundStyle(Tokens.blueDark)
+                        .tint(Tokens.accent)
+                    } footer: { FormNote("Helps tell two of the same thing apart.") }
+
+                    Section {
+                        // the visible words are the spoken label; the value is read in centimetres
+                        Stepper(String(format: "%.2f m", Double(heightCm) / 100), value: $heightCm, in: 0...300, step: 5)
+                            .font(.body.monospacedDigit()).foregroundStyle(Tokens.ink)
+                            .onChange(of: heightCm) { heightChanged = true }
+                            .accessibilityValue("\(heightCm) centimetres")
+                        if heightChanged {
+                            Button("Use the measured height (\(String(format: "%.2f m", object.heightM)))") {
+                                heightCm = Int((object.heightM * 100).rounded())
+                                DispatchQueue.main.async { heightChanged = false }
+                            }
+                            .foregroundStyle(Tokens.accent)
+                        }
+                    } header: { FormHeader("Height above the floor") } footer: { FormNote(heightNote) }
+
+                    Section {
+                        TextField("Note", text: $note, prompt: Text("e.g. in the blue pouch").foregroundStyle(Tokens.muted),
+                                  axis: .vertical)
+                    } header: { FormHeader("Note") }
+
+                    if let error { Section { ErrorBox(text: error) } }
+
+                    Section {
+                        Button("Not there, forget it", systemImage: "trash", role: .destructive) { confirmRemove = true }
+                            .foregroundStyle(Tokens.danger)
+                            .accessibilityHint("Removes it from memory.")
+                            .disabled(busy)
                     }
-                } header: { FormHeader("Height above the floor") } footer: { FormNote(heightNote) }
-
-                Section {
-                    TextField("Note", text: $note, prompt: Text("e.g. in the blue pouch").foregroundStyle(Tokens.muted),
-                              axis: .vertical)
-                } header: { FormHeader("Note") }
-
-                if let error { Section { ErrorBox(text: error) } }
-
-                Section {
-                    Button("Not there, forget it", systemImage: "trash", role: .destructive) { confirmRemove = true }
-                        .foregroundStyle(Tokens.danger)
-                        .accessibilityHint("Removes it from memory.")
-                        .disabled(busy)
                 }
+                .listRowBackground(Tokens.card)
             }
+            .recallScreen()
             .navigationTitle(object.title.capitalizedFirst)
             .navigationBarTitleDisplayMode(.inline)
-            .tint(Tokens.blueDark)
+            .tint(Tokens.accent)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel", role: .cancel) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(busy ? "Saving…" : "Save", role: .confirm) { Task { await save() } }
-                        .buttonStyle(.glassProminent).tint(Tokens.cta)
+                    Button(role: .confirm) { Task { await save() } } label: {
+                        Text(busy ? "Saving…" : "Save").foregroundStyle(Tokens.onGo)
+                    }
+                        .buttonStyle(.glassProminent).tint(Tokens.go)
                         .disabled(busy)
                         .accessibilityLabel("Save, it's right")
                         .accessibilityHint("Saves your changes and marks it as checked.")
@@ -335,7 +347,7 @@ struct ErrorBox: View {
                 .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
             Button { UIPasteboard.general.string = text } label: {
                 Label("Copy error", systemImage: "doc.on.doc").font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Tokens.blueDark).frame(minHeight: 44)
+                    .foregroundStyle(Tokens.accent).frame(minHeight: 44)
             }
             .accessibilityLabel("Copy the error")
         }

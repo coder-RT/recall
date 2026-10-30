@@ -56,10 +56,9 @@ struct HomeView: View {
 private struct Header: View {
     var body: some View {
         HStack(spacing: 14) {
-            AppMark()
+            BrailleMark()
             VStack(alignment: .leading, spacing: 2) {
-                Text("Recall").font(.title.weight(.bold)).foregroundStyle(Tokens.ink)
-                    .accessibilityAddTraits(.isHeader)
+                Wordmark().accessibilityAddTraits(.isHeader)
                 Text("Where are your things?").font(.subheadline).foregroundStyle(Tokens.muted)
             }
             Spacer(minLength: 0)
@@ -72,30 +71,34 @@ private struct Header: View {
 /// The one big action: a card in old-Facebook blue with a white glass button.
 private struct ScanHero: View {
     let scan: () -> Void
+    @Environment(\.highContrast) private var hc
+
+    // on the brand gradient the words are white; in high contrast the card is plain and the words are ink
+    private var text: Color { hc ? Tokens.ink : .white }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Scan a room").font(.title2.weight(.bold)).foregroundStyle(.white)
+                    Text("Scan a room").font(.title2.weight(.bold)).foregroundStyle(text)
                     Text("Walk slowly around one room. Recall remembers what's there and walks you back to it.")
-                        .font(.subheadline).foregroundStyle(.white)
+                        .font(.subheadline).foregroundStyle(text)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
                 Image(systemName: "viewfinder")
-                    .font(.system(size: 26, weight: .semibold)).foregroundStyle(.white)
+                    .font(.system(size: 26, weight: .semibold)).foregroundStyle(text)
                     .frame(width: 56, height: 56)
-                    .background(.white.opacity(0.14), in: .circle)
+                    .background(text.opacity(0.14), in: .circle)
                     .accessibilityHidden(true)
             }
             .accessibilityElement(children: .combine)
-            // solid white so the deep-blue words keep their contrast; the glass is the rim and the touch response
+            // a solid fill so the words keep their contrast; the glass is the rim and the touch response
             Button(action: scan) {
                 Label("Start a scan", systemImage: "camera.viewfinder")
-                    .font(.headline).foregroundStyle(Tokens.blueDeep)
+                    .font(.headline).foregroundStyle(hc ? Tokens.onAccent : Tokens.blueDeep)
                     .frame(maxWidth: .infinity, minHeight: Tokens.minTarget)
-                    .background(.white, in: Capsule())
+                    .background(hc ? Tokens.accentFill : .white, in: Capsule())
             }
             .buttonStyle(.plain)
             .glassRim(.capsule, .regular.interactive())
@@ -103,14 +106,19 @@ private struct ScanHero: View {
         }
         .padding(20)
         .background {
-            ZStack(alignment: .topTrailing) {
-                LinearGradient(colors: [Tokens.blue, Tokens.blueDeep], startPoint: .topLeading, endPoint: .bottomTrailing)
-                // a soft light in the corner; decoration only
-                Circle().fill(Tokens.ringCool.opacity(0.45)).frame(width: 220).blur(radius: 50).offset(x: 80, y: -90)
+            if hc {
+                RoundedRectangle(cornerRadius: 28).fill(Tokens.card)
+                    .overlay(RoundedRectangle(cornerRadius: 28).stroke(Tokens.line, lineWidth: 2))
+            } else {
+                ZStack(alignment: .topTrailing) {
+                    LinearGradient(colors: [Tokens.blue, Tokens.blueDeep], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    // a soft light in the corner; decoration only
+                    Circle().fill(Tokens.ringCool.opacity(0.45)).frame(width: 220).blur(radius: 50).offset(x: 80, y: -90)
+                }
+                .clipShape(.rect(cornerRadius: 28))
+                .shadow(color: Tokens.blueDeep.opacity(0.25), radius: 16, y: 8)
             }
-            .clipShape(.rect(cornerRadius: 28))
         }
-        .shadow(color: Tokens.blueDeep.opacity(0.25), radius: 16, y: 8)
     }
 }
 
@@ -127,7 +135,7 @@ private struct SetupNotice: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             Button("Open Settings", action: openSettings)
-                .font(.subheadline.weight(.semibold)).foregroundStyle(Tokens.blueDark)
+                .font(.subheadline.weight(.semibold)).foregroundStyle(Tokens.accent)
                 .buttonStyle(.glass)
         }
         .card()
@@ -161,17 +169,21 @@ private struct ScanRow: View {
             }
             HStack(spacing: 10) {
                 if scan.uploadPhase == nil || scan.uploadPhase == "failed" {
-                    Button(scan.uploadPhase == "failed" ? "Retry upload" : "Upload to the Mac",
-                           systemImage: "arrow.up.circle", action: { model.upload(scan) })
-                        .buttonStyle(.glassProminent).tint(Tokens.cta)
+                    Button { model.upload(scan) } label: {
+                        Label(scan.uploadPhase == "failed" ? "Retry upload" : "Upload to the Mac", systemImage: "arrow.up.circle")
+                            .foregroundStyle(Tokens.onGo)
+                    }
+                    .buttonStyle(.glassProminent).tint(Tokens.go)
                 }
                 if scan.uploadPhase == "processed" {
-                    Button("Check what was found", systemImage: "checklist", action: review)
-                        .buttonStyle(.glassProminent).tint(Tokens.blueDark)
+                    Button(action: review) {
+                        Label("Check what was found", systemImage: "checklist").foregroundStyle(Tokens.onAccent)
+                    }
+                    .buttonStyle(.glassProminent).tint(Tokens.accentFill)
                 }
                 Spacer(minLength: 0)
                 if let url = shareURL {
-                    ShareLink(item: url) { Image(systemName: "square.and.arrow.up").foregroundStyle(Tokens.blueDark) }
+                    ShareLink(item: url) { Image(systemName: "square.and.arrow.up").foregroundStyle(Tokens.accent) }
                         .buttonStyle(.glass).buttonBorderShape(.circle)
                         .accessibilityLabel("Share the scan")
                         .accessibilityHint("Send this scan with AirDrop or save it to Files.")
@@ -218,7 +230,7 @@ struct GradeBadge: View {
 
     private var title: String { grade == .good ? "Good" : grade == .usable ? "Usable" : "Redo" }
     private var icon: String { grade == .good ? "checkmark.circle.fill" : grade == .usable ? "circle.lefthalf.filled" : "arrow.counterclockwise" }
-    private var color: Color { grade == .good ? Tokens.cta : grade == .usable ? Tokens.blueDark : Tokens.danger }
+    private var color: Color { grade == .good ? Tokens.goText : grade == .usable ? Tokens.accent : Tokens.danger }
 }
 
 private struct UploadStatus: View {
@@ -240,14 +252,14 @@ private struct UploadStatus: View {
             if phase == "failed" {
                 Button { UIPasteboard.general.string = text } label: {
                     Label("Copy error", systemImage: "doc.on.doc").font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Tokens.blueDark).frame(minHeight: 44)
+                        .foregroundStyle(Tokens.accent).frame(minHeight: 44)
                 }
                 .accessibilityLabel("Copy the error")
             }
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Tokens.grey, in: .rect(cornerRadius: 12))
+        .background(Tokens.canvas, in: .rect(cornerRadius: 12))
     }
 
     private var icon: String {

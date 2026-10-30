@@ -10,11 +10,16 @@ struct RecallApp: App {
 
     var body: some Scene {
         WindowGroup {
-            HomeView()
-                .environment(model)
-                .tint(Tokens.blueDark)
-                .task { await model.start() }
-                .onOpenURL { model.pair(with: $0) }
+            @Bindable var model = model
+            TabView(selection: $model.tab) {
+                Tab("Scans", systemImage: "viewfinder", value: AppTab.scans) { HomeView() }
+                Tab("Found", systemImage: "checklist", value: AppTab.found) { ReviewView() }
+                Tab("Settings", systemImage: "gearshape", value: AppTab.settings) { SettingsView() }
+            }
+            .environment(model)
+            .tint(Tokens.blueDark)
+            .task { await model.start() }
+            .onOpenURL { model.pair(with: $0) }
         }
     }
 }

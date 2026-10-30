@@ -8,50 +8,47 @@ struct HomeView: View {
     @Environment(AppModel.self) private var model
     @State private var askingRoom = false
     @State private var scanningRoom: String?
-    @State private var showSettings = false
-    @State private var showReview = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 22) {
+                    Text("Where are your things?")
+                        .font(.largeTitle.weight(.bold)).foregroundStyle(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
                     Text("Recall remembers where you put things, and walks you back to them.")
-                        .font(.title3).foregroundStyle(Tokens.muted)
+                        .font(.title3).foregroundStyle(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    GlowOrb("Scan a room", systemImage: "viewfinder", hint: "Walk slowly around one room with the phone.") {
+                        askingRoom = true
+                    }
+                    .padding(.vertical, 12)
 
                     if let problem = model.setupProblem {
                         Label(problem, systemImage: "exclamationmark.circle")
                             .font(.body).foregroundStyle(Tokens.ink)
-                            .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Tokens.bluePale, in: RoundedRectangle(cornerRadius: 12))
+                            .glassCard()
                     }
 
-                    BigButton("Scan a room", systemImage: "viewfinder", hint: "Walk slowly around one room with the phone.") {
-                        askingRoom = true
-                    }
-                    if model.isConfigured {
-                        BigButton("Check what Recall found", systemImage: "checklist",
-                                  hint: "Fix names, colours or heights the scan was unsure about.", style: .secondary) {
-                            showReview = true
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("Your scans").font(.title2.weight(.bold)).foregroundStyle(Tokens.ink)
+                            .accessibilityAddTraits(.isHeader)
+                        if model.scans.isEmpty {
+                            Text("No scans yet. Tap Scan a room to start.").foregroundStyle(Tokens.muted)
+                        }
+                        ForEach(model.scans) { scan in
+                            ScanRow(scan: scan) { model.tab = .found }
                         }
                     }
-
-                    Text("Your scans").font(.title2.weight(.bold)).foregroundStyle(Tokens.ink)
-                        .accessibilityAddTraits(.isHeader)
-                    if model.scans.isEmpty {
-                        Text("No scans yet.").foregroundStyle(Tokens.muted)
-                    }
-                    ForEach(model.scans) { scan in
-                        ScanRow(scan: scan) { showReview = true }
-                    }
+                    .glassCard()
                 }
                 .padding(20)
             }
-            .background(Tokens.grey)
+            .recallScreen()
             .navigationTitle("Recall")
-            .toolbar {
-                Button { showSettings = true } label: { Image(systemName: "gearshape") }
-                    .accessibilityLabel("Settings")
-            }
+            .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $askingRoom) {
                 RoomNameView { room in
                     askingRoom = false
@@ -61,8 +58,6 @@ struct HomeView: View {
             .fullScreenCover(item: Binding(get: { scanningRoom.map(RoomName.init) }, set: { scanningRoom = $0?.id })) { room in
                 ScanView(room: room.id) { scanningRoom = nil }
             }
-            .sheet(isPresented: $showSettings) { SettingsView() }
-            .sheet(isPresented: $showReview) { ReviewView() }
         }
     }
 }
@@ -90,12 +85,12 @@ private struct ScanRow: View {
             HStack(spacing: 12) {
                 if scan.uploadPhase == nil || scan.uploadPhase == "failed" {
                     Button(scan.uploadPhase == "failed" ? "Retry upload" : "Upload to the Mac") { model.upload(scan) }
-                        .buttonStyle(.borderedProminent).tint(Tokens.cta)
+                        .buttonStyle(.glassProminent).tint(Tokens.cta)
                         .frame(minHeight: 44)
                 }
                 if scan.uploadPhase == "processed" {
                     Button("Check what was found", action: review)
-                        .buttonStyle(.borderedProminent).tint(Tokens.blueDark)
+                        .buttonStyle(.glassProminent).tint(Tokens.blueDark)
                         .frame(minHeight: 44)
                 }
                 if let url = shareURL {
@@ -105,8 +100,8 @@ private struct ScanRow: View {
                 }
             }
         }
-        .padding(16)
-        .background(.white, in: RoundedRectangle(cornerRadius: 14))
+        .padding(14)
+        .background(.white.opacity(0.7), in: RoundedRectangle(cornerRadius: 16))
         .task(id: scan.id) {
             // the zip for AirDrop or Files is built off the main thread, once
             let dir = model.episodeDir(scan.id)

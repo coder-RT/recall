@@ -12,11 +12,13 @@ struct ReportView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                Text(record.room).font(.largeTitle.weight(.bold)).foregroundStyle(Tokens.ink)
+                Text(record.room).font(.largeTitle.weight(.bold)).foregroundStyle(.white)
                     .accessibilityAddTraits(.isHeader)
                 GradeBadge(grade: record.grade).font(.title3)
                 if let metrics {
                     Text(ScanGrade.reason(for: metrics)).font(.title3).foregroundStyle(Tokens.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .glassCard()
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                         StatTile("\(metrics.directionsCovered)/12", "directions covered")
                         StatTile("\(metrics.keyframesKept)", "sharp frames")
@@ -32,14 +34,14 @@ struct ReportView: View {
                 }
                 if record.grade == .redo {
                     Text("This scan is likely too thin to use. You can still upload it, or scan the room again.")
-                        .foregroundStyle(Tokens.muted)
+                        .foregroundStyle(Tokens.ink).glassCard()
                 }
                 BigButton("Done", systemImage: "checkmark", hint: "Keep the scan on this phone for now.", style: .secondary,
                           action: close)
             }
             .padding(20)
         }
-        .background(Tokens.grey)
+        .recallScreen()
         .task {
             let url = app.episodeDir(record.id).appending(path: "manifest.json")
             if let data = try? Data(contentsOf: url), let m = try? JSONDecoder.iso.decode(Manifest.self, from: data) {

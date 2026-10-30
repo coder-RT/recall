@@ -53,8 +53,8 @@ The full rule list, each with its source and level, is `docs/private/hackathon-r
 | Backend | Python 3.12, uv, FastAPI, Pydantic v2, SQLite, SQLAlchemy Core, Alembic | Mac, reachable from the phone through **Cloudflare Tunnel** |
 | 3D maths | NumPy, SciPy, Open3D, trimesh | backend / pipeline |
 | Scan storage | **Cloudflare R2** (S3-compatible multipart); local disk adapter for development | Cloudflare |
-| iPhone app | Swift 6, SwiftUI, ARKit (LiDAR depth, ARWorldMap), AVSpeechSynthesizer, background URLSession, **XcodeGen** | iPhone 16 Pro, iOS 18+ |
-| Watch app | SwiftUI, WatchConnectivity, haptics (stretch goal) | Apple Watch Ultra 4; minimum watchOS `TODO(verify)`: the Ultra 4 ships with a current watchOS, so the deployment target can be the latest major; confirm against Apple's docs and the iOS 18 pairing requirement |
+| iPhone app | Swift 6, SwiftUI with Liquid Glass (old-Facebook blue sky, glass cards and tab bar), ARKit (LiDAR depth, ARWorldMap), AVSpeechSynthesizer, background URLSession, **XcodeGen** | iPhone 16 Pro, iOS 26+ |
+| Watch app | SwiftUI, WatchConnectivity, haptics (stretch goal) | Apple Watch Ultra 4; minimum watchOS `TODO(verify)`: the Ultra 4 ships with a current watchOS, so the deployment target can be the latest major; confirm against Apple's docs and the iPhone pairing requirement |
 | Web | Next.js 16, React 19, TypeScript strict, **GSAP + `@gsap/react`** (scroll), **Motion** (UI), react-three-fiber (viewer). **No login anywhere**: the landing page, the sample room and the demo work signed out; judges never need an account | Vercel + GitHub Pages mirror |
 | Multi-agent | Guide + Verifier + Home Memory agent; **A2A 1.0** via `a2a-sdk` (JSON-RPC), see `docs/private/agents.md` | inside the FastAPI app |
 | Quality | ruff, pytest, import-linter, Schemathesis, ESLint, GitHub Actions, CodeQL (Python + TypeScript) | GitHub |

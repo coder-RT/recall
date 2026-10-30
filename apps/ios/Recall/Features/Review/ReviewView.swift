@@ -7,7 +7,6 @@ import UIKit
 /// height or note, confirm it, or remove it. The user's values win over what the models measured.
 struct ReviewView: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.dismiss) private var dismiss
     @State private var objects: [RememberedObject] = []
     @State private var loading = true
     @State private var error: String?
@@ -37,11 +36,11 @@ struct ReviewView: View {
                         }
                     }
                 }
+                .glassCard()
                 .padding(20)
             }
-            .background(Tokens.grey)
+            .recallScreen()
             .navigationTitle("What Recall found")
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             .task { await load() }
             .refreshable { await load() }
             .sheet(item: $editing) { obj in
@@ -199,12 +198,14 @@ struct EditObjectView: View {
                               hint: "Removes it from memory.", style: .stop) { confirmRemove = true }
                         .disabled(busy)
                 }
+                .glassCard()
                 .padding(20)
             }
-            .background(Tokens.grey)
+            .recallScreen()
             .navigationTitle(object.title.capitalizedFirst)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button { dismiss() } label: { Text("Cancel").foregroundStyle(.white) }
+                .buttonStyle(.glassProminent).tint(Tokens.blueDeep) } }
             .confirmationDialog("Forget the \(object.title)?", isPresented: $confirmRemove, titleVisibility: .visible) {
                 Button("Forget it", role: .destructive) { Task { await remove() } }
             }

@@ -2,7 +2,7 @@ name: Recall
 options:
   bundleIdPrefix: com.rachitthariani
   deploymentTarget:
-    iOS: "18.0"
+    iOS: "26.0"
   developmentLanguage: en
   createIntermediateGroups: true
 settings:

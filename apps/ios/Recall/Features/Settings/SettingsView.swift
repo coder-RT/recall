@@ -7,7 +7,6 @@ import UIKit
 /// Plain labelled fields instead of a system Form, so every text scales with Dynamic Type and nothing clips.
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.dismiss) private var dismiss
     @State private var testResult: String?
     @State private var testing = false
     @State private var showKey = false
@@ -81,11 +80,11 @@ struct SettingsView: View {
                         }
                     }
                 }
-                .padding(20)
+                .glassCard(padding: 12)
+                .padding(.horizontal, 12).padding(.vertical, 20)
             }
-            .background(Tokens.grey)
+            .recallScreen()
             .navigationTitle("Settings")
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
     }
 

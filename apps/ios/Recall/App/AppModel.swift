@@ -18,12 +18,16 @@ struct ScanRecord: Codable, Identifiable, Equatable {
     var uploadFraction: Double?
 }
 
+/// The app's three tabs.
+enum AppTab: Hashable { case scans, found, settings }
+
 /// App state: settings, the local scan library, uploads. Feature screens talk to it; it talks to RecallKit's ports.
 @MainActor @Observable
 final class AppModel {
     static let sharedUploader = Uploader()
 
     var scans: [ScanRecord] = []
+    var tab: AppTab = .scans
     var serverURL: String {
         didSet {
             // Return in the multi-line field would add a newline; an address never has one

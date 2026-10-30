@@ -13,8 +13,10 @@ struct RoomNameView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    Text("Which room is this?").font(.title.weight(.bold)).foregroundStyle(.white)
+                        .accessibilityAddTraits(.isHeader)
                     TextField("Room name", text: $name, prompt: Text("For example, Living room").foregroundStyle(Tokens.muted),
                               axis: .vertical)
                         .accessibilityLabel("Room name")
@@ -23,22 +25,30 @@ struct RoomNameView: View {
                         .focused($focused)
                         .submitLabel(.go)
                         .onSubmit { go() }
-                } header: {
-                    SectionHeader("Which room is this?")
-                }
-                Section {
-                    ForEach(common, id: \.self) { room in
-                        Button(room) { name = room; go() }
-                            .foregroundStyle(Tokens.blueDark)
-                            .frame(minHeight: 44)
+                        .frame(minHeight: Tokens.minTarget)
+                        .glassCard(cornerRadius: 20, padding: 14)
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Or pick one").font(.headline).foregroundStyle(Tokens.ink)
+                            .accessibilityAddTraits(.isHeader)
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                            ForEach(common, id: \.self) { room in
+                                Button(room) { name = room; go() }
+                                    .buttonStyle(PillButtonStyle())
+                            }
+                        }
                     }
-                } header: { SectionHeader("Or pick one") }
+                    .glassCard()
+                }
+                .padding(20)
             }
+            .recallScreen()
             .navigationTitle("Scan a room")
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button { dismiss() } label: { Text("Cancel").foregroundStyle(.white) }
+                    .buttonStyle(.glassProminent).tint(Tokens.blueDeep) }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Start") { go() }
+                    Button { go() } label: { Text("Start").foregroundStyle(.white) }
+                        .buttonStyle(.glassProminent).tint(Tokens.cta)
                 }
             }
         }

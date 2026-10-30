@@ -11,11 +11,14 @@ public struct CaptureUpdate: Sendable, Equatable {
     public var tracking: TrackingState
     public var coach: SpeedCoach.Event?
     public var lightLux: Double
+    /// Which of the 12 directions (30° each) have been seen, for the dial.
+    public var sectors: Set<Int>
 
     public init(elapsed: Double, directionsCovered: Int, keyframes: Int, droppedBlurry: Int, tracking: TrackingState,
-                coach: SpeedCoach.Event?, lightLux: Double) {
+                coach: SpeedCoach.Event?, lightLux: Double, sectors: Set<Int> = []) {
         self.elapsed = elapsed; self.directionsCovered = directionsCovered; self.keyframes = keyframes
         self.droppedBlurry = droppedBlurry; self.tracking = tracking; self.coach = coach; self.lightLux = lightLux
+        self.sectors = sectors
     }
 }
 
@@ -130,7 +133,7 @@ public final class CaptureSession: NSObject, ARSessionDelegate, @unchecked Senda
             lastEmit = t
             let update = CaptureUpdate(elapsed: t, directionsCovered: coverage.directionsCovered,
                                        keyframes: writer.frameCount, droppedBlurry: dropped, tracking: tracking,
-                                       coach: pendingCoach, lightLux: lux ?? 0)
+                                       coach: pendingCoach, lightLux: lux ?? 0, sectors: coverage.sectors)
             pendingCoach = nil
             onUpdate?(update)
         }

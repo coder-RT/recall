@@ -5,7 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "RecallKit",
-    platforms: [.iOS(.v18)],
+    platforms: [.iOS("26.0")],
     products: [
         .library(name: "RecallDomain", targets: ["RecallDomain"]),
         .library(name: "RecallCapture", targets: ["RecallCapture"]),

@@ -38,19 +38,25 @@ struct ScanView: View {
             VStack(spacing: 12) {
                 if let cue = model.cue { CueBanner(cue) }
                 Spacer()
-                HStack(spacing: 10) {
-                    StatTile(time, "time")
-                    StatTile("\(model.update.directionsCovered)/12", "directions")
-                    StatTile("\(model.update.keyframes)", "frames")
-                }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(model.spokenProgress)
-                .accessibilityAddTraits(.updatesFrequently)
-                if model.phase == .finishing {
-                    ProgressView("Saving the scan…").padding().background(.white, in: RoundedRectangle(cornerRadius: 12))
-                } else {
-                    BigButton("Stop", systemImage: "stop.fill", hint: "Finish the scan and hear the report.", style: .stop) {
-                        Task { await model.stop(model: app) }
+                GlassEffectContainer(spacing: 12) {
+                    VStack(spacing: 14) {
+                        HStack(spacing: 16) {
+                            CoverageDial(covered: model.update.sectors, count: model.update.directionsCovered)
+                            VStack(spacing: 10) {
+                                StatTile(time, "time")
+                                StatTile("\(model.update.keyframes)", "frames")
+                            }
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(model.spokenProgress)
+                        .accessibilityAddTraits(.updatesFrequently)
+                        if model.phase == .finishing {
+                            ProgressView("Saving the scan…").foregroundStyle(Tokens.ink).glassCard()
+                        } else {
+                            BigButton("Stop", systemImage: "stop.fill", hint: "Finish the scan and hear the report.", style: .stop) {
+                                Task { await model.stop(model: app) }
+                            }
+                        }
                     }
                 }
             }
@@ -81,16 +87,22 @@ private struct Unsupported: View {
     let close: () -> Void
     var body: some View {
         VStack(spacing: 20) {
-            Image(systemName: "sensor.tag.radiowaves.forward").font(.system(size: 56)).foregroundStyle(Tokens.blue)
+            Image(systemName: "sensor.tag.radiowaves.forward").font(.system(size: 56)).foregroundStyle(.white)
                 .accessibilityHidden(true)
-            Text("Scanning needs an iPhone with LiDAR").font(.title2.weight(.bold)).multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-            Text("Recall measures the room with the LiDAR scanner on iPhone Pro models. This device doesn't have one.")
-                .multilineTextAlignment(.center).foregroundStyle(Tokens.muted)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(spacing: 12) {
+                Text("Scanning needs an iPhone with LiDAR").font(.title2.weight(.bold)).multilineTextAlignment(.center)
+                    .foregroundStyle(Tokens.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("Recall measures the room with the LiDAR scanner on iPhone Pro models. This device doesn't have one.")
+                    .multilineTextAlignment(.center).foregroundStyle(Tokens.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .glassCard()
             BigButton("Back", systemImage: "chevron.left", hint: "Return to your scans.", style: .secondary, action: close)
         }
         .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background { GlassBackground() }
     }
 }
 
@@ -99,12 +111,18 @@ private struct Failed: View {
     let close: () -> Void
     var body: some View {
         VStack(spacing: 20) {
-            Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 56)).foregroundStyle(Tokens.danger)
+            Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 56)).foregroundStyle(Tokens.amber)
                 .accessibilityHidden(true)
-            Text("The scan didn't work").font(.title2.weight(.bold))
-            Text(message).multilineTextAlignment(.center).foregroundStyle(Tokens.ink)
+            VStack(spacing: 12) {
+                Text("The scan didn't work").font(.title2.weight(.bold)).foregroundStyle(Tokens.ink)
+                Text(message).multilineTextAlignment(.center).foregroundStyle(Tokens.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .glassCard()
             BigButton("Back", systemImage: "chevron.left", hint: "Return to your scans.", style: .secondary, action: close)
         }
         .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background { GlassBackground() }
     }
 }

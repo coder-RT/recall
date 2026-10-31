@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import base64
+import hmac
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from recall_api.adapters.outbound.export.robot_files import document
 from recall_api.application.export_for_robot import RobotExportError
@@ -16,8 +17,11 @@ router = APIRouter(tags=["robots"], dependencies=[Depends(require_robot_or_devic
 
 
 @router.get("/homes/{home_id}/robot-export", response_model=RobotExport)
-def get_robot_export(home_id: str, room: str | None = None, c=Depends(container)) -> RobotExport:
-    if not c.robot_access.export_open:
+def get_robot_export(home_id: str, request: Request, room: str | None = None, c=Depends(container)) -> RobotExport:
+    # the switch is about robots: the owner (device key) can always export their own map to share it
+    got = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+    owner = c.settings.device_key is not None and hmac.compare_digest(got, c.settings.device_key.get_secret_value())
+    if not (owner or c.robot_access.export_open):
         raise HTTPException(403, {"error": "robot_access_off", "detail": "Robot access is off. Turn it on in the app."})
     try:
         e = c.export_for_robot(home_id, room)

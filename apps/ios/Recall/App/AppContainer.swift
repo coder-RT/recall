@@ -47,6 +47,10 @@ final class AppContainer {
         }
     }
 
+    func robotAccessModel() -> RobotAccessModel {
+        RobotAccessModel(sharing: UITestSamples.enabled ? UITestSamples.Sharing() : server, settings: settings, speech: speech)
+    }
+
     func findModel() -> FindModel {
         FindModel(ask: AskWhereIs(guide: server), transcriber: server, voice: WavRecorder(), things: things,
                   settings: settings, speech: speech, haptics: haptics,
@@ -92,7 +96,8 @@ struct SystemClock: Clock {
 
 /// The Mac, as every Mac-facing port, reached with the current connection settings. Changing Settings swaps the
 /// client underneath; a call made before setup throws the setup issue, in words.
-final class LiveServer: HomeMemory, GuideService, Transcriber, ScanProcessing, ConnectionCheck, ScanServer, @unchecked Sendable {
+final class LiveServer: HomeMemory, GuideService, Transcriber, ScanProcessing, ConnectionCheck, ScanServer, RobotSharing,
+    @unchecked Sendable {
     private let lock = NSLock()
     private var api: RecallAPI?
     private var issue: SetupIssue = .nothingSet
@@ -125,6 +130,9 @@ final class LiveServer: HomeMemory, GuideService, Transcriber, ScanProcessing, C
     func verify(session: String, frame: ArrivalFrame) async throws -> ArrivalCheck {
         try await current().verify(session: session, frame: frame)
     }
+    func robotAccess() async throws -> RobotAccessStatus { try await current().robotAccess() }
+    func setRobotAccess(_ on: Bool) async throws -> RobotAccessStatus { try await current().setRobotAccess(on) }
+    func robotMap(home: String) async throws -> RobotMapPackage { try await current().robotMap(home: home) }
     func transcribe(wav: Data) async throws -> String { try await current().transcribe(wav: wav) }
     func status(scan: String) async throws -> ScanReport { try await current().status(scan: scan) }
     func check() async throws -> String { try await current().check() }

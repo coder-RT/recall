@@ -13,10 +13,15 @@ struct DevicesView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     BrandHeader("Devices", subtitle: "One memory of your home, wherever you are")
                     Pitch()
-                    SectionTitle("Where Recall runs", count: "3 devices")
+                    SectionTitle("Where Recall runs", count: "\(Device.all.count) devices")
                 }
                 .padding(.horizontal, Tokens.gutter)
                 DeviceCarousel()
+                NavigationLink { RobotAccessView() } label: { RobotAccessLink() }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, Tokens.gutter)
+                    .padding(.top, 8)
+                    .accessibilityHint("Share your home map with robots, or turn it off.")
                     .padding(.top, 4)
                 VStack(alignment: .leading, spacing: 16) {
                     SectionTitle("Why it works")
@@ -29,7 +34,7 @@ struct DevicesView: View {
                             .buttonStyle(SolidPillStyle(fill: Tokens.card, text: Tokens.accent, edge: Tokens.line))
                             .accessibilityHint("Opens Scans, to record a room.")
                     }
-                    Text("Only the iPhone app works today; the Watch and glasses are being built. Recall is an independent project, not affiliated with Apple or Meta.")
+                    Text("Only the iPhone app works today; the Watch and glasses are being built, and robots can use the shared map in a preview. Recall is an independent project, not affiliated with Apple or Meta.")
                         .font(.footnote).foregroundStyle(Tokens.muted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -135,13 +140,14 @@ private struct Pitch: View {
 /// One device Recall is for, how far along it is, and what it does there.
 struct Device: Identifiable {
     enum Status {
-        case available, next, planned
+        case available, preview, next, planned
 
         var title: String {
             switch self {
             case .available: "Available now"
             case .next: "Coming next"
             case .planned: "Planned"
+            case .preview: "Preview"
             }
         }
 
@@ -150,6 +156,7 @@ struct Device: Identifiable {
             case .available: "checkmark.circle.fill"
             case .next: "hammer.fill"
             case .planned: "calendar"
+            case .preview: "sparkles"
             }
         }
     }
@@ -178,7 +185,32 @@ struct Device: Identifiable {
                points: ["Ask through the glasses; hear the answer in their speakers",
                         "Guidance from the glasses' own camera view",
                         "Nothing to hold, nothing to look at"]),
+        Device(id: "robots", name: "Home robots", short: "Robots", systemImage: "gearshape.2.fill", status: .preview,
+               pitch: "Your robot can use the same memory to go and find it.",
+               points: ["Shares your home's map and where things are; never photos",
+                        "For ROS 2 robots using Nav2; off until you share it",
+                        "Finds the thing; picking it up is the robot's own skill"]),
     ]
+}
+
+/// The way into Robot Access, under the devices.
+private struct RobotAccessLink: View {
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "gearshape.2.fill").font(.system(size: 22, weight: .semibold)).foregroundStyle(Tokens.onAccent)
+                .frame(width: 48, height: 48).background(Tokens.accentFill, in: .rect(cornerRadius: 14))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Robot Access").font(.headline).foregroundStyle(Tokens.ink)
+                Text("Share your home map with a robot, or keep it private").font(.subheadline).foregroundStyle(Tokens.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 4)
+            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(Tokens.muted)
+        }
+        .card()
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("robot-access-link")
+    }
 }
 
 private struct DeviceCard: View {

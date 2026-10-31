@@ -236,6 +236,36 @@ final class AccessibilityTests: XCTestCase {
         try auditBothEnds(app)
     }
 
+    /// Home robots in Devices, and Robot Access: the switch, what is and isn't shared, the map, the audit.
+    func testRobotAccess() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-UITestSampleThings"]
+        app.launch()
+        app.tabBars.buttons["Devices"].tap()
+        app.buttons["Home robots"].tap()
+        let card = app.descendants(matching: .any)["device-robots"]
+        XCTAssertTrue(card.waitForExistence(timeout: 3))
+        XCTAssertTrue(card.label.hasPrefix("Home robots. Preview."), card.label)
+        XCTAssertTrue(card.label.contains("picking it up is the robot's own skill"))
+        let link = app.descendants(matching: .any)["robot-access-link"]
+        XCTAssertTrue(link.waitForExistence(timeout: 3))
+        link.tap()
+        XCTAssertTrue(app.navigationBars["Robot Access"].waitForExistence(timeout: 5))
+        let toggle = app.switches["robot-access-switch"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        XCTAssertEqual(toggle.value as? String, "0")  // off by default
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'Off. Robots can'"))
+            .firstMatch.exists)
+        XCTAssertTrue(app.descendants(matching: .any)["Never: Photos or camera frames"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["Map of Living room for robots, with 1 things marked."].exists
+            || app.otherElements.containing(NSPredicate(format: "label BEGINSWITH 'Map of Living room'")).firstMatch.exists)
+        shot("ios-robot-access")
+        try auditBothEnds(app)
+        toggle.switches.firstMatch.tap()
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'On. A robot'"))
+            .firstMatch.waitForExistence(timeout: 3))
+    }
+
     func testHomePassesTheAudit() throws {
         let app = XCUIApplication()
         app.launch()

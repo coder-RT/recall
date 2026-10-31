@@ -116,6 +116,7 @@ def test_endpoint_is_off_by_default_and_needs_a_key(tmp_path):
 
     off = client(False)
     assert off.get("/homes/flat/robot-export", headers={"Authorization": "Bearer robot"}).status_code == 403
+    assert off.get("/homes/flat/robot-export", headers={"Authorization": "Bearer owner"}).status_code == 200
     on = client(True)
     assert on.get("/homes/flat/robot-export").status_code == 401
     assert on.get("/homes/flat/robot-export", headers={"Authorization": "Bearer wrong"}).status_code == 401

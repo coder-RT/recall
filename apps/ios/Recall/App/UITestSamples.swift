@@ -36,4 +36,25 @@ enum UITestSamples {
         ]
         return [again, first]
     }()
+
+    /// Robot Access for the UI tests: kept in memory, with a small made-up map.
+    final class Sharing: RobotSharing, @unchecked Sendable {
+        private var on = false
+        func robotAccess() async throws -> RobotAccessStatus { status }
+        func setRobotAccess(_ on: Bool) async throws -> RobotAccessStatus { self.on = on; return status }
+        func robotMap(home: String) async throws -> RobotMapPackage {
+            let free = [UInt8](repeating: 254, count: 40)
+            var shades = [UInt8](repeating: 0, count: 10) + free + [UInt8](repeating: 128, count: 10)
+            shades[25] = 0
+            let map = RobotMap(width: 10, height: 6, resolution: 0.25, origin: (0, 0), shades: shades)
+            return RobotMapPackage(room: "Living room", map: map,
+                                   things: [.init(label: "keys", color: "beige", x: 1.0, y: 0.6)],
+                                   files: ["map.yaml": Data("image: map.pgm\n".utf8)])
+        }
+        private var status: RobotAccessStatus {
+            RobotAccessStatus(on: on, a2aURL: "http://mac.local:8000/a2a/home-memory",
+                              agentCardURL: "http://mac.local:8000/a2a/home-memory/.well-known/agent-card.json",
+                              exportURL: "http://mac.local:8000/homes/flat/robot-export")
+        }
+    }
 }

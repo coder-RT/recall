@@ -434,7 +434,7 @@
         ],
         "operationId": "getRobotExport",
         "summary": "One room's memory for a robot (Nav2 map, things, furniture); off unless the owner turns it on",
-        "description": "Read-only. Needs robot access on (PUT /sharing, or ROBOT_EXPORT_ENABLED=true on the Mac) and the robot key (RECALL_ROBOT_KEY) or the device key. `room` picks a room; the default is the newest processed scan's.\n",
+        "description": "Read-only. A robot needs robot access on (PUT /sharing, or ROBOT_EXPORT_ENABLED=true on the Mac) and the robot key (RECALL_ROBOT_KEY); the owner's device key can always export it, to share it. `room` picks a room; the default is the newest processed scan's.\n",
         "security": [
           {
             "deviceKey": []

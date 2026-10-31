@@ -289,3 +289,58 @@ struct RFC3339Dates: DateTranscoder {
         return f
     }
 }
+
+// MARK: RobotSharing
+
+extension RecallAPI: RobotSharing {
+    public func robotAccess() async throws -> RobotAccessStatus {
+        Self.status(try await send(request("sharing", method: "GET", contentType: "application/json", body: Data())))
+    }
+
+    public func setRobotAccess(_ on: Bool) async throws -> RobotAccessStatus {
+        let body = try JSONSerialization.data(withJSONObject: ["robot_access": on])
+        return Self.status(try await send(request("sharing", method: "PUT", contentType: "application/json", body: body)))
+    }
+
+    static func status(_ j: [String: Any]) -> RobotAccessStatus {
+        RobotAccessStatus(on: j["robot_access"] as? Bool ?? false, a2aURL: j["a2a_url"] as? String ?? "",
+                          agentCardURL: j["agent_card_url"] as? String ?? "", exportURL: j["export_url"] as? String ?? "")
+    }
+
+    /// GET /homes/{id}/robot-export, turned back into the files a ROS 2 robot loads.
+    public func robotMap(home: String) async throws -> RobotMapPackage {
+        let j = try await send(request("homes/\(home)/robot-export", method: "GET", contentType: "application/json", body: Data()))
+        return try Self.package(j)
+    }
+
+    static func package(_ j: [String: Any]) throws -> RobotMapPackage {
+        guard let m = j["map"] as? [String: Any], let b64 = m["pgm_base64"] as? String, let pgm = Data(base64Encoded: b64),
+              let resolution = m["resolution"] as? Double, let origin = m["origin"] as? [Double], origin.count == 3,
+              let map = RobotMap(pgm: pgm, resolution: resolution, origin: (origin[0], origin[1]))
+        else { throw RecallError.server("The Mac sent an unreadable robot map.") }
+        let objects = j["objects"] as? [[String: Any]] ?? []
+        let things = objects.compactMap { o -> RobotMapPackage.Thing? in
+            guard let label = o["label"] as? String, let p = o["position"] as? [Double], p.count >= 2 else { return nil }
+            return .init(label: label, color: o["color"] as? String, x: p[0], y: p[1])
+        }
+        // map.yaml as Nav2's map server reads it; objects.json is the export without the map and the room outline
+        let yaml = """
+        image: map.pgm
+        mode: \(m["mode"] as? String ?? "trinary")
+        resolution: \(resolution)
+        origin: [\(origin[0]), \(origin[1]), \(origin[2])]
+        negate: \(m["negate"] as? Int ?? 0)
+        occupied_thresh: \(m["occupied_thresh"] as? Double ?? 0.65)
+        free_thresh: \(m["free_thresh"] as? Double ?? 0.25)
+
+        """
+        var doc = j
+        doc["map"] = nil
+        doc["room_model"] = nil
+        let objectsJSON = try JSONSerialization.data(withJSONObject: doc, options: [.prettyPrinted, .sortedKeys])
+        let roomJSON = try JSONSerialization.data(withJSONObject: j["room_model"] ?? [:], options: [.prettyPrinted, .sortedKeys])
+        return RobotMapPackage(room: j["room"] as? String ?? "Room", map: map, things: things,
+                               files: ["map.pgm": pgm, "map.yaml": Data(yaml.utf8), "objects.json": objectsJSON,
+                                       "room.json": roomJSON])
+    }
+}

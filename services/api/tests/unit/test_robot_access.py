@@ -26,6 +26,7 @@ def test_off_by_default_and_the_owner_turns_it_on(tmp_path):
                  "agent_card_url": "http://mac.local:8000/a2a/home-memory/.well-known/agent-card.json",
                  "export_url": "http://mac.local:8000/homes/flat/robot-export"}  # fmt: skip
     assert c.get("/homes/flat/robot-export", headers=ROBOT).status_code == 403
+    assert c.get("/homes/flat/robot-export", headers=OWNER).status_code == 200  # the owner can always export it
     assert c.get("/a2a/home-memory/.well-known/agent-card.json").status_code == 404
     assert c.put("/sharing", json={"robot_access": True}, headers=OWNER).json()["robot_access"] is True
     assert c.get("/homes/flat/robot-export", headers=ROBOT).status_code == 200

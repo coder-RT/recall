@@ -133,3 +133,10 @@ public protocol Clock: Sendable {
     /// The latest reading, nil before the first.
     var reading: HeadingReading? { get }
 }
+
+/// Robot Access on the Mac: the owner's switch, and the robot map package for sharing.
+public protocol RobotSharing: Sendable {
+    func robotAccess() async throws -> RobotAccessStatus
+    func setRobotAccess(_ on: Bool) async throws -> RobotAccessStatus
+    func robotMap(home: String) async throws -> RobotMapPackage
+}

@@ -238,3 +238,30 @@ public extension ArrivalFrame {
                                      imageSize: (640, 480), intrinsics: (500, 500, 320, 240),
                                      pose: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
 }
+
+/// Robot Access kept in memory; the map package is built from a small made-up map.
+public final class FakeRobotSharing: RobotSharing, @unchecked Sendable {
+    public var on = false
+    public var error: Error?
+    public init() {}
+    public func robotAccess() async throws -> RobotAccessStatus {
+        if let error { throw error }
+        return status
+    }
+    public func setRobotAccess(_ on: Bool) async throws -> RobotAccessStatus {
+        if let error { throw error }
+        self.on = on
+        return status
+    }
+    public func robotMap(home: String) async throws -> RobotMapPackage {
+        if let error { throw error }
+        let map = RobotMap(width: 4, height: 3, resolution: 0.1, origin: (0, 0), shades: [254, 254, 0, 128, 254, 254, 0, 128, 254, 254, 254, 128])
+        return RobotMapPackage(room: "Living room", map: map, things: [.init(label: "keys", color: "beige", x: 0.15, y: 0.05)],
+                               files: ["map.pgm": Data("P5".utf8), "map.yaml": Data(), "objects.json": Data("{}".utf8), "room.json": Data()])
+    }
+    var status: RobotAccessStatus {
+        RobotAccessStatus(on: on, a2aURL: "http://mac.local:8000/a2a/home-memory",
+                          agentCardURL: "http://mac.local:8000/a2a/home-memory/.well-known/agent-card.json",
+                          exportURL: "http://mac.local:8000/homes/flat/robot-export")
+    }
+}

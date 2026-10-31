@@ -9,9 +9,9 @@ Voice-first 3D memory of your home for blind and low-vision people. Walk through
 then ask "where are my keys?" and hear step-by-step directions.
 
 - Event: Meta Global AI Developer Hackathon, **Indie track**, theme **Build for Your World**.
-- Hacking window: **Oct 26 to Nov 4, 2026**. Deadline: **Nov 4, 9:00 PM ET = 03:00 Nov 5 Warsaw; hard limit 02:00 Nov 5 Warsaw** (a third-party listing says 6:30 AM IST). **Aim to submit Nov 4 evening.**
-- Judging: stage 1 pass/fail (fits theme, uses Meta AI products) → stage 2 rubric 0 to 10 → stage 3 live demo on Nov 9 (top 5).
-- Indie criteria: creativity, technical ambition, **whether it works**.
+- Hacking window: **Oct 26 to Nov 4, 2026**. Deadline: **Wed Nov 4, 9:00 PM EST = 03:00 Thu Nov 5 Warsaw** (participant guide). **Aim to submit Nov 4 evening.**
+- Judging: stage 1 pass/fail (fits theme, uses Meta AI products) → stage 2 rubric 0 to 10 (**Impact 30%, Use of Meta AI Tooling 25%, Demo 25%, Technical Depth & Execution 20%**) → stage 3 on Nov 9: final judges watch the top 5 videos live and rank them on the same rubric.
+- Kickoff wording for Indie: creativity, technical ambition, **whether it works**. Not marking clearly what was built during the event can disqualify (judges' discretion).
 - Bonus prizes targeted: Best Build on Meta Open Weights (the Guide runs on **Muse Spark Open or Muse Glimmer** in the demo; the bonus names only these two), Best Agentic Use-Case, Most Viral, Community Vote.
 - Demo video: **one video, 3 minutes, working product only** (no slides), English. It opens with
   "Built during the hackathon, Oct 26 to Nov 4. Pre-existing work: none."

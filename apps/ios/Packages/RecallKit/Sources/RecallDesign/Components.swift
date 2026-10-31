@@ -64,7 +64,7 @@ public struct CueBanner: View {
             .padding(16)
             .frame(maxWidth: .infinity)
             .background(Tokens.amber, in: .rect(cornerRadius: 22))
-            .glassRim(.rect(cornerRadius: 22))
+            .hudRim(RoundedRectangle(cornerRadius: 22))
             .accessibilityAddTraits(.updatesFrequently)
     }
 }

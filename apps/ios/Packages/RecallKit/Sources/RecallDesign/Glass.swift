@@ -15,6 +15,12 @@ extension View {
         self.background { Color.clear.glassEffect(glass, in: shape) }
     }
 
+    /// The edge of a panel shown over the camera: a thin light line, no glass. Inside a GlassEffectContainer the glass
+    /// was drawn over the panel and blurred its words, so panels on camera screens keep their own solid fill.
+    public func hudRim(_ shape: some Shape) -> some View {
+        self.overlay { shape.stroke(.white.opacity(0.4), lineWidth: 1) }
+    }
+
     /// The canvas behind a screen's scroll view (light grey, like the reference); bars stay the system's own glass.
     public func recallScreen() -> some View {
         self.scrollContentBackground(.hidden)
@@ -201,8 +207,8 @@ public struct CoverageDial: View {
         .frame(width: 112, height: 112)
         .padding(10)
         // solid enough that white text reads over any camera image; the glass is the rim and the light
-        .background(Tokens.blueDeep.opacity(0.85), in: .circle)
-        .glassRim(.circle)
+        .background(Tokens.blueDeep.opacity(0.92), in: .circle)
+        .hudRim(Circle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(count) of 12 directions covered")
         .accessibilityAddTraits(.updatesFrequently)

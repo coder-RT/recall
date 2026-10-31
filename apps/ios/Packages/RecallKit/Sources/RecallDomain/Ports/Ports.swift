@@ -118,6 +118,8 @@ public protocol Clock: Sendable {
     func reading() -> (pose: Pose, tracking: TrackingState)?
     /// Shows an arrow pointing down at this spot in the camera view (nil removes it).
     func mark(_ target: SIMD3<Double>?)
+    /// Lays arrows on the floor along the route (ARKit x, z), at the floor's height when known; empty clears them.
+    func showPath(_ path: [SIMD2<Double>], floorY: Double?)
 }
 
 /// The phone's compass (magnetic north; no location is read).

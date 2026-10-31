@@ -34,6 +34,8 @@ struct GuideCompassTests {
         await g.run()
         #expect(compass.running)
         #expect(locator.marks.first == SIMD3(2, 0.8, -2))
+        #expect(locator.paths.first == [[0, 0], [0, -2], [2, -2]])  // floor arrows along the route
+        #expect(locator.paths.last == [])  // cleared on arrival
         #expect(speech.lines.contains { $0.hasPrefix("At 3 o'clock, east,") })
         g.stop()
         #expect(locator.marks.last == .some(nil))
@@ -65,6 +67,7 @@ struct GuideCompassTests {
         #expect(speech.lines.filter { $0 == "That way." }.count == 1)
         #expect(haptics.events.filter { $0 == "tap" }.count >= 5)  // ticking until held for 2 s
         #expect(locator.marks.isEmpty)  // no arrow without a map match
+        #expect(locator.paths.allSatisfy { $0.isEmpty })  // and no floor arrows
     }
 
     @Test func landmarkModeWithoutACompassJustSaysIt() async {

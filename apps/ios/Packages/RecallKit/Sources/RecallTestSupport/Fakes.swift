@@ -126,7 +126,9 @@ public final class FakeClock: Clock, @unchecked Sendable {
         return roomMap == nil || mapReadable
     }
     public func stop() { stopped = true }
+    public private(set) var paths: [[SIMD2<Double>]] = []
     public func mark(_ target: SIMD3<Double>?) { marks.append(target) }
+    public func showPath(_ path: [SIMD2<Double>], floorY: Double?) { paths.append(path) }
     public func reading() -> (pose: Pose, tracking: TrackingState)? {
         guard !readings.isEmpty else { return nil }
         return readings.count > 1 ? readings.removeFirst() : readings[0]

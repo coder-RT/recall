@@ -13,8 +13,9 @@ public final class ARLocator: Locator {
     /// What the camera view draws over the feed: the arrow above the thing.
     public let scene = SCNScene()
     private var arrow: SCNNode?
+    private let track = SCNNode()
 
-    public init() {}
+    public init() { scene.rootNode.addChildNode(track) }
 
     public static var isSupported: Bool { ARWorldTrackingConfiguration.isSupported }
 
@@ -48,6 +49,59 @@ public final class ARLocator: Locator {
         }
         scene.rootNode.addChildNode(node)
         arrow = node
+    }
+
+    public func showPath(_ path: [SIMD2<Double>], floorY: Double?) {
+        track.childNodes.forEach { $0.removeFromParentNode() }
+        let chevrons = ChevronLayout.place(path: path)
+        guard !chevrons.isEmpty else { return }
+        // without the floor from the Mac, assume the phone is held about 1.4 m above it
+        let y = Float(floorY ?? Double((session.currentFrame?.camera.transform.columns.3.y ?? 1.4) - 1.4)) + 0.01
+        let still = UIAccessibility.isReduceMotionEnabled
+        for (i, c) in chevrons.enumerated() {
+            let node = Self.chevronNode()
+            node.simdPosition = SIMD3(Float(c.position.x), y, Float(c.position.y))
+            node.eulerAngles.y = Float(-c.yawDeg * .pi / 180)  // ARKit yaw is clockwise from above; SceneKit's isn't
+            if !still {
+                // the racing "chase": a bright wave runs forward along the arrows
+                node.opacity = 0.35
+                let pulse = SCNAction.sequence([.fadeOpacity(to: 1, duration: 0.2), .fadeOpacity(to: 0.35, duration: 0.6),
+                                                .wait(duration: 0.4)])
+                node.runAction(.sequence([.wait(duration: Double(i) * 0.1), .repeatForever(pulse)]))
+            }
+            track.addChildNode(node)
+        }
+    }
+
+    /// One floor arrow: a light-blue chevron with a soft Facebook-blue glow around it, lying flat and pointing along
+    /// the node's −z (the way to walk).
+    static func chevronNode() -> SCNNode {
+        let root = SCNNode()
+        let outline = UIBezierPath()
+        for (k, p) in [(-0.18, -0.06), (0, 0.12), (0.18, -0.06), (0.18, -0.15), (0, 0.03), (-0.18, -0.15)].enumerated() {
+            let pt = CGPoint(x: p.0, y: p.1)
+            if k == 0 { outline.move(to: pt) } else { outline.addLine(to: pt) }
+        }
+        outline.close()
+        let shape = SCNShape(path: outline, extrusionDepth: 0)
+        for (colour, scale, order, glow) in [(UIColor(red: 0x3b / 255, green: 0x59 / 255, blue: 0x98 / 255, alpha: 1), Float(1.35), 20, true),
+                                             (UIColor(red: 0xa9 / 255, green: 0xc4 / 255, blue: 1, alpha: 1), 1, 21, false)] {
+            let m = SCNMaterial()
+            m.lightingModel = .constant
+            m.diffuse.contents = colour
+            m.isDoubleSided = true
+            m.writesToDepthBuffer = false
+            if glow { m.blendMode = .add; m.transparency = 0.7 }
+            let g = shape.copy() as? SCNGeometry
+            g?.materials = [m]
+            let part = SCNNode(geometry: g)
+            part.eulerAngles.x = -.pi / 2  // the shape's +y (its point) to −z, its face up
+            part.simdScale = SIMD3(repeating: scale)
+            part.renderingOrder = order
+            root.addChildNode(part)
+        }
+        root.name = "recall.chevron"
+        return root
     }
 
     /// A Facebook-blue (#3b5998) arrow pointing down, its tip at the node's origin, with a white edge, turning about

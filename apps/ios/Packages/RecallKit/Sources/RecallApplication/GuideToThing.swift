@@ -76,9 +76,11 @@ public final class GuideToThing {
             guard let route = await plan(tracking: tracking) else { return }
             if tracking == .normal { locator.mark(route.target) }  // the arrow, only where the phone knows the room
             guard route.isWalkable else {
+                locator.showPath([], floorY: nil)
                 await landmarks(route)
                 return
             }
+            locator.showPath(route.waypoints, floorY: route.floorY)  // arrows on the floor, leading the way
             if let first = route.steps.first { speech.say(first.say, interrupt: true) }
             switch await follow(route) {
             case .done: return
@@ -95,6 +97,7 @@ public final class GuideToThing {
     public func stop() {
         cancelled = true
         locator.mark(nil)
+        locator.showPath([], floorY: nil)
         locator.stop()
         compass?.stop()
         speech.stop()
@@ -159,6 +162,7 @@ public final class GuideToThing {
             guard let cue = follower.update(position: reading.pose.position, forward: reading.pose.forward) else { continue }
             phase = .guiding(cue, weakTracking: false)
             if cue.arrived {
+                locator.showPath([], floorY: nil)
                 haptics.success()
                 finish(.arrived(arrive))
                 return .done

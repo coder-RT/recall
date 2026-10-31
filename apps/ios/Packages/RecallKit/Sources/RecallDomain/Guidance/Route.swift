@@ -20,11 +20,14 @@ public struct Route: Sendable, Equatable {
     public let target: SIMD3<Double>?
     /// Compass bearing (magnetic) from the room's middle to the thing, when the scan had a reliable compass.
     public let bearingDeg: Double?
+    /// The floor's height in the phone's ARKit world, where the arrows along the route lie.
+    public let floorY: Double?
 
     public init(sessionId: String, landmarksOnly: Bool, reason: String?, steps: [Step], waypoints: [SIMD2<Double>],
-                arriveSay: String?, target: SIMD3<Double>? = nil, bearingDeg: Double? = nil) {
+                arriveSay: String?, target: SIMD3<Double>? = nil, bearingDeg: Double? = nil, floorY: Double? = nil) {
         self.sessionId = sessionId; self.landmarksOnly = landmarksOnly; self.reason = reason; self.steps = steps
         self.waypoints = waypoints; self.arriveSay = arriveSay; self.target = target; self.bearingDeg = bearingDeg
+        self.floorY = floorY
     }
 
     /// The route can be walked on the phone (otherwise the steps are only spoken).

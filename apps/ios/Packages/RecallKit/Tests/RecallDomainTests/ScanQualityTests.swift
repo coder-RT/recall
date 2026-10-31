@@ -153,3 +153,27 @@ struct CompassTests {
         #expect(Directions.say(cue) == "At 3 o'clock, 3 metres.")
     }
 }
+
+@Suite("Floor arrows")
+struct ChevronLayoutTests {
+    @Test func evenlySpacedAlongAStraightLegWithGapsAtTheEnds() {
+        let c = ChevronLayout.place(path: [[0, 0], [0, -3]])
+        #expect(zip(c.map(\.position), [-0.5, -1.1, -1.7, -2.3]).allSatisfy { $0.0.x == 0 && abs($0.0.y - $0.1) < 1e-9 })
+        #expect(c.count == 4)  // 2.9 would be past the 0.4 m gap before the thing
+        #expect(c.allSatisfy { abs($0.yawDeg) < 1e-9 })  // along −z: straight ahead
+    }
+
+    @Test func turnsWithTheRoute() {
+        let c = ChevronLayout.place(path: [[0, 0], [0, -1], [2, -1]])
+        #expect(c.first.map { abs($0.yawDeg) < 1e-9 } == true)
+        #expect(c.last.map { abs($0.yawDeg - 90) < 1e-9 } == true)  // towards +x: a quarter turn clockwise
+        #expect(c.contains { abs($0.position.y + 1) < 1e-9 && $0.position.x > 0 })  // carried round the corner
+    }
+
+    @Test func shortOrEmptyRoutesHaveNone() {
+        #expect(ChevronLayout.place(path: [[0, 0], [0, -0.8]]).isEmpty)
+        #expect(ChevronLayout.place(path: []).isEmpty)
+        #expect(ChevronLayout.place(path: [[1, 1], [1, 1]]).isEmpty)
+        #expect(ChevronLayout.place(path: [[0, 0], [0, -100]]).count == 30)
+    }
+}

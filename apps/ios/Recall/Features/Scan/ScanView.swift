@@ -39,18 +39,19 @@ struct ScanView: View {
                 StepCard(update: model.update, time: time)
                 if let cue = model.cue { CueBanner(cue) }
                 Spacer()
-                GlassEffectContainer(spacing: 12) {
-                    VStack(spacing: 14) {
-                        HStack(spacing: 16) {
-                            CoverageDial(covered: model.update.sectors, count: model.update.directionsCovered)
-                            MiniMap(surfaces: model.update.surfaces)
-                        }
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(model.spokenProgress)
-                        .accessibilityAddTraits(.updatesFrequently)
-                        if model.phase == .finishing {
-                            ProgressView("Saving the scan…").foregroundStyle(Tokens.ink).card()
-                        } else if model.confirmingStop {
+                // the panels keep their own solid fill; only the buttons are glass (see hudRim)
+                HStack(spacing: 16) {
+                    CoverageDial(covered: model.update.sectors, count: model.update.directionsCovered)
+                    MiniMap(surfaces: model.update.surfaces)
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(model.spokenProgress)
+                .accessibilityAddTraits(.updatesFrequently)
+                if model.phase == .finishing {
+                    ProgressView("Saving the scan…").foregroundStyle(Tokens.ink).card()
+                } else {
+                    GlassEffectContainer(spacing: 12) {
+                        if model.confirmingStop {
                             BigButton("Stop anyway", systemImage: "stop.fill",
                                       hint: "The room map isn't ready. Finish the scan without it.", style: .stop) {
                                 Task { await model.stop() }
@@ -101,8 +102,8 @@ private struct StepCard: View {
             }
         }
         .padding(16)
-        .background(Tokens.blueDeep.opacity(0.88), in: .rect(cornerRadius: 22))
-        .glassRim(.rect(cornerRadius: 22))
+        .background(Tokens.blueDeep.opacity(0.92), in: .rect(cornerRadius: 22))
+        .hudRim(RoundedRectangle(cornerRadius: 22))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Step \(number): \(update.step.title). \(update.mapStatus.spoken). \(time).")
     }
@@ -147,8 +148,8 @@ private struct MiniMap: View {
         }
         .frame(width: 112, height: 112)
         .padding(10)
-        .background(Tokens.blueDeep.opacity(0.85), in: .rect(cornerRadius: 24))
-        .glassRim(.rect(cornerRadius: 24))
+        .background(Tokens.blueDeep.opacity(0.92), in: .rect(cornerRadius: 24))
+        .hudRim(RoundedRectangle(cornerRadius: 24))
         .accessibilityHidden(true)
     }
 }

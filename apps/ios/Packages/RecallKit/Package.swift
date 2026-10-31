@@ -42,6 +42,7 @@ let package = Package(
         .testTarget(name: "RecallDomainTests", dependencies: ["RecallDomain"]),
         .testTarget(name: "RecallApplicationTests", dependencies: ["RecallApplication", "RecallTestSupport"]),
         .testTarget(name: "RecallPersistenceTests", dependencies: ["RecallPersistence"]),
+        .testTarget(name: "RecallCaptureTests", dependencies: ["RecallCapture", "RecallDomain"]),
         .testTarget(name: "RecallNetworkingTests", dependencies: [
             "RecallNetworking", "RecallDomain",
             .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),

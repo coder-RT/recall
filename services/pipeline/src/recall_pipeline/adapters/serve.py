@@ -95,9 +95,8 @@ def run_job(model: WarmModel, args: list[str], log_file: Path) -> int:
             model.touch()
 
 
-def serve(port: int, idle: float, load=_load) -> int:
-    key = _env().get("RECALL_DEVICE_KEY", "")
-    model = WarmModel(load, idle)
+def make_server(port: int, model: WarmModel, key: str) -> ThreadingHTTPServer:
+    """The HTTP side (separate from `serve` so tests can start and stop it)."""
     jobs = threading.Lock()  # one job at a time: MapAnything needs most of the GPU memory
 
     class Handler(BaseHTTPRequestHandler):
@@ -116,8 +115,12 @@ def serve(port: int, idle: float, load=_load) -> int:
             return True
 
         def do_GET(self) -> None:  # noqa: N802
-            if self.path == "/health" and self._authorised():
+            if not self._authorised():
+                return
+            if self.path == "/health":
                 self._reply(200, {"loaded": model.loaded, "busy": jobs.locked()})
+            else:
+                self._reply(404, {"error": "not found"})
 
         def do_POST(self) -> None:  # noqa: N802
             if not self._authorised():
@@ -137,14 +140,22 @@ def serve(port: int, idle: float, load=_load) -> int:
         def log_message(self, *a) -> None:  # requests are logged by the jobs themselves
             pass
 
+    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    server.jobs = jobs  # type: ignore[attr-defined]
+    return server
+
+
+def serve(port: int, idle: float, load=_load) -> int:
+    model = WarmModel(load, idle)
+    server = make_server(port, model, _env().get("RECALL_DEVICE_KEY", ""))
+
     def reaper() -> None:
         while True:
             time.sleep(30)
-            if not jobs.locked():
+            if not server.jobs.locked():  # type: ignore[attr-defined]
                 model.unload_if_idle()
 
     threading.Thread(target=reaper, daemon=True).start()
-    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     log.info("pipeline server on 127.0.0.1:%d (model unloads after %.0f min idle)", port, idle / 60)
     server.serve_forever()
     return 0

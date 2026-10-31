@@ -177,3 +177,39 @@ struct ChevronLayoutTests {
         #expect(ChevronLayout.place(path: [[0, 0], [0, -100]]).count == 30)
     }
 }
+
+@Suite("Scan cues not covered above")
+struct MoreScanSignalTests {
+    private func input(_ t: Double, depth: Double? = 1.5, pitch: Double = 0, sinceKeyframe: Double = 0,
+                       speed: Double = 0.2, jump: Double = 0) -> ScanSignals.Input {
+        .init(t: t, speed: speed, turnRate: 10, reason: nil, jump: jump, pitch: pitch, centreDepth: depth,
+              highConfidence: 0.8, lux: 500, sinceKeyframe: sinceKeyframe, floorSeen: true)
+    }
+
+    @Test func farFromTheWallsAfterTwoSeconds() {
+        var s = ScanSignals()
+        #expect(s.update(input(1, depth: 5.2)) == nil)
+        #expect(s.update(input(3.1, depth: 5.2)) == .cue(.moveCloser, spoken: ScanSignals.say(.moveCloser)))
+    }
+
+    @Test func pointingAtTheCeilingForThreeSeconds() {
+        var s = ScanSignals()
+        #expect(s.update(input(1, pitch: 50)) == nil)
+        #expect(s.update(input(4.1, pitch: 50)) == .cue(.lowerPhone, spoken: ScanSignals.say(.lowerPhone)))
+    }
+
+    @Test func noNewViewForFiveSecondsOnlyAfterTheStart() {
+        var s = ScanSignals()
+        #expect(s.update(input(3, sinceKeyframe: 6)) == nil)  // the first seconds don't count
+        #expect(s.update(input(8, sinceKeyframe: 6)) == .cue(.keepMoving, spoken: ScanSignals.say(.keepMoving)))
+    }
+
+    @Test func aJumpOutranksDistanceAndOnlyOneCueIsSaid() {
+        var s = ScanSignals()
+        _ = s.update(input(1, depth: 0.2))
+        #expect(s.update(input(3, depth: 0.2, jump: 0.9)) == .cue(.holdStill, spoken: ScanSignals.say(.holdStill)))
+        #expect(s.active == .holdStill)
+        #expect(s.update(input(3.5, depth: 0.2)) == nil)  // step back is due, but a new cue waits 3 s
+        #expect(s.update(input(6.1, depth: 0.2)) == .cue(.stepBack, spoken: ScanSignals.say(.stepBack)))
+    }
+}

@@ -9,6 +9,7 @@ record: python -m recall_api.infra.demo record <result.json> --room "Living room
 from __future__ import annotations
 
 import argparse
+import itertools
 import json
 import tempfile
 from datetime import UTC, datetime
@@ -16,6 +17,7 @@ from pathlib import Path
 
 from recall_api.adapters.outbound.replay.recorded_llm import RecordingLlm
 from recall_api.application.ask_where_is import AskWhereIs
+from recall_api.application.ingest_scan import IngestScan
 from recall_api.config.settings import REPO_ROOT, Settings
 from recall_api.domain.memory import Home, Scan, ScanStatus
 from recall_api.infra.container import Container
@@ -63,7 +65,10 @@ def build(settings: Settings, sample: Path) -> Container:
     c.homes.save(Home(id=HOME, name=HOME))
     created = datetime.fromisoformat(meta["captured_at"])
     c.scans.save(Scan(meta["scan_id"], HOME, meta["room"], ScanStatus.PROCESSING, 0, "", 0, created))
-    c.ingest_scan(meta["scan_id"], json.loads((sample / "scan-result.json").read_text()))
+    # the same ids every time, so a recorded tool call that names an object finds it again in the replay
+    n = itertools.count(1)
+    ingest = IngestScan(c.scans, c.homes, c.objects, c.clock, lambda prefix: f"{prefix}_demo{next(n)}", audit=c.auditor)
+    ingest(meta["scan_id"], json.loads((sample / "scan-result.json").read_text()))
     return c
 
 

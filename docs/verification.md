@@ -127,5 +127,6 @@ Same living-room episode (56 frames), same SAM 3.1 sightings (cached), compared 
 | Objects (10) | baseline | all 10 matched; **1.9 to 6.9 cm** apart, median 2.6 cm |
 | Furniture (10) | baseline | 9 matched within 10 cm; one shelf merged into another box, one extra TV box |
 
-Decision rule: if the organizers say MapAnything doesn't count, switch the default to `arkit_depth`; nothing else changes.
+MapAnything stays the default: an organizer answer in Discord confirms Meta's open-weight research models (MapAnything, VGGT,
+DINOv3) count as Meta models however they run. `arkit_depth` remains a fast, model-free option.
 

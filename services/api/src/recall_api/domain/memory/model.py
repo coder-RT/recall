@@ -204,6 +204,19 @@ class ScanStatus(StrEnum):
     FAILED = "failed"
 
 
+@dataclass(frozen=True)
+class ScanChange:
+    """One difference a rescan found: a thing moved, new, or gone; places in words ("near the desk")."""
+
+    kind: str  # "moved", "new", "gone"
+    object_id: str
+    label: str
+    name: str | None = None
+    color: str | None = None
+    from_place: str | None = None
+    to_place: str | None = None
+
+
 @dataclass
 class Scan:
     """Aggregate: one walkthrough episode, from upload to ingested results."""
@@ -220,6 +233,9 @@ class Scan:
     frame_count: int | None = None
     object_count: int | None = None
     transform_to_home: tuple[float, ...] | None = None
+    aligned_to: str | None = None  # a rescan recognised in this earlier scan's map (same frame)
+    fresh: bool = False  # the room was scanned before but not recognised: its memory started over
+    changes: list[ScanChange] = field(default_factory=list)
 
     @property
     def folder(self) -> str:

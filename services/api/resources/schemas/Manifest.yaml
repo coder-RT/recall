@@ -45,6 +45,10 @@ properties:
         sha256: {type: string, pattern: "^[0-9a-f]{64}$"}
   capture_metrics:
     $ref: CaptureMetrics.yaml
+  aligned_to:
+    type: [string, "null"]
+    description: "A rescan: the earlier scan whose ARWorldMap the phone relocalised in before recording, so this scan's
+      poses share its world. Absent when the room wasn't recognised (a fresh scan)."
   compass:
     type: [object, "null"]
     description: "Where magnetic north lies in the ARKit world of this scan (yaw, degrees, 0 = facing -Z, clockwise

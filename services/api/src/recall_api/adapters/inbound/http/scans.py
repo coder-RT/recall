@@ -11,7 +11,7 @@ from recall_api.application.upload_scan import UploadError
 from recall_api.domain.memory import Scan as ScanEntity
 
 from .deps import container, require_device_key
-from .models import Manifest, Part, PartReceipt, Scan, ScanCreate, ScanResult, UploadPlan
+from .models import Manifest, Part, PartReceipt, Scan, ScanChange, ScanCreate, ScanResult, UploadPlan
 
 router = APIRouter(tags=["scans"], dependencies=[Depends(require_device_key)])
 
@@ -25,6 +25,15 @@ def _scan(s: ScanEntity) -> Scan:
         detail=s.detail,
         frame_count=s.frame_count,
         object_count=s.object_count,
+        aligned_to=s.aligned_to,
+        fresh=s.fresh,
+        changes=[
+            ScanChange.model_validate(
+                {"kind": c.kind, "object_id": c.object_id, "label": c.label, "name": c.name, "color": c.color,
+                 "from": c.from_place, "to": c.to_place}
+            )
+            for c in s.changes
+        ],
     )
 
 

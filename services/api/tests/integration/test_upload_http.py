@@ -50,6 +50,7 @@ def test_upload_parts_manifest_and_complete(tmp_path, monkeypatch):
         "depth": {"width": 256, "height": 192, "unit": "mm", "encoding": "png16"},
         "intrinsics": {"fx": 700, "fy": 700, "cx": 512, "cy": 384},
         "world_map": None,
+        "aligned_to": "0b9f2a1e-0000-4000-8000-000000000001",  # a rescan recognised in this earlier scan's map
         "files": [{"path": p, "size": len(d), "sha256": hashlib.sha256(d).hexdigest()} for p, d in files.items()],
         "capture_metrics": {
             "directions_covered": 11,
@@ -67,3 +68,41 @@ def test_upload_parts_manifest_and_complete(tmp_path, monkeypatch):
     assert done["status"] == "processing", done
     (folder,) = (tmp_path / "blobs" / "scans").glob(f"*_{SCAN}")  # time and room first, the id last
     assert (folder / "episode" / "frames" / "000000.jpg").read_bytes() == files["frames/000000.jpg"]
+    scan = client.get(f"/scans/{SCAN}", headers=AUTH).json()
+    assert scan["aligned_to"] == "0b9f2a1e-0000-4000-8000-000000000001"
+    assert scan["changes"] == [] and scan["fresh"] is False
+
+
+def test_a_scans_changes_are_served_in_words(tmp_path):
+    from dataclasses import replace
+
+    from recall_api.domain.memory import ScanChange
+
+    s = Settings(RECALL_DATA_DIR=tmp_path, RECALL_DEVICE_KEY="test-key", RECALL_TRACES="off")
+    app = create_app(s)
+    client = TestClient(app)
+    body = {
+        "scan_id": SCAN,
+        "home_id": "flat",
+        "room": "Office",
+        "archive": {"size": 10, "sha256": "0" * 64, "part_size": 5 * 1024 * 1024},
+    }
+    client.post("/scans", json=body, headers=AUTH)
+    scans = app.state.container.scans
+    moved = ScanChange("moved", "obj1", "keys", None, "beige", "near the desk", "on the shelf")
+    scans.save(
+        replace(
+            scans.get(SCAN), changes=[moved, ScanChange("gone", "obj2", "bag", "Mum's purse", "grey", "near the desk")]
+        )
+    )
+    got = client.get(f"/scans/{SCAN}", headers=AUTH).json()["changes"]
+    assert got[0] == {
+        "kind": "moved",
+        "object_id": "obj1",
+        "label": "keys",
+        "name": None,
+        "color": "beige",
+        "from": "near the desk",
+        "to": "on the shelf",
+    }
+    assert got[1]["name"] == "Mum's purse" and got[1]["to"] is None

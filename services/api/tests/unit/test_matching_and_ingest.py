@@ -28,11 +28,12 @@ class Repos:
         n = iter(range(1000))
         self.ingest = IngestScan(self.scans, self.homes, self.objects, FixedClock(), lambda p: f"{p}{next(n)}")
 
-    def scan(self, sid, hour):
+    def scan(self, sid, hour, room="Office", aligned_to=None):
         s = Scan(
             id=sid,
             home_id="flat",
-            room="Office",
+            room=room,
+            aligned_to=aligned_to,
             status=ScanStatus.PROCESSING,
             archive_size=1,
             archive_sha256="x",
@@ -58,7 +59,7 @@ def test_two_scans_one_object_moved_and_one_disappeared():
             "objects": [obj("keys", [1, 1, 0.8]), obj("mug", [3, 2, 0.8])],
         },
     )
-    r.scan("s2", 12)
+    r.scan("s2", 12, aligned_to="s1")  # the phone recognised the room: same frame
     done = r.ingest("s2", {"room": ROOM, "landmarks": [], "objects": [obj("keys", [2, 2.5, 0.8])]})
     assert done.status == ScanStatus.PROCESSED and "1 moved" in done.detail and "1 gone" in done.detail
     keys = next(o for o in r.objects.items.values() if o.label == "keys")

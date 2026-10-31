@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 from datetime import datetime
 
 from sqlalchemy import Engine, text
@@ -16,6 +17,7 @@ from recall_api.domain.memory import (
     Position,
     RoomModel,
     Scan,
+    ScanChange,
     ScanStatus,
     TrackedObject,
 )
@@ -102,6 +104,9 @@ class SqliteScans:
             frame_count=r["frame_count"],
             object_count=r["object_count"],
             transform_to_home=tuple(json.loads(r["transform_to_home"])) if r["transform_to_home"] else None,
+            aligned_to=r["aligned_to"],
+            fresh=bool(r["fresh"]),
+            changes=[ScanChange(**c) for c in json.loads(r["changes"] or "[]")],
         )
 
     def get(self, scan_id: str) -> Scan | None:
@@ -128,15 +133,20 @@ class SqliteScans:
             "frames": s.frame_count,
             "objects": s.object_count,
             "t": json.dumps(s.transform_to_home) if s.transform_to_home else None,
+            "aligned": s.aligned_to,
+            "fresh": int(s.fresh),
+            "changes": json.dumps([asdict(c) for c in s.changes]),
         }
         with self.engine.begin() as c:
             c.execute(
                 text("""
                 INSERT INTO scans (id, home_id, room, created_at, status, detail, archive_size, archive_sha256,
-                                   part_size, frame_count, object_count, transform_to_home)
-                VALUES (:id, :home, :room, :created, :status, :detail, :size, :sha, :part, :frames, :objects, :t)
+                                   part_size, frame_count, object_count, transform_to_home, aligned_to, fresh, changes)
+                VALUES (:id, :home, :room, :created, :status, :detail, :size, :sha, :part, :frames, :objects, :t,
+                        :aligned, :fresh, :changes)
                 ON CONFLICT(id) DO UPDATE SET status = :status, detail = :detail, frame_count = :frames,
-                    object_count = :objects, transform_to_home = :t"""),
+                    object_count = :objects, transform_to_home = :t, aligned_to = :aligned, fresh = :fresh,
+                    changes = :changes"""),
                 p,
             )
 

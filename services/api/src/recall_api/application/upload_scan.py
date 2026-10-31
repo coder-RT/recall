@@ -150,6 +150,7 @@ class UploadScan:
                 self.scans.save(scan)
                 return scan
         scan.status, scan.detail = ScanStatus.UPLOADED, None
+        scan.aligned_to = manifest.get("aligned_to")  # a rescan the phone recognised in an earlier scan's map
         self.scans.save(scan)
         episode_dir = self.blobs.local_path(keys["episode"]) or keys["episode"]
         self.trigger.start(scan.folder.removeprefix("scans/"), scan_id, episode_dir)

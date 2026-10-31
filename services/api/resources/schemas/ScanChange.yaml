@@ -1,0 +1,11 @@
+type: object
+description: "One difference a rescan found against what Recall remembered in that room"
+required: [kind, object_id, label]
+properties:
+  kind: {type: string, enum: [moved, new, gone]}
+  object_id: {type: string}
+  label: {type: string}
+  name: {type: [string, "null"], description: "The user's own name for it, when they gave one"}
+  color: {type: [string, "null"]}
+  from: {type: [string, "null"], description: "Where it was, in words: \"near the desk\" (moved, gone)"}
+  to: {type: [string, "null"], description: "Where it is now, in words: \"on the shelf\" (moved, new)"}

@@ -10,3 +10,10 @@ properties:
   detail: {type: string, description: "Why it failed, in one sentence"}
   frame_count: {type: integer}
   object_count: {type: integer}
+  aligned_to: {type: [string, "null"], description: "The earlier scan of this room whose map the phone recognised, so
+    both share one frame"}
+  fresh: {type: boolean, description: "The room was scanned before but not recognised: memory for it started over"}
+  changes:
+    type: array
+    description: "What a rescan found different (empty for a room's first scan)"
+    items: {$ref: ScanChange.yaml}

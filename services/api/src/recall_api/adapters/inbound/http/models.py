@@ -55,6 +55,24 @@ class Error(BaseModel):
     detail: Annotated[str | None, Field(description="One plain sentence for a person")] = None
 
 
+class Kind(StrEnum):
+    moved = "moved"
+    new = "new"
+    gone = "gone"
+
+
+class ScanChange(BaseModel):
+    kind: Kind
+    object_id: str
+    label: str
+    name: Annotated[str | None, Field(description="The user's own name for it, when they gave one")] = None
+    color: str | None = None
+    from_: Annotated[
+        str | None, Field(alias="from", description='Where it was, in words: "near the desk" (moved, gone)')
+    ] = None
+    to: Annotated[str | None, Field(description='Where it is now, in words: "on the shelf" (moved, new)')] = None
+
+
 class Status1(StrEnum):
     uploading = "uploading"
     uploaded = "uploaded"
@@ -71,6 +89,16 @@ class Scan(BaseModel):
     detail: Annotated[str | None, Field(description="Why it failed, in one sentence")] = None
     frame_count: int | None = None
     object_count: int | None = None
+    aligned_to: Annotated[
+        str | None,
+        Field(description="The earlier scan of this room whose map the phone recognised, so both share one frame"),
+    ] = None
+    fresh: Annotated[
+        bool | None, Field(description="The room was scanned before but not recognised: memory for it started over")
+    ] = None
+    changes: Annotated[
+        list[ScanChange] | None, Field(description="What a rescan found different (empty for a room's first scan)")
+    ] = None
 
 
 class PartReceipt(BaseModel):
@@ -161,6 +189,12 @@ class Manifest(BaseModel):
     world_map: Annotated[str | None, Field(description="Relative path of the saved ARWorldMap, if any")] = None
     files: Annotated[list[File], Field(description="Every file in the episode with its SHA-256")]
     capture_metrics: CaptureMetrics
+    aligned_to: Annotated[
+        str | None,
+        Field(
+            description="A rescan: the earlier scan whose ARWorldMap the phone relocalised in before recording, so this scan's poses share its world. Absent when the room wasn't recognised (a fresh scan)."
+        ),
+    ] = None
     compass: Annotated[
         Compass | None,
         Field(

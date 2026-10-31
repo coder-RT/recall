@@ -1,5 +1,6 @@
 """The Guide's grounding is enforced in code: a scripted model (test double) tries to invent a place."""
 
+import json
 from datetime import timedelta
 
 from recall_api.application.ask_where_is import AskWhereIs
@@ -102,3 +103,14 @@ def test_the_fallback_needs_only_find_object():
     lie = ChatReply("Your keys are on the kitchen counter.")
     a = guide([FIND, lie, lie])("flat", "where are my keys?")
     assert a.text.startswith("Your keys are on the desk") and "kitchen" not in a.text
+
+
+def test_the_fallback_names_the_newest_of_several_matches():
+    from recall_api.application.ask_where_is import fallback_sentence
+
+    out = json.dumps({"result": "found", "matches": [
+        {"label": "bag", "color": "grey", "landmark": "desk", "relation": "near", "height_band": "knee",
+         "seen_when": "today at 10:00"},
+        {"label": "bag", "color": "white", "landmark": "cabinet", "relation": "on", "height_band": "waist"},
+    ]})  # fmt: skip
+    assert fallback_sentence([out]) == "Your grey bag is near the desk, at knee height, seen today at 10:00."

@@ -47,7 +47,7 @@ public enum PrivacyNote {
     ]
 
     public static let never = [
-        "No account, no ads, no analytics, no tracking, and nothing sold.",
+        "No account, no ads, no analytics, no tracking in the app, and nothing sold.",
         "No Recall server receives your home: the developer never sees your scans, your memory or your questions.",
         "Robots never get photos, your own names or notes for things, or anyone's position.",
     ]

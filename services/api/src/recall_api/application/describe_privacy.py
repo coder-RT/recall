@@ -54,8 +54,8 @@ def describe_privacy(
     if robot_access:
         screen_to, screen_local = SCREEN[screen_provider]
         sent += [
-            Flow("The room map, things and furniture, and when they were seen (no photos, your names or notes, or "
-                 "anyone's position)", "Robots and agents you gave the robot key", "When a robot asks"),
+            Flow("The room map, things and furniture (no photos, your names or notes, or anyone's position)",
+                 "Robots and agents you gave the robot key", "When a robot asks"),
             Flow("The object name a robot asked about", screen_to, "Before any robot request is answered",
                  screen_local),
         ]  # fmt: skip

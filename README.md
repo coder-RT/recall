@@ -90,7 +90,7 @@ The landing page. No image of anyone's home is in this repo: the 3D viewer shows
 
 ## Why I built it
 
-- The question "where did I put my keys?" is asked in every home, and for a blind person it can end a morning.
+- The question "where did I put my keys?" is asked in every home, and for someone who is blind or has low vision it can end a morning.
 - A home barely changes; what moves are the small things. That calls for a memory of the space, not a smarter camera.
 - The pieces now exist as open Meta models: metric 3D from photos (MapAnything), find anything by name (SAM 3.1), a language model that can call tools and phrase a short spoken answer (Muse Spark Open / Glimmer).
 - I wanted the result measured on real objects in a real flat, with the numbers published, rather than demonstrated on slides.

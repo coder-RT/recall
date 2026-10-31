@@ -34,7 +34,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 <a id="d-02"></a>
 ## D-02 Geometry decides facts; the language model only phrases them
 - **Decided by Rachit, Oct 29, 2026** · **Door:** two-way in code, one-way in what Recall promises
-- **Context:** a wrong place sends a blind person the wrong way, and "basic RAG" is a known weak pattern.
+- **Context:** a wrong place sends a blind or low-vision person the wrong way, and "basic RAG" is a known weak pattern.
 - **Decision:** spatial relations, heights, distances and times come from the 3D map through four tools. A grounding
   check in code rejects any place or number no tool returned. After one correction, the code answers from the tool
   output itself.
@@ -246,7 +246,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 <a id="d-15"></a>
 ## D-15 Routes keep to the middle of free space
 - **Decided by Rachit, Oct 30, 2026** · **Door:** two-way
-- **Context:** a shortest path hugs furniture; a blind walker needs room.
+- **Context:** a shortest path hugs furniture; someone walking without sight needs room.
 - **Decision:**
   - Occupancy grid (10 cm), clearance from a distance transform, obstacles inflated by a 0.3 m body radius.
   - A* with a cost near obstacles.

@@ -98,7 +98,7 @@ asked once per question.
 
 | Choice | Instead of | Why | Decision |
 |---|---|---|---|
-| Geometry and tools decide; the LLM phrases | Letting the model infer places from labels (RAG) | A wrong place sends a blind person the wrong way; code checks every answer | [D-02](decisions.md#d-02) |
+| Geometry and tools decide; the LLM phrases | Letting the model infer places from labels (RAG) | A wrong place sends a blind or low-vision person the wrong way; code checks every answer | [D-02](decisions.md#d-02) |
 | MapAnything fed ARKit intrinsics, poses and LiDAR depth | Images-only reconstruction | Images-only came out ~23 % too large; the phone's metric inputs fix scale | [D-08](decisions.md#d-08) |
 | A model-free fallback: LiDAR depth back-projected with ARKit poses | VGGT or another model | All 10 objects within 7 cm of MapAnything, in 0.2 s, no GPU | [D-09](decisions.md#d-09) |
 | SQLite, one file per home | Postgres | One household, one writer, kilobytes of data; nothing to run | [D-04](decisions.md#d-04) |

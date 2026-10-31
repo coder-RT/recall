@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
-import { BoxGeometry, Color, EdgesGeometry, PlaneGeometry } from "three";
+import { useFrame } from "@react-three/fiber";
+import { useMemo, useRef } from "react";
+import { BoxGeometry, Color, EdgesGeometry, type Group, PlaneGeometry } from "three";
 import { BAND_EDGES } from "./bands";
 
 export interface Surface {
@@ -169,38 +170,64 @@ function BoxOutline({ min, max, colour }: { min: number[]; max: number[]; colour
   );
 }
 
-/** One pin per object: a dot where it was seen and a stem down to the floor; the chosen one is larger. */
-export function Things({ items, selected, tokens }: { items: Thing[]; selected: number | null; tokens: Tokens }) {
+/**
+ * One Facebook-blue arrow per object, pointing down at it from just above its top, with a thin stem to the floor so
+ * its height reads; the chosen one is larger, dark blue and haloed. `bob` lets the arrows rise and fall gently (off
+ * when motion is reduced).
+ */
+export function Things({ items, selected, tokens, bob = false }: { items: Thing[]; selected: number | null; tokens: Tokens; bob?: boolean }) {
   return (
     <>
       {items.map((t, i) => (
-        <Pin key={i} at={t.at} chosen={i === selected} colour={i === selected ? tokens.blueDark : tokens.cta} />
+        <Arrow key={i} thing={t} chosen={i === selected} colour={i === selected ? tokens.blueDark : tokens.blue} edge={tokens.bg} bob={bob} />
       ))}
     </>
   );
 }
 
-// pins are drawn over the points (no depth test, last in the transparent pass the cloud also uses), so a thing
-// inside a shelf or behind a chair still shows
-function Pin({ at, chosen, colour }: { at: number[]; chosen: boolean; colour: string }) {
-  const stem = useMemo(() => new Float32Array([at[0], at[1], 0, at[0], at[1], at[2]]), [at]);
+// home frame: z up. three's cylinders stand along +y, and with radiusBottom 0 the point is at -y; turning +90°
+// about x takes +y to +z, so the point faces down (-z).
+const DOWN: [number, number, number] = [Math.PI / 2, 0, 0];
+
+// arrows are drawn over the points (no depth test, late in the transparent pass the cloud also uses), so a thing
+// inside a shelf or behind a chair still shows; no tone mapping, so they keep the exact token colours
+function Arrow({ thing, chosen, colour, edge, bob }: { thing: Thing; chosen: boolean; colour: string; edge: string; bob: boolean }) {
+  const ref = useRef<Group>(null);
+  const [x, y, z] = thing.at;
+  const top = z + Math.max(thing.size?.[2] ?? 0.1, 0.05) / 2 + 0.04; // the tip, just above the thing
+  const k = chosen ? 1.5 : 1;
+  const head = 0.12 * k;
+  const shaft = 0.16 * k;
+  const stem = useMemo(() => new Float32Array([x, y, 0, x, y, top]), [x, y, top]);
+  useFrame(({ clock }) => {
+    if (ref.current) ref.current.position.z = bob ? top + 0.03 * (1 + Math.sin(clock.elapsedTime * 2.4)) : top;
+  });
+  const part = (key: string, args: [number, number, number, number], at: number, scale: number, fill: string, order: number) => (
+    <mesh key={key} position={[0, 0, at]} rotation={DOWN} scale={scale} renderOrder={order}>
+      <cylinderGeometry args={args} />
+      <meshBasicMaterial color={fill} transparent depthTest={false} toneMapped={false} />
+    </mesh>
+  );
   return (
     <>
-      <mesh position={[at[0], at[1], at[2]]} renderOrder={10}>
-        <sphereGeometry args={[chosen ? 0.11 : 0.07, 24, 16]} />
-        <meshBasicMaterial color={colour} transparent opacity={1} depthTest={false} />
-      </mesh>
-      {chosen && (
-        <mesh position={[at[0], at[1], at[2]]} renderOrder={9}>
-          <sphereGeometry args={[0.16, 24, 16]} />
-          <meshBasicMaterial color={colour} transparent opacity={0.25} depthTest={false} />
-        </mesh>
-      )}
+      <group ref={ref} position={[x, y, top]}>
+        {chosen && (
+          <mesh position={[0, 0, head / 2]} renderOrder={9}>
+            <sphereGeometry args={[head * 1.4, 24, 16]} />
+            <meshBasicMaterial color={colour} transparent opacity={0.22} depthTest={false} toneMapped={false} />
+          </mesh>
+        )}
+        {/* a white edge (the same shapes a little larger, drawn first), then the blue */}
+        {part("he", [0.07 * k, 0, head, 24], head / 2, 1.18, edge, 10)}
+        {part("se", [0.025 * k, 0.025 * k, shaft, 12], head + shaft / 2, 1.3, edge, 10)}
+        {part("h", [0.07 * k, 0, head, 24], head / 2, 1, colour, 11)}
+        {part("s", [0.025 * k, 0.025 * k, shaft, 12], head + shaft / 2, 1, colour, 11)}
+      </group>
       <line>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[stem, 3]} />
         </bufferGeometry>
-        <lineBasicMaterial color={colour} depthTest={false} transparent opacity={chosen ? 1 : 0.7} />
+        <lineBasicMaterial color={colour} depthTest={false} transparent opacity={chosen ? 0.9 : 0.5} toneMapped={false} />
       </line>
     </>
   );

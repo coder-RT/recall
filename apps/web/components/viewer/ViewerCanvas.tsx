@@ -139,6 +139,7 @@ function Scene({ view, mesh, photo, architect, data, uniforms, spin, layers, bou
     return (
       <>
         <RoomModel room={model.room} furniture={model.furniture} things={model.things} selected={model.selected} tokens={tokens} />
+        <Things items={model.things} selected={model.selected} tokens={tokens} bob={spin} />
         <Controls spin={spin} />
       </>
     );
@@ -147,7 +148,7 @@ function Scene({ view, mesh, photo, architect, data, uniforms, spin, layers, bou
     return (
       <>
         <PhotoRoom photo={photo} />
-        <Things items={model.things} selected={model.selected} tokens={tokens} />
+        <Things items={model.things} selected={model.selected} tokens={tokens} bob={spin} />
         <Controls spin={spin} />
       </>
     );
@@ -156,6 +157,7 @@ function Scene({ view, mesh, photo, architect, data, uniforms, spin, layers, bou
     return (
       <>
         <ArchitectRoom model={architect} selected={model.selected} tokens={tokens} />
+        <Things items={model.things} selected={model.selected} tokens={tokens} bob={spin} />
         <Controls spin={spin} />
       </>
     );
@@ -164,7 +166,7 @@ function Scene({ view, mesh, photo, architect, data, uniforms, spin, layers, bou
     return (
       <>
         <SurfaceMesh mesh={mesh} />
-        <Things items={model.things} selected={model.selected} tokens={tokens} />
+        <Things items={model.things} selected={model.selected} tokens={tokens} bob={spin} />
         <Controls spin={spin} />
       </>
     );
@@ -177,7 +179,7 @@ function Scene({ view, mesh, photo, architect, data, uniforms, spin, layers, bou
       {layers.surfaces && <Surfaces surfaces={surfaces} tokens={tokens} />}
       {layers.room && <Room room={model.room} tokens={tokens} />}
       {layers.room && <Furniture items={model.furniture} tokens={tokens} />}
-      {layers.things && <Things items={model.things} selected={model.selected} tokens={tokens} />}
+      {layers.things && <Things items={model.things} selected={model.selected} tokens={tokens} bob={spin} />}
       <Controls spin={spin} />
     </>
   );

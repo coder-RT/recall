@@ -54,6 +54,24 @@ const tint = (page: Page) =>
     return { drawn, blue: blue / (drawn || 1) };
   });
 
+/** Pixels within a few steps of one exact colour (the arrows use unlit materials, so they keep their token). */
+const exact = (page: Page, hex: string) =>
+  page.evaluate((hex) => {
+    const want = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    const source = document.querySelector<HTMLCanvasElement>("[data-viewer] canvas")!;
+    const copy = document.createElement("canvas");
+    copy.width = source.width;
+    copy.height = source.height;
+    const ctx = copy.getContext("2d")!;
+    ctx.drawImage(source, 0, 0);
+    const { data } = ctx.getImageData(0, 0, copy.width, copy.height);
+    let n = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] > 200 && want.every((w, c) => Math.abs(data[i + c] - w) <= 6)) n++;
+    }
+    return n;
+  }, hex);
+
 test.describe("3D viewer: no scan on this computer", () => {
   test("another home on this computer has no scan: its page lists the steps", async ({ page }) => {
     await prepare(page);
@@ -222,7 +240,21 @@ test.describe("3D viewer: your scan", () => {
     await expect(sheets.getByRole("link", { name: "Download A1.1" })).toHaveAttribute("href", /sheet-a1-1\.svg$/);
   });
 
-  test("lists everything Recall found; choosing one highlights its pin", async ({ page }) => {
+  test("Facebook-blue arrows point down at the things in every room view; the chosen one turns dark blue", async ({ page }) => {
+    await prepare(page);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await open(page, PAGE);
+    await formed(page);
+    for (const view of ["model", "photo", "architect", "surface"] as const) {
+      await page.getByRole("radio", { name: s.views[view], exact: true }).check();
+      await expect.poll(() => exact(page, "#3b5998"), { message: view }).toBeGreaterThan(40);
+    }
+    const dark = await exact(page, "#29487d");
+    await page.getByRole("region", { name: new RegExp(s.found.title) }).getByRole("button").first().click();
+    await expect.poll(() => exact(page, "#29487d")).toBeGreaterThan(dark + 40);
+  });
+
+  test("lists everything Recall found; choosing one highlights its arrow", async ({ page }) => {
     await prepare(page);
     await page.emulateMedia({ reducedMotion: "reduce" });
     await open(page, PAGE);

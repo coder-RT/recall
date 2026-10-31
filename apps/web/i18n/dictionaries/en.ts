@@ -347,7 +347,7 @@ export const en = {
     viewer: {
       title: "3D viewer",
       idSuffix: " · {id}",
-      body: "Your own room, scanned with your iPhone and rebuilt on your Mac, with a pin on everything Recall found. A demo aid, not the product: the product is the voice and the walk back.",
+      body: "Your own room, scanned with your iPhone and rebuilt on your Mac, with a blue arrow pointing down at everything Recall found. A demo aid, not the product: the product is the voice and the walk back.",
       steps: {
         title: "No scan on this computer yet",
         body: "This page shows a room you scanned yourself. Nothing from anyone’s home ships with Recall, and the hosted site never has a scan. To see yours:",
@@ -398,7 +398,7 @@ export const en = {
         things: "Things",
         found: {
           title: "What Recall found",
-          body: "Each one is a pin in the room. Choose one to highlight it. Colours are measured from the photos.",
+          body: "Each one has a blue arrow pointing down at it in the room. Choose one to highlight it. Colours are measured from the photos.",
           row: "{thing}, {band} height ({z} m)",
           sure: "{pct}% sure",
           furniture: "Furniture: {n} pieces ({kinds}).",

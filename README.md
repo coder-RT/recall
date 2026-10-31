@@ -97,7 +97,7 @@ The landing page. No image of anyone's home is in this repo: the 3D viewer shows
 
 ## Why agents
 
-- **Guide** is the only agent on the live question path. It calls four tools (`find_object`, `describe_location`, `localize`, `plan_route`) and phrases the answer. It never states a place, distance or time that no tool returned. Target: first spoken words within 2 seconds.
+- **Guide** is the only agent on the live question path. It calls four tools (`find_object`, `describe_location`, `localize`, `plan_route`) and phrases the answer. It never states a place, distance or time that no tool returned. The phone says "Looking for your keys." as soon as it has the question; the Guide's answer follows in 2.3 s (median of 10 real questions, one tool call each, Muse Spark Open at low reasoning effort; `docs/verification.md`).
 - **Verifier** runs once, on arrival: one camera frame, SAM 3.1 plus the LiDAR depth, and a yes or no on whether the object is really there. Muse Spark 1.1 can only lower confidence. If the object isn't there, the memory heals itself and the Guide says when it was last seen. The Guide calls it in-process by default and in the live demo; A2A between the two is optional.
 - **Home Memory** is the house's face to other agents (a robot, a pair of glasses, another assistant) over the open A2A 1.0 protocol: read-only, off by default, never the user's live position. It accepts only structured input (one object name, checked against a schema), and a Meta model (Muse Spark Open, or Glimmer) checks that name before any tool runs. Every request is in the owner's audit log.
 - One rule: every agent has a job no other agent does. Complexity is not the goal; the three jobs are different.

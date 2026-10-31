@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     glimmer_model: str | None = None
     lmstudio_base_url: str = "http://localhost:1234/v1"
     lmstudio_model: str | None = None
+    # Baseten runs Muse Spark Open at reasoning_effort "xhigh" unless told otherwise; "low" cut the phrasing step from
+    # 1.3 s to 1.0 s with the same answers (docs/verification.md). Sent only to Baseten, which documents it.
+    reasoning_effort: Literal["low", "medium", "high", "xhigh"] = Field("low", alias="GUIDE_REASONING_EFFORT")
     meta_muse_base_url: str | None = None
     meta_muse_api_key: SecretStr | None = None
 

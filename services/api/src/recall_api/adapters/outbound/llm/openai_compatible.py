@@ -15,11 +15,12 @@ class OpenAICompatibleLlm:
     # Muse Spark Open on Baseten reasons before it answers (reasoning_content): about 200 to 800 tokens before the
     # first visible word, so a tight cap returns an empty reply (finish_reason "length"). Measured 2026-10-31.
     def __init__(
-        self, base_url: str, api_key: str | None, model: str, timeout: float = 60, max_tokens: int = 1500
-    ) -> None:
-        self.model, self.max_tokens = model, max_tokens
+        self, base_url: str, api_key: str | None, model: str, timeout: float = 60, max_tokens: int = 1500,
+        reasoning_effort: str | None = None, transport=None,
+    ) -> None:  # fmt: skip
+        self.model, self.max_tokens, self.reasoning_effort = model, max_tokens, reasoning_effort
         headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
-        self.client = httpx.Client(base_url=base_url.rstrip("/"), headers=headers, timeout=timeout)
+        self.client = httpx.Client(base_url=base_url.rstrip("/"), headers=headers, timeout=timeout, transport=transport)
 
     def chat(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]) -> ChatReply:
         body = {
@@ -29,6 +30,8 @@ class OpenAICompatibleLlm:
             "tool_choice": "auto",
             "max_tokens": self.max_tokens,
         }
+        if self.reasoning_effort:
+            body["reasoning_effort"] = self.reasoning_effort
         for attempt in range(3):
             r = self.client.post("/chat/completions", json=body)
             retry = r.status_code in (429, 529) or r.status_code >= 500
@@ -67,4 +70,5 @@ def from_settings(s) -> OpenAICompatibleLlm:
     model = (getattr(s, model_attr) if model_attr else None) or "muse-spark-1.3"
     if not base:
         raise RuntimeError(f"{s.llm_provider} needs its base URL in .env")
-    return OpenAICompatibleLlm(base, key.get_secret_value() if key else None, model)
+    effort = s.reasoning_effort if s.llm_provider == "baseten_spark_open" else None  # only Baseten documents it
+    return OpenAICompatibleLlm(base, key.get_secret_value() if key else None, model, reasoning_effort=effort)

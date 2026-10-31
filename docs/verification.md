@@ -130,3 +130,49 @@ Same living-room episode (56 frames), same SAM 3.1 sightings (cached), compared 
 MapAnything stays the default: an organizer answer in Discord confirms Meta's open-weight research models (MapAnything, VGGT,
 DINOv3) count as Meta models however they run. `arkit_depth` remains a fast, model-free option.
 
+
+## Probes, 2026-10-31 18:03 UTC (`make probes`, real calls)
+
+| Probe | Result | Time | What came back | Docs |
+|---|---|---|---|---|
+| spark_open_baseten: reasoning_effort default vs low | PASS | 5712 ms | `{"default": {"median_ms": 920, "runs": [{"ms": 899, "reasoning_tokens": 9, "tool": "find_object"}, {"ms": 920, "reasoning_tokens": 19, "tool": "find_object"}, {"ms": 1024, "reasoning_tokens": 10, "tool": "find_object"}]}, "low": {"median_ms": 920, "runs": [{"ms": 819, "reasoning_tokens": 27, "tool": "find_object"}, {"ms": 920, "reasoning_tokens": 44, "tool": "find_object"}, {"ms": 1126, "reasoning` | https://docs.baseten.co/inference/model-apis/reasoning |
+
+## Probes, 2026-10-31 18:03 UTC (`make probes`, real calls)
+
+| Probe | Result | Time | What came back | Docs |
+|---|---|---|---|---|
+| spark_open_baseten: reasoning_effort default vs low | PASS | 13311 ms | `{"default": {"median_ms": 1133, "runs": [{"ms": 1433, "reasoning_tokens": 10, "tool": "find_object"}, {"ms": 921, "reasoning_tokens": 10, "tool": "find_object"}, {"ms": 1133, "reasoning_tokens": 56, "tool": "find_object"}]}, "low": {"median_ms": 1030, "runs": [{"ms": 1529, "reasoning_tokens": 25, "tool": "find_object"}, {"ms": 813, "reasoning_tokens": 13, "tool": "find_object"}, {"ms": 1030, "reas` | https://docs.baseten.co/inference/model-apis/reasoning |
+
+### Guide latency, before: reasoning xhigh (default), 3 model calls (2026-10-31 18:07 UTC, `scripts/guide_latency.py`)
+
+p50 **4206 ms**, p90 5876 ms, 10 questions on the real memory.
+
+| Question | ms | Tool calls | Answer |
+|---|---|---|---|
+| Where are my keys? | 4515 | 2 | Your keys are near the desk in the living room at waist height, seen yesterday at 04:21. |
+| Where did I leave my glasses? | 4159 | 2 | Your grey glasses are in the Living room near the desk at waist height, seen yesterday at 04:21. |
+| Where is my laptop? | 4144 | 2 | Your grey laptop is in the Living room near the desk at waist height, seen yesterday at 04:21. |
+| Where is my bag? | 4252 | 3 | I found two bags, both in the Living room seen yesterday at 04:21 — a grey bag near the desk at knee height, and a white bag on the cabinet on the 1st shelf at waist height. Which one did you mean? |
+| Have you seen a bottle? | 5182 | 4 | I saw three grey bottles in the Living room by the desk — one on the desk and two near it at waist height, seen yesterday at 04:21. Let me know which one you need and I can guide you there. |
+| Where's my book? | 11399 | 6 | The red book is on the desk at waist height in the living room seen yesterday at 04:21 and the grey book is near the shelf at waist height in the living room seen yesterday at 04:21 — which one did you mean? |
+| Where are my keys | 3591 | 2 | Your beige keys were last seen in the Living room near the desk at waist height, seen yesterday at 04:21. |
+| Where is the laptop | 3056 | 2 | It's near the desk in the Living room at waist height, seen yesterday at 04:21. |
+| Where did I put my reading glasses? | 5876 | 2 | Your grey glasses are near the desk in the Living room at waist height, seen yesterday at 04:21. |
+| Where is my umbrella? | 2006 | 1 | I haven't seen that yet. Scan the room it might be in, and I'll remember it. |
+
+### Guide latency, step 2: reasoning low (2026-10-31 18:08 UTC, `scripts/guide_latency.py`)
+
+p50 **2807 ms**, p90 4661 ms, 10 questions on the real memory.
+
+| Question | ms | Tool calls | Answer |
+|---|---|---|---|
+| Where are my keys? | 5455 | 3 | Your keys are in the living room near the desk at about waist height, seen yesterday at 04:21. |
+| Where did I leave my glasses? | 2611 | 2 | Your grey glasses were near the desk in the living room at waist height, seen yesterday at 04:21. |
+| Where is my laptop? | 4661 | 2 | Your grey laptop was near the desk in the living room at waist height, seen yesterday at 04:21. |
+| Where is my bag? | 2745 | 3 | I saw two bags in the living room yesterday at 04:21 — a grey bag near the desk at knee height, and a white bag on the cabinet on shelf level 1 at waist height. Which one did you mean? |
+| Have you seen a bottle? | 3791 | 4 | I remember three grey bottles in the Living room by the desk at waist height, one on the desk and two near it, all seen yesterday at 04:21. Let me know which one you mean and I can guide you there. |
+| Where's my book? | 3283 | 3 | I found two books in the Living room seen yesterday at 04:21, a red one on the desk at waist height and a grey one near the shelf at waist height — which one did you mean? |
+| Where are my keys | 2543 | 2 | Your keys are near the desk in the living room at waist height, seen yesterday at 04:21. |
+| Where is the laptop | 2659 | 2 | Your grey laptop is near the desk in the Living room at waist height, seen yesterday at 04:21. |
+| Where did I put my reading glasses? | 2869 | 2 | Your grey glasses were near the desk in the living room at waist height, seen yesterday at 04:21. |
+| Where is my umbrella? | 1608 | 1 | I haven't seen that yet. Scan the room it might be in, and I'll remember it. |

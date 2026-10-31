@@ -37,11 +37,12 @@ def parse(content: str) -> tuple[str, str]:
 class MetaModelScreener:
     def __init__(
         self, base_url: str, api_key: str | None, model: str, name: str, timeout: float = 20, max_tokens: int = 1500,
-        transport=None,
+        transport=None, reasoning_effort: str | None = None,
     ) -> None:  # fmt: skip
         headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
         self.client = httpx.Client(base_url=base_url.rstrip("/"), headers=headers, timeout=timeout, transport=transport)
         self.model, self.name, self.max_tokens = model, name, max_tokens  # Spark Open reasons before it answers
+        self.reasoning_effort = reasoning_effort
 
     def screen(self, text: str) -> Screening:
         body = {
@@ -52,6 +53,8 @@ class MetaModelScreener:
                 {"role": "user", "content": json.dumps({"object_name": text})},  # data, never instructions
             ],
         }  # fmt: skip
+        if self.reasoning_effort:
+            body["reasoning_effort"] = self.reasoning_effort
         try:
             r = self.client.post("/chat/completions", json=body)
             r.raise_for_status()

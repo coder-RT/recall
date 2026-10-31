@@ -31,6 +31,7 @@ DOCS = {
     "asr": "https://dev.meta.ai/docs/api-reference/voice/transcribe",
     "baseten": "https://docs.baseten.co/inference/function-calling.md",
     "lmstudio": "https://lmstudio.ai/docs/app/api/endpoints/openai",
+    "reasoning": "https://docs.baseten.co/inference/model-apis/reasoning",
 }
 
 
@@ -154,11 +155,11 @@ def probe_transcribe() -> dict:
     return {"ok": all("transcript" in v for v in out.values()), **out}
 
 
-def _baseten(messages: list[dict], tools: list[dict] | None, max_tokens: int = 1000) -> dict:
+def _baseten(messages: list[dict], tools: list[dict] | None, max_tokens: int = 1000, **extra) -> dict:
     """One chat completion on Muse Spark Open via Baseten (BASETEN_BASE_URL, BASETEN_MODEL; Bearer key)."""
     base = (key("BASETEN_BASE_URL") or BASETEN).rstrip("/")
     model = key("BASETEN_MODEL") or "meta-models/muse-spark-open-1026"
-    body = {"model": model, "messages": messages, "max_tokens": max_tokens}
+    body = {"model": model, "messages": messages, "max_tokens": max_tokens, **extra}
     if tools:
         body |= {"tools": tools, "tool_choice": "auto"}
     r = httpx.post(f"{base}/chat/completions", headers={"Authorization": f"Bearer {key('BASETEN_API_KEY')}"}, json=body,
@@ -166,7 +167,10 @@ def _baseten(messages: list[dict], tools: list[dict] | None, max_tokens: int = 1
     if r.status_code != 200:
         return http_error(r)
     choice = r.json()["choices"][0]
-    return {"ok": True, "model": model, "finish_reason": choice.get("finish_reason"), "message": choice["message"]}
+    usage = r.json().get("usage") or {}
+    reasoning = (usage.get("completion_tokens_details") or {}).get("reasoning_tokens")
+    return {"ok": True, "model": model, "finish_reason": choice.get("finish_reason"), "message": choice["message"],
+            "reasoning_tokens": reasoning}
 
 
 def probe_spark_open_plain() -> dict:
@@ -186,6 +190,52 @@ def probe_spark_open() -> dict:
         msg = out.pop("message")
         out["tool_calls"] = [c["function"] for c in msg.get("tool_calls") or []]
         out["ok"] = bool(out["tool_calls"]) and out["finish_reason"] == "tool_calls"
+    return out
+
+
+def probe_spark_open_effort() -> dict:
+    """The find_object call at Baseten's default reasoning effort (xhigh) vs "low", three times each."""
+    messages = [{"role": "system", "content": "You find objects in the user's home. Always use the tools."},
+                {"role": "user", "content": "Where are my keys?"}]  # fmt: skip
+    out: dict = {}
+    for effort in (None, "low"):
+        runs = []
+        for _ in range(3):
+            t0 = time.perf_counter()
+            r = _baseten(messages, TOOLS[:1], **({"reasoning_effort": effort} if effort else {}))
+            ms = int((time.perf_counter() - t0) * 1000)
+            if not r.get("ok"):
+                out[effort or "default"] = r
+                break
+            calls = [c["function"]["name"] for c in r["message"].get("tool_calls") or []]
+            runs.append({"ms": ms, "reasoning_tokens": r["reasoning_tokens"], "tool": calls[0] if calls else None})
+        else:
+            out[effort or "default"] = {"median_ms": sorted(x["ms"] for x in runs)[1], "runs": runs}
+    # the last step: phrase a spoken answer from tool results (this is where the model reasons most)
+    found = {"matches": [{"object_id": "ob_1", "label": "keys", "seen_when": "today at 18:02"}]}
+    where = {"label": "keys", "room": "living room", "landmark": "desk", "relation": "on", "height_band": "waist",
+             "seen_when": "today at 18:02"}  # fmt: skip
+    call = {"id": "c1", "type": "function", "function": {"name": "find_object", "arguments": '{"name": "keys"}'}}
+    call2 = {"id": "c2", "type": "function", "function": {"name": "describe_location", "arguments": '{"object_id": "ob_1"}'}}
+    phrase = messages + [{"role": "assistant", "content": "", "tool_calls": [call]},
+                         {"role": "tool", "tool_call_id": "c1", "content": json.dumps(found)},
+                         {"role": "assistant", "content": "", "tool_calls": [call2]},
+                         {"role": "tool", "tool_call_id": "c2", "content": json.dumps(where)}]  # fmt: skip
+    for effort in (None, "low"):
+        runs = []
+        for _ in range(3):
+            t0 = time.perf_counter()
+            r = _baseten(phrase, TOOLS[:2], **({"reasoning_effort": effort} if effort else {}))
+            ms = int((time.perf_counter() - t0) * 1000)
+            if not r.get("ok"):
+                runs.append({"error": r})
+                break
+            runs.append({"ms": ms, "reasoning_tokens": r["reasoning_tokens"], "text": (r["message"].get("content") or "")[:90]})
+        ok = [x for x in runs if "ms" in x]
+        out[f"phrase_{effort or 'default'}"] = {"median_ms": sorted(x["ms"] for x in ok)[len(ok) // 2] if ok else None,
+                                                "runs": runs}  # fmt: skip
+    low, default = out.get("low", {}), out.get("default", {})
+    out["ok"] = all(x["tool"] == "find_object" for x in low.get("runs", [])) and "median_ms" in default
     return out
 
 
@@ -216,6 +266,8 @@ PROBES = [
     ("Muse Voice Transcribe: 2 s WAV, both modes", "META_MUSE_API_KEY", probe_transcribe, DOCS["asr"]),
     ("spark_open_baseten: plain reply", "BASETEN_API_KEY", probe_spark_open_plain, DOCS["baseten"]),
     ("spark_open_baseten: find_object tool call", "BASETEN_API_KEY", probe_spark_open, DOCS["baseten"]),
+    ("spark_open_baseten: reasoning_effort default vs low", "BASETEN_API_KEY", probe_spark_open_effort,
+     DOCS["reasoning"]),
     ("Muse Glimmer on LM Studio: find_object tool", None, probe_lmstudio, DOCS["lmstudio"]),
 ]
 

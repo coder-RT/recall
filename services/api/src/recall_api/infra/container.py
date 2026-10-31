@@ -108,7 +108,7 @@ class Container:
             return MetaModelScreener(s.lmstudio_base_url, None, s.lmstudio_model or "", "glimmer")
         key = s.baseten_api_key.get_secret_value() if s.baseten_api_key else None
         return MetaModelScreener(s.baseten_base_url or "https://inference.baseten.co/v1", key, s.baseten_model,
-                                 "muse-spark-open")  # fmt: skip
+                                 "muse-spark-open", reasoning_effort=s.reasoning_effort)  # fmt: skip
 
     @cached_property
     def answer_external_query(self) -> AnswerExternalQuery:

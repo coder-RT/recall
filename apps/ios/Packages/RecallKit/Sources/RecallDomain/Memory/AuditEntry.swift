@@ -40,6 +40,8 @@ public struct AuditEntry: Sendable, Equatable, Identifiable {
             }
             let what = detail["asked"] ?? "something"
             return detail["found"] == "true" ? "\(who) asked for \(what): answered" : "\(who) asked for \(what): not found"
+        case "scan.erased":
+            return "You erased a scan of \(detail["room"] ?? "a room") from the Mac"
         case "auth.refused":
             return "Refused: \(detail["why"] ?? "no valid key") (\(detail["path"] ?? "a request"))"
         default:

@@ -70,6 +70,17 @@ public struct Scan: Identifiable, Sendable, Equatable {
         }
     }
 
+    /// What deleting this scan reaches: only this phone, the phone and the Mac, or nothing yet (the Mac is busy).
+    public enum DeleteReach: Sendable, Equatable { case phoneOnly, phoneAndMac, waitForMac }
+
+    public var deleteReach: DeleteReach {
+        switch state {
+        case .notUploaded: .phoneOnly
+        case .preparing, .uploading, .finishing, .processing: .waitForMac
+        case .processed, .failed: .phoneAndMac  // a failed upload may have left parts on the Mac too
+        }
+    }
+
     public var isProcessed: Bool { state == .processed }
     public var isProcessing: Bool { state == .processing }
 

@@ -22,6 +22,8 @@ struct AuditEntryTests {
                 == "A robot sent something other than an object name: refused")
         #expect(entry("home_memory.query", "robot", "refused", ["screen": "unavailable"]).summary
                 == "A robot asked, but the safety check couldn't run: refused")
+        #expect(entry("scan.erased", "owner", "ok", ["room": "Living room"]).summary
+                == "You erased a scan of Living room from the Mac")
         #expect(entry("auth.refused", "unknown", "refused", ["why": "wrong key", "path": "/a2a/home-memory"]).summary
                 == "Refused: wrong key (/a2a/home-memory)")
     }

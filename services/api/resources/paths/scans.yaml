@@ -37,6 +37,23 @@ scan:
               $ref: ../schemas/Scan.yaml
       "404":
         $ref: ../schemas/Responses.yaml#/NotFound
+  delete:
+    tags: [scans]
+    operationId: eraseScan
+    summary: Erase a scan from the Mac
+    description: >
+      Removes the scan's photos, depth, archive and logs from the Mac, and what memory learnt from it. Memory goes back
+      to what the room's other scans say: things seen only in this scan are forgotten; erasing the room's newest scan
+      puts back what it marked moved or gone; a room with no scans left loses its furniture. Owner's device key only.
+    parameters:
+      - $ref: ../schemas/Params.yaml#/scan_id
+    responses:
+      "204":
+        description: Erased
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound
+      "409":
+        $ref: ../schemas/Responses.yaml#/Conflict
 part:
   put:
     tags: [scans]

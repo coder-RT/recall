@@ -28,6 +28,8 @@ public protocol Transcriber: Sendable {
 /// The Mac's processing status of an uploaded scan.
 public protocol ScanProcessing: Sendable {
     func status(scan: String) async throws -> ScanReport
+    /// Erases the scan from the Mac: its photos and files, and what memory learnt only from it.
+    func erase(scan: String) async throws
 }
 
 /// That the Mac answers and accepts the key; returns the model the Guide runs on.

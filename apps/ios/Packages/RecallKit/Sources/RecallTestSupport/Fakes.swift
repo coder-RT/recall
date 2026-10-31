@@ -73,9 +73,15 @@ public final class FakeProcessing: ScanProcessing, @unchecked Sendable {
         reports = statuses.mapValues { ScanReport($0.0, detail: $0.1) }
     }
     public init(reports: [String: ScanReport]) { self.reports = reports }
+    public var erased: [String] = []
+    public var eraseError: RecallError?
     public func status(scan: String) async throws -> ScanReport {
         guard let r = reports[scan] else { throw RecallError.status(404) }
         return r
+    }
+    public func erase(scan: String) async throws {
+        if let eraseError { throw eraseError }
+        erased.append(scan)
     }
 }
 

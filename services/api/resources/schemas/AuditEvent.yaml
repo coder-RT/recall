@@ -10,7 +10,7 @@ properties:
   action:
     type: string
     enum: [robot_access.changed, robot_export.read, home_memory.query, auth.refused, object.corrected,
-           object.forgotten, scan.ingested, arrival.verified]
+           object.forgotten, scan.ingested, scan.erased, arrival.verified]
   outcome: {type: string, enum: [ok, refused, failed]}
   target_type: {type: [string, "null"]}
   target_id: {type: [string, "null"]}

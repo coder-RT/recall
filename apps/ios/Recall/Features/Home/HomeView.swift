@@ -144,6 +144,7 @@ private struct ScanRow: View {
     let review: () -> Void
     let again: () -> Void
     @State private var shareURL: URL?
+    @State private var confirmingDelete = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -165,9 +166,9 @@ private struct ScanRow: View {
             }
             .contentShape(.rect)
             .accessibilityElement(children: .combine)
-            .accessibilityAction(named: "Delete scan") { scans.delete(scan) }
+            .accessibilityAction(named: "Delete scan") { askToDelete() }
             .contextMenu {
-                Button("Delete scan", systemImage: "trash", role: .destructive) { scans.delete(scan) }
+                Button("Delete scan", systemImage: "trash", role: .destructive) { askToDelete() }
             }
             if scan.showsChanges { WhatChanged(scan: scan) }
             HStack(spacing: 10) {
@@ -198,7 +199,26 @@ private struct ScanRow: View {
         .card()
         .task(id: scan.id) { shareURL = await scans.archive(scan) }  // built once, off the main thread
         .accessibilityElement(children: .contain)
-        .accessibilityAction(named: "Delete scan") { scans.delete(scan) }
+        .accessibilityAction(named: "Delete scan") { askToDelete() }
+        .confirmationDialog(deleteTitle, isPresented: $confirmingDelete, titleVisibility: .visible) {
+            Button(scan.deleteReach == .phoneAndMac ? "Delete from iPhone and Mac" : "Delete", role: .destructive) {
+                Task { await scans.delete(scan) }
+            }
+        } message: {
+            Text(scan.deleteReach == .phoneAndMac
+                 ? "Its photos, depth and the things only this scan found are erased from both. Memory goes back to "
+                   + "your other scans of \(scan.room). This can't be undone."
+                 : "It was never uploaded, so nothing of it is on your Mac.")
+        }
+    }
+
+    private var deleteTitle: String {
+        scan.deleteReach == .phoneAndMac ? "Delete this scan from your iPhone and your Mac?" : "Delete this scan?"
+    }
+
+    /// Asks first; while the Mac is still busy with the scan, says so instead.
+    private func askToDelete() {
+        if scan.deleteReach == .waitForMac { Task { await scans.delete(scan) } } else { confirmingDelete = true }
     }
 }
 

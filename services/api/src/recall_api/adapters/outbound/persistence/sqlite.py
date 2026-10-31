@@ -151,6 +151,11 @@ class SqliteScans:
                 p,
             )
 
+    def delete(self, scan_id: str) -> None:
+        with self.engine.begin() as c:
+            c.execute(text("DELETE FROM keyframes WHERE scan_id = :id"), {"id": scan_id})
+            c.execute(text("DELETE FROM scans WHERE id = :id"), {"id": scan_id})
+
 
 class SqliteObjects:
     def __init__(self, engine: Engine) -> None:
@@ -250,6 +255,13 @@ class SqliteObjects:
                         "stale": int(o.stale),
                     },
                 )
+            # the aggregate is the truth: sightings it no longer holds (an erased scan's) go
+            keep = [o.id for o in obj.observations]
+            marks = ", ".join(f":k{i}" for i in range(len(keep))) or "''"
+            c.execute(
+                text(f"DELETE FROM observations WHERE object_id = :id AND id NOT IN ({marks})"),
+                {"id": obj.id, **{f"k{i}": k for i, k in enumerate(keep)}},
+            )
 
 
 class SqliteOwnerSettings:

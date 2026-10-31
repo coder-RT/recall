@@ -143,6 +143,30 @@
             "$ref": "#/components/responses/NotFound"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "scans"
+        ],
+        "operationId": "eraseScan",
+        "summary": "Erase a scan from the Mac",
+        "description": "Removes the scan's photos, depth, archive and logs from the Mac, and what memory learnt from it. Memory goes back to what the room's other scans say: things seen only in this scan are forgotten; erasing the room's newest scan puts back what it marked moved or gone; a room with no scans left loses its furniture. Owner's device key only.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/scan_id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Erased"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
       }
     },
     "/scans/{scan_id}/parts/{part_number}": {
@@ -1857,6 +1881,7 @@
               "object.corrected",
               "object.forgotten",
               "scan.ingested",
+              "scan.erased",
               "arrival.verified"
             ]
           },

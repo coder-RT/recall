@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -38,6 +39,15 @@ class LocalDiskBlobStore:
         with self._path(key).open("rb") as f:
             while block := f.read(chunk):
                 yield block
+
+    def delete_prefix(self, prefix: str) -> None:
+        p = self._path(prefix)
+        if p == self.root:
+            raise ValueError("refusing to delete the whole store")
+        if p.is_dir():
+            shutil.rmtree(p)
+        elif p.exists():
+            p.unlink()
 
     def local_path(self, key: str) -> str | None:
         return str(self._path(key))

@@ -14,16 +14,18 @@ final class ScansModel {
     private let uploads: any ScanUploading
     private let upload: UploadScan
     private let track: TrackProcessing
+    private let processing: any ScanProcessing
+    private var macReachable = true  // false for the UI tests' sample scans, which no Mac knows
     private let settings: SettingsModel
     private let things: ThingsModel
     private let speech: any SpeechOutput
     private let clock: any Clock
 
     init(library: any ScanLibrary, files: any EpisodeFiles, archiver: any EpisodeArchiving, uploads: any ScanUploading,
-         upload: UploadScan, track: TrackProcessing, settings: SettingsModel, things: ThingsModel,
-         speech: any SpeechOutput, clock: any Clock) {
+         upload: UploadScan, track: TrackProcessing, processing: any ScanProcessing, settings: SettingsModel,
+         things: ThingsModel, speech: any SpeechOutput, clock: any Clock) {
         self.library = library; self.files = files; self.archiver = archiver; self.uploads = uploads; self.upload = upload
-        self.track = track; self.settings = settings; self.things = things; self.speech = speech; self.clock = clock
+        self.track = track; self.processing = processing; self.settings = settings; self.things = things; self.speech = speech; self.clock = clock
         scans = library.load()
     }
 
@@ -62,10 +64,34 @@ final class ScansModel {
         }
     }
 
-    func delete(_ scan: Scan) {
+    /// Deletes the scan from this phone and, once uploaded, from the Mac (photos, files and what only it found).
+    /// Returns why it couldn't, which is also spoken.
+    @discardableResult
+    func delete(_ scan: Scan) async -> String? {
+        let reach = macReachable ? scan.deleteReach : .phoneOnly
+        switch reach {
+        case .waitForMac:
+            let why = "The Mac is still working on this scan. Delete it when it has finished."
+            speech.say(why, interrupt: true)
+            return why
+        case .phoneAndMac:
+            do {
+                try await processing.erase(scan: scan.id)
+            } catch {
+                let why = "Not deleted: " + UserMessage.explain(error)
+                speech.say(why, interrupt: true)
+                return why
+            }
+        case .phoneOnly:
+            break
+        }
         files.delete(scan: scan.id)
         scans.removeAll { $0.id == scan.id }
         library.save(scans)
+        speech.say(reach == .phoneAndMac ? "Deleted from your iPhone and your Mac." : "Deleted from your iPhone.",
+                   interrupt: true)
+        if reach == .phoneAndMac { await things.refresh() }
+        return nil
     }
 
     /// The zip for AirDrop or Files, built off the main thread.
@@ -83,7 +109,7 @@ final class ScansModel {
     }
 
     /// UI tests only (launch argument `-UITestSampleThings`): a fixed list of scans. Real users never see it.
-    func useForUITests(_ sample: [Scan]) { scans = sample }
+    func useForUITests(_ sample: [Scan]) { scans = sample; macReachable = false }
 
     /// One scan's room map, for scanning that room again in the same frame.
     func roomMap(scan: Scan) -> Data? { files.roomMap(scan: scan.id) }

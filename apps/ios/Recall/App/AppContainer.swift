@@ -40,7 +40,7 @@ final class AppContainer {
         scans = ScansModel(library: FileScanLibrary(), files: files, archiver: ZipArchiver(), uploads: Self.uploader,
                            upload: UploadScan(files: files, uploads: Self.uploader, server: server, speech: speech),
                            track: TrackProcessing(processing: server, memory: server, speech: speech),
-                           settings: settings, things: things, speech: speech, clock: clock)
+                           processing: server, settings: settings, things: things, speech: speech, clock: clock)
         if UITestSamples.enabled {
             things.useForUITests(UITestSamples.things)
             scans.useForUITests(UITestSamples.scans)
@@ -136,6 +136,7 @@ final class LiveServer: HomeMemory, GuideService, Transcriber, ScanProcessing, C
     func activity(limit: Int) async throws -> [AuditEntry] { try await current().activity(limit: limit) }
     func transcribe(wav: Data) async throws -> String { try await current().transcribe(wav: wav) }
     func status(scan: String) async throws -> ScanReport { try await current().status(scan: scan) }
+    func erase(scan: String) async throws { try await current().erase(scan: scan) }
     func check() async throws -> String { try await current().check() }
     func createScan(scan: String, home: String, room: String, size: Int, sha256: String, partSize: Int) async throws -> UploadPlan {
         try await current().createScan(scan: scan, home: home, room: room, size: size, sha256: sha256, partSize: partSize)

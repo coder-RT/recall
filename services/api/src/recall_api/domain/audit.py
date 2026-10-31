@@ -32,6 +32,7 @@ class Action(StrEnum):
     OBJECT_CORRECTED = "object.corrected"
     OBJECT_FORGOTTEN = "object.forgotten"
     SCAN_INGESTED = "scan.ingested"
+    SCAN_ERASED = "scan.erased"
     ARRIVAL_VERIFIED = "arrival.verified"
 
 

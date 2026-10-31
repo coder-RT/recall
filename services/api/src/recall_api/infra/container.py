@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from dataclasses import dataclass
 from functools import cached_property
 from zoneinfo import ZoneInfo
@@ -25,6 +26,7 @@ from recall_api.application.answer_external_query import AnswerExternalQuery
 from recall_api.application.ask_where_is import AskWhereIs
 from recall_api.application.audit import Auditor
 from recall_api.application.correct_object import CorrectObject
+from recall_api.application.erase_scan import EraseScan
 from recall_api.application.export_for_robot import ExportForRobot
 from recall_api.application.ingest_scan import IngestScan
 from recall_api.application.plan_guidance import PlanGuidance
@@ -85,6 +87,18 @@ class Container:
     @cached_property
     def ingest_scan(self) -> IngestScan:
         return IngestScan(self.scans, self.homes, self.objects, self.clock, new_id, audit=self.auditor)
+
+    @cached_property
+    def erase_scan(self) -> EraseScan:
+        data = self.settings.data_dir
+
+        def remove_files(folder: str) -> None:
+            """The scan's pipeline log and its regression copy (data/logs, data/regression)."""
+            name = folder.removeprefix("scans/")
+            (self.settings.log_dir / f"{name}.log").unlink(missing_ok=True)
+            shutil.rmtree(data / "regression" / name, ignore_errors=True)
+
+        return EraseScan(self.scans, self.homes, self.objects, self.blobs, remove_files, audit=self.auditor)
 
     @cached_property
     def correct_object(self) -> CorrectObject:

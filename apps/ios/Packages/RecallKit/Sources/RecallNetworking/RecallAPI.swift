@@ -161,6 +161,16 @@ extension RecallAPI: ConnectionCheck, ScanProcessing, ScanServer {
         return provider
     }
 
+    public func erase(scan: String) async throws {
+        let r = try await call { try await client.eraseScan(path: .init(scanId: scan)) }
+        switch r {
+        case .noContent, .notFound: return  // gone already is fine
+        case .conflict(let e):
+            throw RecallError.server(try e.body.json.detail ?? "The Mac is still processing this scan.")
+        case .undocumented(let code, _): throw RecallError.status(code)
+        }
+    }
+
     public func status(scan: String) async throws -> ScanReport {
         let r = try await call { try await client.getScan(path: .init(scanId: scan)) }
         switch r {

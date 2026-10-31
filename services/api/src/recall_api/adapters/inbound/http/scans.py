@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 
+from recall_api.application.erase_scan import EraseError
 from recall_api.application.ingest_scan import IngestError
 from recall_api.application.upload_scan import UploadError
 from recall_api.domain.memory import Scan as ScanEntity
@@ -75,6 +76,15 @@ def get_scan(scan_id: str, c=Depends(container)) -> Scan:
     if s is None:
         raise HTTPException(404, {"error": "not_found", "detail": "No such scan."})
     return _scan(s)
+
+
+@router.delete("/scans/{scan_id}", status_code=204)
+def erase_scan(scan_id: str, c=Depends(container)) -> Response:
+    try:
+        c.erase_scan(scan_id)
+    except EraseError as e:
+        raise HTTPException(e.status, {"error": e.code, "detail": e.message}) from e
+    return Response(status_code=204)
 
 
 @router.put("/scans/{scan_id}/parts/{part_number}", response_model=PartReceipt)

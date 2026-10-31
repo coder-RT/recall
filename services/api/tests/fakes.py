@@ -33,6 +33,10 @@ class MemoryBlobs:
     def local_path(self, key):
         return None
 
+    def delete_prefix(self, prefix):
+        for k in [k for k in self.data if k == prefix or k.startswith(prefix.rstrip("/") + "/")]:
+            del self.data[k]
+
 
 class MemoryUnpacker:
     def __init__(self, blobs: MemoryBlobs) -> None:

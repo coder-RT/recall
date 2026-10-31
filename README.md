@@ -78,7 +78,7 @@ The landing page. No image of anyone's home is in this repo: the 3D viewer shows
 
 **How**
 - The iPhone records frames, LiDAR depth and ARKit poses, and leads the scan by voice, step by step: turn round, walk the walls, sweep the floor, close the loop. It measures how much floor and wall the LiDAR saw and whether ARKit's room map is ready, and says when to slow down, step back, add light or tilt down. Meta's MapAnything turns the frames into a metric 3D map; SAM 3.1 finds the furniture and objects in every frame.
-- Geometry decides the facts (floor, surfaces, height bands, distances). A Meta language model only phrases them.
+- Geometry decides the facts (floor, surfaces, height bands, distances). Muse Spark Open, Meta's open model, understands the question, chooses the tools that look the facts up, and turns them into a short spoken answer.
 - A small team of agents answers, verifies and shares; every model they call is a Meta model.
 
 **Frameworks and stack**
@@ -97,7 +97,7 @@ The landing page. No image of anyone's home is in this repo: the 3D viewer shows
 
 ## Why agents
 
-- **Guide** is the only agent on the live question path. It calls four tools (`find_object`, `describe_location`, `localize`, `plan_route`) and phrases the answer. It never states a place, distance or time that no tool returned. The phone says "Looking for your keys." as soon as it has the question; the Guide's answer follows in 2.3 s (median of 10 real questions, one tool call each, Muse Spark Open at low reasoning effort; `docs/verification.md`).
+- **Guide** is the only agent on the live question path. It understands the question, chooses among five tools (`find_object`, `describe_location`, `localize`, `plan_route`, `explain`) and words the answer. It never states a place, distance or time that no tool returned. The phone says "Looking for your keys." as soon as it has the question; the Guide's answer follows in 2.3 s (median of 10 real questions, one tool call each, Muse Spark Open at low reasoning effort; `docs/verification.md`).
 - **Verifier** runs once, on arrival: one camera frame, SAM 3.1 plus the LiDAR depth, and a yes or no on whether the object is really there. Muse Spark 1.1 can only lower confidence. If the object isn't there, the memory heals itself and the Guide says when it was last seen. The Guide calls it in-process by default and in the live demo; A2A between the two is optional.
 - **Home Memory** is the house's face to other agents (a robot, a pair of glasses, another assistant) over the open A2A 1.0 protocol: read-only, off by default, never the user's live position. It accepts only structured input (one object name, checked against a schema), and a Meta model (Muse Spark Open, or Glimmer) checks that name before any tool runs. Every request is in the owner's audit log.
 - One rule: every agent has a job no other agent does. Complexity is not the goal; the three jobs are different.
@@ -273,7 +273,7 @@ Planned next, not built or not working yet (updated before submission; removed i
 
 ## Built during the hackathon
 
-- Everything in this repo was built from scratch during the event. The repo was started on Oct 27, 2026, the day after the hackathon began.
+- Everything in this repo was built from scratch during the event. The repo was created on Oct 26, 2026, the day the hackathon began, after its kickoff.
 - There is no prior work, no imported code and no earlier history; `PRIOR_WORK.md` says None.
 - The commit history is the evidence of when each part was built.
 - Third-party libraries and models are dependencies, never copied in; each is listed with its licence in `THIRD_PARTY.md`.

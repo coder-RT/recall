@@ -302,7 +302,7 @@ struct Promise: Identifiable {
 
     static let all = [
         Promise(id: "geometry", systemImage: "ruler", title: "Measured, not guessed",
-                text: "Places, heights and distances come from the 3D scan. The language model only puts them into words."),
+                text: "Places, heights and distances come from the 3D scan. Meta's language model understands your question and words the answer."),
         Promise(id: "meta", systemImage: "cpu", title: "Meta's models",
                 text: "Muse, SAM 3.1 and MapAnything do the work, and your room is rebuilt in 3D on your own Mac."),
         Promise(id: "voice", systemImage: "speaker.wave.2.fill", title: "Built for VoiceOver first",

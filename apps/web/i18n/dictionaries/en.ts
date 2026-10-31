@@ -284,7 +284,7 @@ export const en = {
     title: "Built to be trusted without looking.",
     items: [
       { title: "VoiceOver first", body: "Every screen works without sight. Every control has a spoken label. Nothing depends on colour alone." },
-      { title: "Geometry decides", body: "Places, distances and times come from the 3D map. The language model only phrases them, so it cannot invent a location." },
+      { title: "Geometry decides", body: "Places, distances and times come from the 3D map. Meta's language model understands your question, picks the tools that look them up and words the answer, so it never has to guess a location." },
       { title: "Your home stays yours", body: "Your scans and memory live on your own computer (a Mac today), not on a Recall server. Delete a scan and it is erased everywhere it was kept." },
       { title: "Honest when unsure", body: "If something has not been seen, or was seen long ago, Recall says so and suggests which room to walk through." },
     ],

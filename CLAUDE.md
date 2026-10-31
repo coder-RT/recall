@@ -21,7 +21,7 @@ then ask "where are my keys?" and hear step-by-step directions.
 
 The full rule list, each with its source and level, is `docs/private/hackathon-rules.md`; this section is the short form.
 
-1. **New work only.** There is no pre-existing work: the repo was started fresh on Oct 27, 2026, the day after the hackathon began, and everything in it is event work. Never copy in code written before Oct 26 or from other projects. `PRIOR_WORK.md` says None. Third-party libraries (MapAnything, etc.) are dependencies, never copied in; they go in `THIRD_PARTY.md`.
+1. **New work only.** There is no pre-existing work: the repo was started fresh on Oct 26, 2026, the day the hackathon began (after the kickoff), and everything in it is event work. Never copy in code written before Oct 26 or from other projects. `PRIOR_WORK.md` says None. Third-party libraries (MapAnything, etc.) are dependencies, never copied in; they go in `THIRD_PARTY.md`.
 2. **Public repo, Apache-2.0.** Record every model and asset licence in `THIRD_PARTY.md`.
 3. **Demo only what we built.** No mock data presented as real; sample or illustrative data is labelled in UI and docs.
 4. **Recall must never look like a banned project:**
@@ -247,7 +247,7 @@ recall/
 ├── CLAUDE.md                       this file
 ├── LICENSE                         Apache-2.0
 ├── THIRD_PARTY.md                  models, fonts, images + licences
-├── PRIOR_WORK.md                   "None.": the repo was started fresh on Oct 27, 2026
+├── PRIOR_WORK.md                   "None.": the repo was started fresh on Oct 26, 2026
 ├── Makefile
 ├── .github/workflows/           ci.yml (ruff, pytest, import-linter, web typecheck/lint/build), codeql.yml (Python + TypeScript)
 ├── apps/

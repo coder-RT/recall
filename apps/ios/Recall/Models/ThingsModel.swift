@@ -16,6 +16,7 @@ final class ThingsModel {
     private let forget: ForgetThing
     private let settings: SettingsModel
     private let speech: any SpeechOutput
+    private let loads = SingleFlight<[Thing]>()
 
     init(load: LoadThings, correct: CorrectThing, forget: ForgetThing, settings: SettingsModel, speech: any SpeechOutput) {
         self.load = load; self.correct = correct; self.forget = forget; self.settings = settings; self.speech = speech
@@ -23,14 +24,20 @@ final class ThingsModel {
 
     var unsureCount: Int { things.filter(\.needsReview).count }
 
+    /// Find and Found both ask on appearing; they share one request, and leaving a screen doesn't cancel it.
     func refresh() async {
         loading = true
-        defer { loading = false; loaded = true }
+        defer { loading = false }
         do {
-            things = try await load(home: settings.connection.homeId)
+            let (load, home) = (load, settings.connection.homeId)
+            things = try await loads.run { try await load(home: home) }
             error = nil
+            loaded = true
+        } catch let e where UserMessage.isCancellation(e) {
+            // the screen went away mid-request: keep what is shown, and try again next time
         } catch {
             self.error = UserMessage.explain(error)
+            loaded = true
         }
     }
 

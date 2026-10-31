@@ -28,6 +28,11 @@ extension RecallError: LocalizedError {
 }
 
 public enum UserMessage {
+    /// A request that was cancelled, not one that failed (iOS says "cancelled (Error -999)"): never shown.
+    public static func isCancellation(_ error: Error) -> Bool {
+        error is CancellationError || (error as? URLError)?.code == .cancelled
+    }
+
     /// A plain sentence for any error: Recall's own, or the network failures, with what to check.
     /// `unwrap` lets an adapter open its own wrapper errors first (the generated client wraps the network error).
     public static func explain(_ error: Error, unwrap: (Error) -> Error = { $0 }) -> String {

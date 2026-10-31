@@ -143,14 +143,19 @@ final class AccessibilityTests: XCTestCase {
         XCTAssertEqual(tabs.element(boundBy: 0).label, "Devices")
         XCTAssertTrue(tabs["Find"].isSelected)  // asking stays one step away
         tabs["Devices"].tap()
-        // every card says how far along it is, in words
-        let cards = [("device-iphone", "iPhone. Available now."), ("device-watch", "Apple Watch Ultra 4. Coming next."),
-                     ("device-glasses", "Meta AI glasses. Planned.")]
-        for (id, start) in cards {
-            let card = app.descendants(matching: .any)[id]
-            XCTAssertTrue(card.waitForExistence(timeout: 5), id)
-            XCTAssertTrue(card.label.hasPrefix(start), card.label)
-        }
+        let card = { (id: String) in app.descendants(matching: .any)["device-\(id)"] }
+        XCTAssertTrue(card("iphone").waitForExistence(timeout: 5))
+        XCTAssertTrue(card("iphone").label.hasPrefix("iPhone. Available now."), card("iphone").label)
+        XCTAssertTrue(app.buttons["iPhone"].isSelected)
+        // tap an icon: its card slides into view, and the icon is marked chosen
+        app.buttons["Meta AI glasses"].tap()
+        XCTAssertTrue(card("glasses").waitForExistence(timeout: 3))
+        XCTAssertTrue(card("glasses").label.hasPrefix("Meta AI glasses. Planned."), card("glasses").label)
+        XCTAssertTrue(app.buttons["Meta AI glasses"].wait(for: \.isSelected, toEqual: true, timeout: 3))
+        // swipe the cards: the icon row follows
+        card("glasses").swipeRight()
+        XCTAssertTrue(app.buttons["Apple Watch Ultra 4"].wait(for: \.isSelected, toEqual: true, timeout: 3))
+        XCTAssertTrue(card("watch").label.hasPrefix("Apple Watch Ultra 4. Coming next."), card("watch").label)
         shot("ios-devices")
         try auditBothEnds(app)
         for _ in 0..<5 { app.swipeUp() }  // the very end: the buttons and the honest footnote

@@ -1,7 +1,7 @@
 # Decisions
 
 Why Recall is built the way it is, and what I rejected along the way. I'm Rachit Thariani; I built Recall during the
-Meta Global AI Developer Hackathon (Oct 27 to Nov 4, 2026) and made each of these decisions myself. Each one records:
+Meta Global AI Developer Hackathon (Oct 26 to Nov 4, 2026) and made each of these decisions myself. Each one records:
 - **When I decided it**, and whether it is a **one-way or two-way door**:
   - **one-way:** hard to reverse later; changing it means migrating data or breaking clients.
   - **two-way:** a config or adapter swap.
@@ -32,7 +32,7 @@ D-27 the UI libraries, D-09 the reconstructor.
   - ~ A little more code.
 
 <a id="d-02"></a>
-## D-02 Geometry decides facts; the language model only phrases them
+## D-02 Geometry decides facts; the language model understands the question and words the answer
 - **Decided by Rachit, Oct 29, 2026** · **Door:** two-way in code, one-way in what Recall promises
 - **Context:** a wrong place sends a blind or low-vision person the wrong way, and "basic RAG" is a known weak pattern.
 - **Decision:** spatial relations, heights, distances and times come from the 3D map through four tools. A grounding

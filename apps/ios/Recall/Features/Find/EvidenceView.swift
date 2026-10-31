@@ -20,7 +20,7 @@ struct EvidenceView: View {
                     Text(evidence.summary).foregroundStyle(Tokens.muted).fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("evidence-summary")
                     ForEach(evidence.sightings) { SightingCard(sighting: $0) }
-                    Text("Places come from the 3D scan, never from the language model; it only puts them into words.")
+                    Text("Places come from the 3D scan. Meta's language model chose the tools and worded the answer; it never invents a place.")
                         .font(.footnote).foregroundStyle(Tokens.muted).fixedSize(horizontal: false, vertical: true)
                 } else if let error {
                     ErrorBox(text: error)

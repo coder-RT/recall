@@ -40,6 +40,8 @@ private struct ThemedRoot: View {
     var body: some View {
         @Bindable var router = router
         TabView(selection: $router.tab) {
+            // first in the bar, but the app opens on Find: asking stays one step away
+            Tab("Devices", systemImage: "apps.iphone", value: AppTab.devices) { DevicesView() }
             Tab("Find", systemImage: "location.magnifyingglass", value: AppTab.find) { FindView() }
             Tab("Scans", systemImage: "viewfinder", value: AppTab.scans) { HomeView() }
             Tab("Found", systemImage: "checklist", value: AppTab.found) { FoundView() }

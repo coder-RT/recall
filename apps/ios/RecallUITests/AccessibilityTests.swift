@@ -135,6 +135,33 @@ final class AccessibilityTests: XCTestCase {
         tab.tap()
     }
 
+    func testDevicesTabComesFirstButTheAppOpensOnFind() throws {
+        let app = XCUIApplication()
+        app.launch()
+        let tabs = app.tabBars.buttons
+        XCTAssertTrue(tabs["Devices"].waitForExistence(timeout: 5))
+        XCTAssertEqual(tabs.element(boundBy: 0).label, "Devices")
+        XCTAssertTrue(tabs["Find"].isSelected)  // asking stays one step away
+        tabs["Devices"].tap()
+        // every card says how far along it is, in words
+        let cards = [("device-iphone", "iPhone. Available now."), ("device-watch", "Apple Watch Ultra 4. Coming next."),
+                     ("device-glasses", "Meta AI glasses. Planned.")]
+        for (id, start) in cards {
+            let card = app.descendants(matching: .any)[id]
+            XCTAssertTrue(card.waitForExistence(timeout: 5), id)
+            XCTAssertTrue(card.label.hasPrefix(start), card.label)
+        }
+        shot("ios-devices")
+        try auditBothEnds(app)
+        for _ in 0..<5 { app.swipeUp() }  // the very end: the buttons and the honest footnote
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'Only the iPhone app works today'"))
+            .firstMatch.exists)
+        shot("ios-devices-end")
+        try audit(app, edgesRechecked: true)
+        app.buttons["Ask now"].tap()
+        XCTAssertTrue(tabs["Find"].isSelected)
+    }
+
     func testHomePassesTheAudit() throws {
         let app = XCUIApplication()
         app.launch()

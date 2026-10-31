@@ -130,7 +130,7 @@ final class LiveServer: HomeMemory, GuideService, Transcriber, ScanProcessing, C
 }
 
 /// The app's tabs and the walk in progress (shown over every tab).
-enum AppTab: Hashable { case find, scans, found, settings }
+enum AppTab: Hashable { case devices, find, scans, found, settings }
 
 @MainActor @Observable
 final class Router {

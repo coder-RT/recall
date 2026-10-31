@@ -14,6 +14,7 @@ from recall_api.adapters.outbound.storage.zip_unpacker import ZipEpisodeUnpacker
 from recall_api.adapters.outbound.voice.muse_transcribe import MuseTranscriber
 from recall_api.application.ask_where_is import AskWhereIs
 from recall_api.application.correct_object import CorrectObject
+from recall_api.application.export_for_robot import ExportForRobot
 from recall_api.application.ingest_scan import IngestScan
 from recall_api.application.plan_guidance import PlanGuidance
 from recall_api.application.tools import Tools
@@ -78,6 +79,10 @@ class Container:
     @cached_property
     def guidance(self) -> PlanGuidance:
         return PlanGuidance(self.homes, self.scans, self.objects, self.blobs, new_id)
+
+    @cached_property
+    def export_for_robot(self) -> ExportForRobot:
+        return ExportForRobot(self.homes, self.scans, self.objects, self.blobs, self.clock)
 
     @cached_property
     def tools(self) -> Tools:

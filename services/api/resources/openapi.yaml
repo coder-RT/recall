@@ -24,6 +24,8 @@ tags:
     description: Routes and the arrival check
   - name: voice
     description: Speech to text through Muse Voice Transcribe
+  - name: robots
+    description: Read-only home memory for robots (off by default)
 components:
   securitySchemes:
     deviceKey:
@@ -31,7 +33,8 @@ components:
       scheme: bearer
       description: >
         A shared key from .env (RECALL_DEVICE_KEY), entered once on the phone and given to the pipeline. Pairing, not a
-        login: the API is reachable through a Cloudflare Tunnel, so every route except /health needs it.
+        login: the API is reachable through a Cloudflare Tunnel, so every route except /health needs it. A robot uses its
+        own read-only key (RECALL_ROBOT_KEY) in the same header, for the robot export only.
 paths:
   /health:
     $ref: paths/health.yaml#/health
@@ -51,6 +54,8 @@ paths:
     $ref: paths/homes.yaml#/room
   /homes/{home_id}/objects:
     $ref: paths/objects.yaml#/objects
+  /homes/{home_id}/robot-export:
+    $ref: paths/homes.yaml#/robot_export
   /homes/{home_id}/objects/{object_id}:
     $ref: paths/objects.yaml#/object
   /ask:

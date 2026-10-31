@@ -22,5 +22,17 @@ def require_device_key(request: Request, creds: HTTPAuthorizationCredentials | N
         raise HTTPException(401, {"error": "unauthorized", "detail": "Missing or wrong device key."})
 
 
+def require_robot_or_device_key(
+    request: Request, creds: HTTPAuthorizationCredentials | None = Depends(_bearer)
+) -> None:
+    """The robot's own read-only key, or the owner's device key."""
+    settings = request.app.state.container.settings
+    keys = [k.get_secret_value() for k in (settings.robot_key, settings.device_key) if k is not None]
+    if not keys:
+        raise HTTPException(503, {"error": "key_unset", "detail": "Set RECALL_ROBOT_KEY in .env on the Mac."})
+    if creds is None or not any(hmac.compare_digest(creds.credentials, k) for k in keys):
+        raise HTTPException(401, {"error": "unauthorized", "detail": "Missing or wrong key."})
+
+
 def not_implemented(feature: str) -> HTTPException:
     return HTTPException(501, {"error": "not_implemented", "detail": f"{feature} is not built yet."})

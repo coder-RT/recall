@@ -11,7 +11,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from recall_api.adapters.inbound.http import ask, guidance, health, homes, scans
+from recall_api.adapters.inbound.http import ask, guidance, health, homes, robots, scans
 from recall_api.config.settings import Settings
 from recall_api.infra import logging as recall_logging
 from recall_api.infra import telemetry
@@ -26,7 +26,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     recall_logging.configure(settings.log_dir, settings.log_level)
     app = FastAPI(title="Recall API", version="0.1.0")
     app.state.container = Container(settings)
-    for r in (health.router, scans.router, homes.router, ask.router, guidance.router):
+    for r in (health.router, scans.router, homes.router, ask.router, guidance.router, robots.router):
         app.include_router(r)
 
     @app.middleware("http")

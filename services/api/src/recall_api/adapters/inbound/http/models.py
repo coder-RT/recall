@@ -2,7 +2,7 @@
 #   filename:  openapi.json
 
 from __future__ import annotations
-from enum import Enum, StrEnum
+from enum import Enum, IntEnum, StrEnum
 from typing import Annotated, Any, Literal
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, RootModel
 from uuid import UUID
@@ -341,6 +341,67 @@ class ObjectLocation(BaseModel):
     needs_review: Annotated[
         bool | None, Field(description="The models were unsure (confidence under 0.7) and the user hasn't confirmed it")
     ] = None
+
+
+class Negate(IntEnum):
+    integer_0 = 0
+
+
+class Map(BaseModel):
+    image: str
+    mode: Literal["trinary"]
+    resolution: Annotated[float, Field(description="Metres per cell")]
+    origin: Annotated[list[float], Field(description="x, y, yaw of the lower-left pixel", max_length=3, min_length=3)]
+    negate: Negate
+    occupied_thresh: float
+    free_thresh: float
+    width: int
+    height: int
+    pgm_base64: Annotated[str, Field(description="254 free, 0 occupied, 128 unknown")]
+
+
+class Object(BaseModel):
+    id: str
+    label: str
+    aliases: list[str]
+    color: Annotated[str | None, Field(description="A colour word only")] = None
+    position: Annotated[list[float], Field(max_length=3, min_length=3)]
+    orientation: Annotated[
+        list[float],
+        Field(description="Quaternion x, y, z, w (identity: no measured heading)", max_length=4, min_length=4),
+    ]
+    frame_id: Literal["map"]
+    size_m: Annotated[list[float] | None, Field(max_length=3, min_length=3)] = None
+    last_seen: AwareDatetime
+    confidence: float
+
+
+class Landmark(BaseModel):
+    id: str
+    label: str
+    centroid: Annotated[list[float], Field(max_length=3, min_length=3)]
+    bbox_min: Annotated[list[float], Field(max_length=3, min_length=3)]
+    bbox_max: Annotated[list[float], Field(max_length=3, min_length=3)]
+    front_dir: Annotated[list[float] | None, Field(max_length=2, min_length=2)] = None
+    frame_id: Literal["map"]
+
+
+class RobotExport(BaseModel):
+    format: Literal["recall-robot-export/1"]
+    home_id: str
+    room: str
+    scan_id: Annotated[str, Field(description="The processed scan the map and places come from (the room's newest)")]
+    frame_id: Literal["map"]
+    generated_at: AwareDatetime
+    map: Annotated[
+        Map,
+        Field(
+            description="Nav2 map server: map.yaml fields, the size, and map.pgm (binary P5, trinary shades) as base64"
+        ),
+    ]
+    objects: list[Object]
+    landmarks: list[Landmark]
+    room_model: RoomModel
 
 
 class AskRequest(BaseModel):

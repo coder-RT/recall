@@ -53,3 +53,6 @@ apps/ios/build/
 
 # local notes for Rachit, never pushed
 /docs/private/
+
+# robot exports of a real home (make robot-export); a privacy-reviewed copy goes to samples/robot-export/
+exports/

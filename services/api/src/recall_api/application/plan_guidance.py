@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import io
-import json
 import math
 from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 
+from recall_api.application import scan_geometry
 from recall_api.application.ports import BlobStore
 from recall_api.domain.memory import Scan
 from recall_api.domain.navigation import FloorGrid, NavConfig, NoSafePath, plan, simplify, to_clock_steps
@@ -72,27 +71,12 @@ class PlanGuidance:
         cached = self._grids.get(home_id)
         if cached and cached[0] == scan.id:
             return cached[1]
-        key = f"{scan.folder}/episode/home_cloud.npy"
-        if not self.blobs.exists(key):
+        cloud = scan_geometry.cloud(self.blobs, scan)
+        if cloud is None:
             raise GuidanceError("no_cloud", "The scan's point cloud is missing; process the scan again.")
-        cloud = np.load(io.BytesIO(self.blobs.get(key))).astype(np.float64)
-        grid = FloorGrid.from_points(cloud, self.cfg, walked=self._walked(scan))
+        grid = FloorGrid.from_points(cloud, self.cfg, walked=scan_geometry.walked(self.blobs, scan))
         self._grids[home_id] = (scan.id, grid)
         return grid
-
-    def _walked(self, scan: Scan) -> np.ndarray | None:
-        """The phone's floor positions during the scan (home frame), from the episode's poses.jsonl."""
-        key = f"{scan.folder}/episode/poses.jsonl"
-        if not self.blobs.exists(key) or not scan.transform_to_home:
-            return None
-        T = np.array(scan.transform_to_home, dtype=float).reshape(4, 4)
-        xy = []
-        for line in self.blobs.get(key).decode().splitlines():
-            if not line.strip():
-                continue
-            M = np.array(json.loads(line)["pose"], dtype=float).reshape(4, 4).T  # column-major
-            xy.append((T @ np.append(M[:3, 3], 1.0))[:2])
-        return np.array(xy) if xy else None
 
     def start(self, home_id: str, object_id: str, pose_column_major: list[float], tracking: str) -> dict[str, Any]:
         T, scan = self._transform(home_id)

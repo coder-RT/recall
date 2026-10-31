@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     # the warm pipeline (recall-pipeline serve); jobs fall back to a fresh process when it isn't running
     pipeline_server: str = Field("http://127.0.0.1:8766", alias="RECALL_PIPELINE_SERVER")
 
+    # robots: the read-only export of one room's memory, off unless the owner turns it on; robots get their own key
+    robot_export_enabled: bool = Field(False, alias="ROBOT_EXPORT_ENABLED")
+    robot_key: SecretStr | None = Field(None, alias="RECALL_ROBOT_KEY")
+
     # the home's clock, for "seen yesterday at 04:21" (sightings are stored in UTC)
     home_timezone: str = Field("Europe/Warsaw", alias="HOME_TIMEZONE")
 

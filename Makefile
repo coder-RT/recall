@@ -5,7 +5,7 @@ PIPE := services/pipeline
 WEB := apps/web
 REDOCLY := npx -y @redocly/cli@2.72.1
 
-.PHONY: help setup dev worker regression viewer live demo probes pair rerun test lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
+.PHONY: help setup dev worker robot-export regression viewer live demo probes pair rerun test lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -21,6 +21,12 @@ dev: ## Run the API on :8000 (reachable on the LAN), the scan worker and the web
 
 worker: ## The scan job worker (Huey on SQLite) and the warm pipeline (MapAnything kept loaded, freed after 10 min idle)
 	( cd $(PIPE) && uv run recall-pipeline serve ) & ( cd $(API) && uv run huey_consumer recall_api.infra.jobs.huey -w 1 -k thread ) ; wait
+
+# HOME is also the shell's home folder: only a HOME=<id> given to make picks the home
+ROBOT_HOME = $(or $(HOME_ID),$(if $(filter command line,$(origin HOME)),$(HOME),flat))
+
+robot-export: ## One room's memory for a robot (Nav2 map, things, furniture): make robot-export [HOME=flat] [ROOM=...] -> exports/robot/<home>/
+	cd $(API) && uv run python -m recall_api.infra.robot_export --home "$(ROBOT_HOME)" $(if $(ROOM),--room "$(ROOM)",) --out "$(CURDIR)/exports/robot/$(ROBOT_HOME)"
 
 regression: ## Re-run every processed scan now (no posting; cached SAM answers) and compare with the last run
 	cd $(API) && uv run python -c "from recall_api.infra import jobs, regression; print('\n'.join(regression.run(jobs.settings, jobs.run_pipeline)))"

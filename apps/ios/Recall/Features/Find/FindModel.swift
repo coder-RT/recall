@@ -63,6 +63,8 @@ final class FindModel {
     func submit() async {
         state = .thinking
         do {
+            // say something at once (system voice); the answer interrupts it when it arrives
+            speech.say(Acknowledgement.line(for: question, known: things.things), interrupt: true)
             if !things.loaded { await things.refresh() }
             let result = try await ask(question, home: settings.connection.homeId, known: things.things)
             state = .answered(result)

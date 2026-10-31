@@ -39,6 +39,10 @@ class Episode:
     intrinsics: Intrinsics
     frames: tuple[FrameRecord, ...]
     world_map: str | None
+    # where magnetic north lay in this scan's ARKit world (yaw degrees, 0 = facing -Z, clockwise from above) and the
+    # samples' spread; None when the phone had no compass reading
+    north_yaw_deg: float | None = None
+    compass_spread_deg: float | None = None
 
     @staticmethod
     def from_records(manifest: dict, pose_lines: list[dict]) -> Episode:
@@ -62,4 +66,6 @@ class Episode:
             intrinsics=Intrinsics(i["fx"], i["fy"], i["cx"], i["cy"]),
             frames=frames,
             world_map=manifest.get("world_map"),
+            north_yaw_deg=(manifest.get("compass") or {}).get("north_yaw_deg"),
+            compass_spread_deg=(manifest.get("compass") or {}).get("spread_deg"),
         )

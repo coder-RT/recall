@@ -17,3 +17,14 @@ def to_home(floor_height_arkit_y: float) -> np.ndarray:
 
 def apply(T: np.ndarray, pts: np.ndarray) -> np.ndarray:
     return (T[:3, :3] @ pts.T).T + T[:3, 3]
+
+
+def north_in_home(T: np.ndarray, north_yaw_deg: float | None, spread_deg: float | None, max_spread: float = 25.0):
+    """Magnetic north in the home frame, degrees clockwise from +y seen from above; None when unknown or unreliable.
+
+    The ARKit yaw ψ faces (sin ψ, 0, -cos ψ) in the ARKit world (0 = facing -Z, clockwise seen from above)."""
+    if north_yaw_deg is None or spread_deg is None or spread_deg > max_spread:
+        return None
+    psi = np.radians(north_yaw_deg)
+    f = T[:3, :3] @ np.array([np.sin(psi), 0.0, -np.cos(psi)])
+    return round(float(np.degrees(np.arctan2(f[0], f[1])) % 360), 1)

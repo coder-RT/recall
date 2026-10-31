@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import math
 from dataclasses import dataclass
 from typing import Any
 
@@ -30,6 +31,17 @@ class Session:
     position: np.ndarray  # home frame
     heading: np.ndarray  # unit (x, y), home frame
     tracking: str
+
+
+def _bearing(room, x: float, y: float) -> float | None:
+    """Compass bearing (magnetic, clockwise from north) from the room's centre to (x, y), when north is known."""
+    if room is None or room.north_deg is None or not room.floor_polygon:
+        return None
+    cx = sum(p[0] for p in room.floor_polygon) / len(room.floor_polygon)
+    cy = sum(p[1] for p in room.floor_polygon) / len(room.floor_polygon)
+    if abs(x - cx) + abs(y - cy) < 1e-6:
+        return None
+    return round((math.degrees(math.atan2(x - cx, y - cy)) - room.north_deg) % 360, 1)
 
 
 class PlanGuidance:
@@ -104,7 +116,15 @@ class PlanGuidance:
             else "in the room"
         )
         arrive = f"Your {obj.label} should be in front of you, {where}, at {rel.band.value} height."
-        base = {"session_id": session.id, "object_label": obj.label, "arrive_say": arrive}
+        # where to draw the arrow in the phone's camera view, and the compass bearing for landmark directions
+        target = (np.linalg.inv(T) @ np.array([last.position.x, last.position.y, last.position.z, 1.0]))[:3]
+        base = {
+            "session_id": session.id,
+            "object_label": obj.label,
+            "arrive_say": arrive,
+            "target_arkit": [round(float(v), 3) for v in target],
+            "bearing_deg": _bearing(home.room_model, last.position.x, last.position.y),
+        }
         if tracking != "normal":
             return {
                 **base,

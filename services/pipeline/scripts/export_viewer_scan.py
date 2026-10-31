@@ -110,6 +110,7 @@ def main() -> None:
                 for w in room["walls"]
             ],
             "height_m": round(room["height_m"], 2),
+            "north_deg": room.get("north_deg"),
         },
         "furniture": [
             {

@@ -79,6 +79,13 @@ class PartReceipt(BaseModel):
     sha256: str
 
 
+class MapStatus(StrEnum):
+    not_available = "not_available"
+    limited = "limited"
+    extending = "extending"
+    mapped = "mapped"
+
+
 class Grade(StrEnum):
     good = "good"
     usable = "usable"
@@ -95,6 +102,14 @@ class CaptureMetrics(BaseModel):
     slow_down_cues: int
     area_walked_m2: float | None = None
     mean_light_lux: float | None = None
+    walls_covered: Annotated[
+        int | None,
+        Field(description="Bearings around the room (of 12) where the LiDAR saw a wall or tall surface", ge=0, le=12),
+    ] = None
+    floor_seen_m2: Annotated[float | None, Field(description="Floor area the LiDAR saw")] = None
+    map_status: Annotated[MapStatus | None, Field(description="ARKit's world-mapping status at the end")] = None
+    loop_closed: Annotated[bool | None, Field(description="The scan ended within a metre of where it started")] = None
+    compass_spread_deg: float | None = None
     grade: Grade
 
 
@@ -123,6 +138,12 @@ class File(BaseModel):
     sha256: Annotated[str, Field(pattern="^[0-9a-f]{64}$")]
 
 
+class Compass(BaseModel):
+    north_yaw_deg: float
+    spread_deg: Annotated[float, Field(description="Circular spread of the samples; over 25 means unreliable")]
+    samples: Annotated[int, Field(ge=0)]
+
+
 class Manifest(BaseModel):
     scan_id: UUID
     format: Literal["recall-episode/1"]
@@ -140,6 +161,12 @@ class Manifest(BaseModel):
     world_map: Annotated[str | None, Field(description="Relative path of the saved ARWorldMap, if any")] = None
     files: Annotated[list[File], Field(description="Every file in the episode with its SHA-256")]
     capture_metrics: CaptureMetrics
+    compass: Annotated[
+        Compass | None,
+        Field(
+            description="Where magnetic north lies in the ARKit world of this scan (yaw, degrees, 0 = facing -Z, clockwise seen from above), from the circular mean of compass minus camera yaw while the phone was upright"
+        ),
+    ] = None
 
 
 class FloorPolygonItem(RootModel[list[float]]):
@@ -170,6 +197,12 @@ class RoomModel(BaseModel):
     walls: list[Wall]
     furniture: list[Furniture]
     height_m: Annotated[float, Field(description="Floor to ceiling, or the tallest wall seen")]
+    north_deg: Annotated[
+        float | None,
+        Field(
+            description="Direction of magnetic north in the home frame, degrees clockwise from +y seen from above (null when the scan had no reliable compass)"
+        ),
+    ] = None
 
 
 class DetectedThing(BaseModel):
@@ -344,6 +377,20 @@ class GuidanceSession(BaseModel):
         str | None, Field(description="What to say on arrival, e.g. where the object is relative to the person")
     ] = None
     object_label: str | None = None
+    target_arkit: Annotated[
+        list[float] | None,
+        Field(
+            description="The object's position in the phone's ARKit world [x, y, z], for the arrow drawn above it",
+            max_length=3,
+            min_length=3,
+        ),
+    ] = None
+    bearing_deg: Annotated[
+        float | None,
+        Field(
+            description="Compass bearing from the room's centre to the object (magnetic, clockwise from north), when the scan had a reliable compass; used for landmark directions"
+        ),
+    ] = None
 
 
 class VerificationRequest(BaseModel):

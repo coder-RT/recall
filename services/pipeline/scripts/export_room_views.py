@@ -170,7 +170,11 @@ def architect_view(
     (out / "architect.json").write_text(json.dumps(model) + "\n")
 
     captured = meta["stats"]["captured"]
-    sheets = [drawings.plan_sheet(plan, walls, furnishing, items, room_name, captured, height, theta, CREDITS)]
+    sheets = [
+        drawings.plan_sheet(
+            plan, walls, furnishing, items, room_name, captured, height, theta, CREDITS, room.get("north_deg")
+        )
+    ]
     seen = sorted((w for w in walls if w.scanned and w.length >= 1.0), key=lambda w: -w.length)[:4]
     if seen:
         images = []

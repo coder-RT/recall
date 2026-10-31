@@ -101,3 +101,17 @@ def test_elevation_shows_the_wall_from_inside_nearest_first():
     img = drawings.elevation_raster(pts, rgb, wall, 2.0)
     assert img.shape == (200, 200, 3)
     assert tuple(img[100, 100]) == (255, 0, 0)  # nearest to the wall wins
+
+
+def test_magnetic_north_turns_into_the_home_frame_and_labels_the_plan():
+    from recall_pipeline.domain.home_frame import north_in_home, to_home
+
+    T = to_home(-1.4)
+    # facing +X in ARKit (yaw 90) is +x in the home frame: 90 degrees clockwise from +y
+    assert north_in_home(T, 90.0, 5.0) == 90.0
+    assert north_in_home(T, 90.0, 40.0) is None  # too scattered to trust
+    assert north_in_home(T, None, None) is None
+    plan = Polygon([(0, 0), (4, 0), (4, 3), (0, 3)])
+    walls = arch.walls_of(plan, [])
+    svg = drawings.plan_sheet(plan, walls, [], [], "Room", "2026-10-31", 2.5, 0.0, "x", north_deg=90.0).svg
+    assert "magnetic north" in svg and "scan north" not in svg

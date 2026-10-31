@@ -29,3 +29,7 @@ properties:
           minItems: 3
         top_z: {type: number}
   height_m: {type: number, description: "Floor to ceiling, or the tallest wall seen"}
+  north_deg:
+    type: [number, "null"]
+    description: "Direction of magnetic north in the home frame, degrees clockwise from +y seen from above (null when the
+      scan had no reliable compass)"

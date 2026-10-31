@@ -8,7 +8,6 @@ from typing import Any
 from recall_api.application.ports import Clock
 from recall_api.domain.memory import (
     BBox,
-    FurnitureFootprint,
     Landmark,
     Observation,
     Position,
@@ -16,7 +15,6 @@ from recall_api.domain.memory import (
     Scan,
     ScanStatus,
     TrackedObject,
-    WallSegment,
 )
 from recall_api.domain.memory.matching import match_label
 from recall_api.domain.ports import HomeRepository, ScanRepository, TrackedObjectRepository
@@ -30,17 +28,6 @@ class IngestError(Exception):
 
 def _pos(v: list[float]) -> Position:
     return Position(float(v[0]), float(v[1]), float(v[2]))
-
-
-def _room(d: dict[str, Any]) -> RoomModel:
-    return RoomModel(
-        floor_polygon=tuple(tuple(p) for p in d["floor_polygon"]),
-        walls=tuple(WallSegment(tuple(w["start"]), tuple(w["end"]), w["height_m"]) for w in d["walls"]),
-        furniture=tuple(
-            FurnitureFootprint(f["label"], tuple(tuple(p) for p in f["footprint"]), f["top_z"]) for f in d["furniture"]
-        ),
-        height_m=d["height_m"],
-    )
 
 
 def _inside(poly: tuple[tuple[float, float], ...], p: Position) -> bool:
@@ -67,7 +54,7 @@ class IngestScan:
         if scan.status not in (ScanStatus.PROCESSING, ScanStatus.UPLOADED):
             raise IngestError("not_processing", f"The scan is {scan.status.value}, not processing.")
         home = self.homes.get(scan.home_id)
-        room = _room(result["room"])
+        room = RoomModel.from_dict(result["room"])
         seen_at = scan.created_at
         report = {"same": 0, "moved": 0, "new": 0, "gone": 0, "out_of_view": 0}
 

@@ -78,6 +78,34 @@ class RoomModel:
     walls: tuple[WallSegment, ...]
     furniture: tuple[FurnitureFootprint, ...]
     height_m: float
+    # magnetic north in the home frame, degrees clockwise from +y (None without a reliable compass)
+    north_deg: float | None = None
+
+    @staticmethod
+    def from_dict(d: dict) -> RoomModel:
+        """room.json (schemas/RoomModel.yaml) as the domain value."""
+        return RoomModel(
+            floor_polygon=tuple(tuple(p) for p in d["floor_polygon"]),
+            walls=tuple(WallSegment(tuple(w["start"]), tuple(w["end"]), w["height_m"]) for w in d["walls"]),
+            furniture=tuple(
+                FurnitureFootprint(f["label"], tuple(tuple(p) for p in f["footprint"]), f["top_z"])
+                for f in d["furniture"]
+            ),
+            height_m=d["height_m"],
+            north_deg=d.get("north_deg"),
+        )
+
+    def to_dict(self) -> dict:
+        return {
+            "floor_polygon": [list(p) for p in self.floor_polygon],
+            "walls": [{"start": list(w.start), "end": list(w.end), "height_m": w.height_m} for w in self.walls],
+            "furniture": [
+                {"label": f.label, "footprint": [list(p) for p in f.footprint], "top_z": f.top_z}
+                for f in self.furniture
+            ],
+            "height_m": self.height_m,
+            "north_deg": self.north_deg,
+        }
 
 
 @dataclass

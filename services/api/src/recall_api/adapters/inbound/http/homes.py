@@ -29,6 +29,7 @@ def get_room(home_id: str, c=Depends(container)) -> RoomModel:
             {"label": f.label, "footprint": [list(p) for p in f.footprint], "top_z": f.top_z} for f in r.furniture
         ],
         height_m=r.height_m,
+        north_deg=r.north_deg,
     )
 
 

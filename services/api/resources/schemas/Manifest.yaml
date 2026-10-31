@@ -45,3 +45,12 @@ properties:
         sha256: {type: string, pattern: "^[0-9a-f]{64}$"}
   capture_metrics:
     $ref: CaptureMetrics.yaml
+  compass:
+    type: [object, "null"]
+    description: "Where magnetic north lies in the ARKit world of this scan (yaw, degrees, 0 = facing -Z, clockwise
+      seen from above), from the circular mean of compass minus camera yaw while the phone was upright"
+    required: [north_yaw_deg, spread_deg, samples]
+    properties:
+      north_yaw_deg: {type: number}
+      spread_deg: {type: number, description: "Circular spread of the samples; over 25 means unreliable"}
+      samples: {type: integer, minimum: 0}

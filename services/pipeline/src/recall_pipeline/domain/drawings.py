@@ -1,7 +1,8 @@
 """Construction-document style sheets of a regenerated room, as SVG (A3 landscape, millimetres).
 
 A1.1 floor plan: wall poché (dashed where the scan never saw the wall), door swings, furniture outlines, numbered
-things, a dimension string on every wall and overall, area and perimeter, scale bar, "scan north", title block.
+things, a dimension string on every wall and overall, area and perimeter, scale bar, north (magnetic when the scan
+had a reliable compass), title block.
 A2.1 interior elevations: each scanned wall seen square on, from the scan's own coloured points (nearest to the wall
 wins), with floor, desk-height and ceiling levels and the wall's width. All text is real <text>, so the sheets are
 searchable and readable by screen readers; nothing on them is generated, only measured and drawn.
@@ -137,6 +138,7 @@ def plan_sheet(
     height: float,
     theta: float,
     credits: str,
+    north_deg: float | None = None,
 ) -> Sheet:
     minx, miny, maxx, maxy = plan.bounds
     margin = 1.4  # metres around the plan for dimensions
@@ -240,14 +242,18 @@ def plan_sheet(
         _t(sx + 2 * k, sy + 5, "2 m", 2.2, "end"),
         _t(sx, sy - 2, f"Scale 1:{scale} (on A3)", 2.4, "start", "bold"),
     ]
-    north = np.array([-math.sin(-theta), math.cos(-theta)])  # the scan's +y in the plan frame
+    # magnetic north when the scan had a reliable compass, else the scan's own +y; both turned into the plan frame
+    home_dir = math.radians(north_deg) if north_deg is not None else 0.0
+    d = np.array([math.sin(home_dir), math.cos(home_dir)])
+    c, s_ = math.cos(-theta), math.sin(-theta)
+    north = np.array([c * d[0] - s_ * d[1], s_ * d[0] + c * d[1]])
     nx, ny = x1 - 14, y1 - 52
     tip = (nx + north[0] * 7, ny - north[1] * 7)
     body += [
         _line((nx, ny), tip, INK, 0.4),
         f'<circle cx="{nx}" cy="{ny}" r="8" fill="none" stroke="{INK}" stroke-width="0.2"/>',
         _t(tip[0] + north[0] * 3, tip[1] - north[1] * 3 + 1, "N", 2.6, weight="bold"),
-        _t(nx, ny + 12, "scan north", 2, fill=MUTED),
+        _t(nx, ny + 12, "magnetic north" if north_deg is not None else "scan north", 2, fill=MUTED),
     ]
     # legend of things
     ly = y1 - 38

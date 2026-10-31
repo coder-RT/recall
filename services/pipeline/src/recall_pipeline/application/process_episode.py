@@ -196,6 +196,7 @@ def process_episode(
         d = -float(np.median(pts_home @ n))
         wall_planes.append(room_model.WallPlane(n, d, pts_home))
     room = room_model.room_json(room_model.floor_polygon(floor_xy), wall_planes, furniture_pts)
+    room["north_deg"] = home_frame.north_in_home(T, episode.north_yaw_deg, episode.compass_spread_deg)
 
     if things["landmarks"] or things["objects"]:
         all_things = things["landmarks"] + things["objects"]

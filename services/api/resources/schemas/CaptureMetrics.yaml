@@ -10,4 +10,9 @@ properties:
   slow_down_cues: {type: integer}
   area_walked_m2: {type: number}
   mean_light_lux: {type: number}
+  walls_covered: {type: integer, minimum: 0, maximum: 12, description: "Bearings around the room (of 12) where the LiDAR saw a wall or tall surface"}
+  floor_seen_m2: {type: number, description: Floor area the LiDAR saw}
+  map_status: {type: string, enum: [not_available, limited, extending, mapped], description: "ARKit's world-mapping status at the end"}
+  loop_closed: {type: boolean, description: "The scan ended within a metre of where it started"}
+  compass_spread_deg: {type: [number, "null"]}
   grade: {type: string, enum: [good, usable, redo]}

@@ -10,7 +10,6 @@ from sqlalchemy import Engine, text
 from recall_api.domain.memory import (
     BBox,
     Corrections,
-    FurnitureFootprint,
     Home,
     Landmark,
     Observation,
@@ -19,37 +18,12 @@ from recall_api.domain.memory import (
     Scan,
     ScanStatus,
     TrackedObject,
-    WallSegment,
 )
 
 
 def _pos(v: str) -> Position:
     x, y, z = json.loads(v)
     return Position(x, y, z)
-
-
-def _room_to_json(r: RoomModel) -> str:
-    return json.dumps(
-        {
-            "floor_polygon": [list(p) for p in r.floor_polygon],
-            "walls": [{"start": list(w.start), "end": list(w.end), "height_m": w.height_m} for w in r.walls],
-            "furniture": [
-                {"label": f.label, "footprint": [list(p) for p in f.footprint], "top_z": f.top_z} for f in r.furniture
-            ],
-            "height_m": r.height_m,
-        }
-    )
-
-
-def room_from_dict(d: dict) -> RoomModel:
-    return RoomModel(
-        floor_polygon=tuple(tuple(p) for p in d["floor_polygon"]),
-        walls=tuple(WallSegment(tuple(w["start"]), tuple(w["end"]), w["height_m"]) for w in d["walls"]),
-        furniture=tuple(
-            FurnitureFootprint(f["label"], tuple(tuple(p) for p in f["footprint"]), f["top_z"]) for f in d["furniture"]
-        ),
-        height_m=d["height_m"],
-    )
 
 
 class SqliteHomes:
@@ -73,7 +47,7 @@ class SqliteHomes:
             )
             for r in lms
         ]
-        room = room_from_dict(json.loads(row["room_model"])) if row["room_model"] else None
+        room = RoomModel.from_dict(json.loads(row["room_model"])) if row["room_model"] else None
         return Home(
             id=row["id"], name=row["name"], room_model=room, landmarks=landmarks, first_scan_id=row["first_scan_id"]
         )
@@ -88,7 +62,7 @@ class SqliteHomes:
                     "id": home.id,
                     "name": home.name,
                     "first": home.first_scan_id,
-                    "room": _room_to_json(home.room_model) if home.room_model else None,
+                    "room": json.dumps(home.room_model.to_dict()) if home.room_model else None,
                 },
             )
             c.execute(text("DELETE FROM landmarks WHERE home_id = :id"), {"id": home.id})

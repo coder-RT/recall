@@ -7,3 +7,10 @@ properties:
   pose: {type: array, items: {type: number}, minItems: 16, maxItems: 16, description: "ARKit camera-to-world, column-major"}
   tracking: {type: string, enum: [normal, limited, not_available]}
   reason: {type: [string, "null"], enum: [excessive_motion, insufficient_features, initializing, relocalizing, null]}
+  heading:
+    type: [object, "null"]
+    description: "The iPhone's compass at this frame (magnetic north, no location used); absent when unavailable"
+    required: [magnetic_deg, accuracy_deg]
+    properties:
+      magnetic_deg: {type: number, minimum: 0, maximum: 360}
+      accuracy_deg: {type: number, description: "Maximum deviation in degrees; larger is less reliable"}

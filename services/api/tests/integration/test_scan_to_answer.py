@@ -75,7 +75,8 @@ def upload(http, scan_id, aligned_to=None):
     manifest = {
         "scan_id": scan_id, "format": "recall-episode/1", "device": "iPhone17,1", "app_version": "0.1.0",
         "created_at": "2026-10-30T12:00:00Z", "duration_s": 30, "frame_count": 1,
-        "image": {"width": 1024, "height": 768}, "depth": {"width": 256, "height": 192, "unit": "mm", "encoding": "png16"},
+        "image": {"width": 1024, "height": 768},
+        "depth": {"width": 256, "height": 192, "unit": "mm", "encoding": "png16"},
         "intrinsics": {"fx": 700, "fy": 700, "cx": 512, "cy": 384}, "world_map": None, "aligned_to": aligned_to,
         "files": [{"path": p, "size": len(d), "sha256": hashlib.sha256(d).hexdigest()} for p, d in files.items()],
         "capture_metrics": {"directions_covered": 11, "keyframes_kept": 1, "keyframes_dropped_blurry": 0,

@@ -33,9 +33,9 @@ public struct PrivacyStatus: Sendable, Equatable {
 
 /// The privacy note's fixed text, the same as docs/privacy.md and the website's /privacy page.
 public enum PrivacyNote {
-    public static let short = "Your home's memory lives on your own Mac. There is no Recall account and no Recall "
-        + "server: nobody else holds your scans or your memory. Some steps use Meta's models online, and this page "
-        + "says exactly what they receive."
+    public static let short = "Your home's memory lives on your own computer, a Mac today. There is no Recall account "
+        + "and no Recall server: nobody else holds your scans or your memory. Some steps use Meta's models online, "
+        + "and this page says exactly what they receive."
 
     public static let kept = [
         "On your Mac: every scan you upload (photos, LiDAR depth, the phone's path), the 3D map, the things and "

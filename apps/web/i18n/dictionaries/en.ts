@@ -285,7 +285,7 @@ export const en = {
     items: [
       { title: "VoiceOver first", body: "Every screen works without sight. Every control has a spoken label. Nothing depends on colour alone." },
       { title: "Geometry decides", body: "Places, distances and times come from the 3D map. The language model only phrases them, so it cannot invent a location." },
-      { title: "Your home stays yours", body: "Your scans and memory live on your own Mac, not on a Recall server. Delete a scan and it is erased from your iPhone and your Mac." },
+      { title: "Your home stays yours", body: "Your scans and memory live on your own computer (a Mac today), not on a Recall server. Delete a scan and it is erased everywhere it was kept." },
       { title: "Honest when unsure", body: "If something has not been seen, or was seen long ago, Recall says so and suggests which room to walk through." },
     ],
     more: "What is sent where",
@@ -306,7 +306,7 @@ export const en = {
       { q: "Is this a medical device?", a: "No. Recall is an independence and accessibility tool. It does not give health or vision-care advice." },
       {
         q: "Where is my data kept?",
-        a: "On your own Mac. Scan photos go to Meta's SAM 3.1 to find things, and your questions to Muse Spark Open, or stay on your Mac in private mode. The privacy page lists everything that leaves your Mac.",
+        a: "On your own computer, a Mac today. Scan photos go to Meta's SAM 3.1 to find things, and your questions to Muse Spark Open, or stay on it in private mode. The privacy page lists everything that leaves your computer.",
         href: "/privacy",
         link: "Read the privacy page",
       },
@@ -327,11 +327,11 @@ export const en = {
 
   privacy: {
     title: "Privacy",
-    description: "What Recall keeps on your own Mac and iPhone, and exactly what is sent where.",
+    description: "What Recall keeps on your own computer and iPhone, and exactly what is sent where.",
     eyebrow: "Privacy",
-    heading: "Your home's memory lives on your own Mac.",
+    heading: "Your home's memory lives on your own computer.",
     short:
-      "There is no Recall account and no Recall server: nobody else holds your scans or your memory. Some steps use Meta's models online, and this page says exactly what they receive.",
+      "Today that's a Mac, and there is no Recall account and no Recall server: nobody else holds your scans or your memory. Some steps use Meta's models online, and this page says exactly what they receive.",
     keptTitle: "Kept on your devices",
     kept: [
       "On your Mac: every scan you upload (photos, LiDAR depth, the phone's path through the room), the 3D map, the things and furniture found, your own names and notes for things, and the activity log.",

@@ -5,8 +5,8 @@ The same text is in the iPhone app (Settings → Privacy) and on the website (`/
 
 ## The short version
 
-Your home's memory lives on **your own Mac**. There is no Recall account and no Recall server: nobody else holds your
-scans or your memory. Some steps use **Meta's models online**, and this page says exactly what they receive.
+Your home's memory lives on **your own computer** (today, a Mac). There is no Recall account and no Recall server:
+nobody else holds your scans or your memory. Some steps use **Meta's models online**, and this page says exactly what they receive.
 
 ## Kept on your devices
 

@@ -129,3 +129,18 @@ def test_endpoint_is_off_by_default_and_needs_a_key(tmp_path):
     # the robot key reads the export only, never the phone's routes
     assert on.get("/homes/flat/objects", headers={"Authorization": "Bearer robot"}).status_code == 401
     assert datetime.fromisoformat(body["generated_at"]).tzinfo == UTC
+
+
+def test_a_damaged_line_in_the_walk_is_skipped(tmp_path):
+    from recall_api.application import scan_geometry
+    from recall_api.domain.memory import Scan, ScanStatus
+    from tests.fakes import MemoryBlobs
+
+    scan = Scan("s", "flat", "Office", ScanStatus.PROCESSED, 1, "x", 1, datetime(2026, 10, 30, tzinfo=UTC),
+                transform_to_home=tuple(float(v) for v in np.eye(4).ravel()))  # fmt: skip
+    pose = np.eye(4)
+    pose[:3, 3] = [1.0, 2.0, 0.0]
+    good = json.dumps({"pose": pose.T.ravel().tolist()})
+    blobs = MemoryBlobs()
+    blobs.put(f"{scan.folder}/episode/poses.jsonl", f"{good}\n{{}}\nnot json\n\n{good}\n".encode())
+    assert scan_geometry.walked(blobs, scan).tolist() == [[1.0, 2.0], [1.0, 2.0]]

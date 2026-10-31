@@ -27,8 +27,9 @@ def walked(blobs: BlobStore, scan: Scan) -> np.ndarray | None:
     T = np.array(scan.transform_to_home, dtype=float).reshape(4, 4)
     xy = []
     for line in blobs.get(key).decode().splitlines():
-        if not line.strip():
-            continue
-        M = np.array(json.loads(line)["pose"], dtype=float).reshape(4, 4).T  # column-major
+        try:
+            M = np.array(json.loads(line)["pose"], dtype=float).reshape(4, 4).T  # column-major
+        except (ValueError, KeyError, TypeError):
+            continue  # a blank or damaged line: the rest of the walk still counts
         xy.append((T @ np.append(M[:3, 3], 1.0))[:2])
     return np.array(xy) if xy else None

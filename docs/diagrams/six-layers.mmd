@@ -1,7 +1,7 @@
 flowchart TB
   subgraph Source["1 · Source: the iPhone"]
     direction LR
-    cam["Camera frames"] ~~~ lidar["LiDAR depth<br/>+ confidence"] ~~~ pose["ARKit poses<br/>+ tracking state"] ~~~ mic["Voice question"]
+    cam["Camera frames"] ~~~ lidar["LiDAR depth<br/>+ confidence"] ~~~ pose["ARKit poses<br/>+ tracking state"] ~~~ mic["Voice or typed<br/>question"]
   end
   subgraph Ingest["2 · Ingest"]
     direction LR
@@ -9,26 +9,29 @@ flowchart TB
   end
   subgraph Store["3 · Store: your Mac"]
     direction LR
-    raw["Raw episodes<br/>never edited"] ~~~ stage["Stage outputs<br/>result.json, home_cloud.npy"] ~~~ mem["Memory: SQLite<br/>append-only sightings, answers, audit"]
+    raw["Raw episodes<br/>never edited"] ~~~ stage["Stage outputs beside them<br/>result.json, home_cloud.npy"] ~~~ mem["Memory: SQLite<br/>append-only sightings, answers, audit"]
   end
   subgraph Transform["4 · Transform"]
     direction LR
-    q["Huey queue on SQLite<br/>one job at a time"] ~~~ pipe["Pipeline: MapAnything or LiDAR depth,<br/>planes, SAM 3.1 boxes, room model"]
+    q["Huey queue on SQLite<br/>one job at a time"] ~~~ pipe["Pipeline on the warm server:<br/>MapAnything or LiDAR depth,<br/>planes, SAM 3.1 boxes, room model"]
   end
-  subgraph Serve["5 · Serve"]
+  subgraph Serve["5 · Serve: one API process"]
     direction LR
-    api["API: ask, guidance, verify,<br/>evidence, privacy, audit"] ~~~ a2a["Home Memory agent<br/>A2A 1.0, off by default"] ~~~ robot["Robot export<br/>Nav2 map"]
+    api["API: transcribe, ask, guidance,<br/>verify, evidence, privacy, audit"] ~~~ a2a["Home Memory agent<br/>A2A 1.0, off by default"] ~~~ robot["Robot export<br/>Nav2 map"]
   end
   subgraph Consume["6 · Consume"]
     direction LR
-    phone["iPhone app"] ~~~ watch["Apple Watch<br/>next"] ~~~ web["Website<br/>+ 3D viewer"] ~~~ bots["Robots<br/>and agents"]
+    phone["iPhone app"] ~~~ watch["Apple Watch<br/>(next)"] ~~~ bots["Robots<br/>and agents"] ~~~ web["Website 3D viewer"]
   end
   subgraph Across["Across every layer"]
     direction LR
-    priv["Privacy and<br/>home scoping"] ~~~ lin["Lineage:<br/>every answer traceable"] ~~~ qual["Quality checks"] ~~~ spend["Spend limits"]
+    priv["Privacy: data stays on your Mac,<br/>device and robot keys"] ~~~ lin["Lineage:<br/>every answer traceable"] ~~~ qual["Quality checks:<br/>blur, contract tests, nightly re-run"] ~~~ spend["Spend limits:<br/>web voice rate limit (daily caps next)"]
   end
-  Source --> Ingest --> Store
+  Source -- "scan episodes" --> Ingest --> Store
   Store -- "episodes" --> Transform
-  Transform -- "results (the API writes)" --> Store
-  Store --> Serve --> Consume
+  Transform -- "stage files to disk;<br/>results via the API to memory" --> Store
+  Source -- "questions" --> Serve
+  Store --> Serve
+  Serve -- "iPhone, Watch, robots" --> Consume
+  Store -. "website viewer:<br/>files exported by make viewer" .-> Consume
   Consume ~~~ Across

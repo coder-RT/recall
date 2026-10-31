@@ -15,7 +15,7 @@ Two rules shape everything:
 
 ## The six layers
 
-![Recall's six layers, top to bottom: the iPhone's camera, LiDAR, ARKit poses and voice; a resumable upload; storage on your Mac; the pipeline on a queue; the API, the A2A agent and the robot export; and the iPhone, Watch, website and robots. Privacy, lineage, quality checks and spend limits run across all of them.](diagrams/six-layers.svg)
+![Recall's six layers, top to bottom. The iPhone's scan episodes go through the resumable upload into storage on your Mac. The pipeline reads episodes from the store, writes its stage files beside them, and sends results through the API, which writes memory. The iPhone's questions go to the API. The API serves the iPhone, the Watch and robots; the website's viewer reads files exported from the store. Privacy, lineage, quality checks and spend limits run across every layer.](diagrams/six-layers.svg)
 
 <sub>Diagram source: [six-layers.mmd](diagrams/six-layers.mmd) (`make diagrams` redraws it).</sub>
 
@@ -39,7 +39,7 @@ Two rules shape everything:
 
 ## Hexagonal inside each service
 
-![Inside each service: adapters (FastAPI, SQLite, model clients, Open3D, torch) depend on the application's use cases, which depend on the domain's plain dataclasses and maths; never the other way round.](diagrams/hexagon.svg)
+![Inside each service, imports point one way: infra (the composition root) imports the adapters, the adapters import the application's use cases, and the use cases import the domain. Adapters are inbound (HTTP, A2A) or outbound (model clients, SQLite, disk).](diagrams/hexagon.svg)
 
 <sub>Diagram source: [hexagon.mmd](diagrams/hexagon.mmd) (`make diagrams` redraws it).</sub>
 
@@ -49,7 +49,7 @@ change in `infra/container.py`, driven by config.
 
 ## The two paths
 
-![The scan path: the iPhone uploads, the API queues the job, the pipeline asks SAM 3.1 for boxes and posts results, and the API writes memory. The question path: the iPhone speaks at once, Muse Voice Transcribe turns speech into text, Muse Spark Open picks find_object, geometry says where, Muse Spark Open phrases it, a grounding check runs, and the OS voice speaks the answer.](diagrams/two-paths.svg)
+![The scan path: the iPhone uploads parts, the manifest and complete; the API queues the job; the pipeline on the warm server asks SAM 3.1 for boxes while it reconstructs, then posts results; the API appends sightings. The question path: the iPhone sends a spoken question to the API, which calls Muse Voice Transcribe; the iPhone says what it is looking for, then asks; the API asks Muse Spark Open on Baseten to pick find_object, geometry says where, Muse Spark Open phrases it, the grounding check runs, the answer is logged, and the iPhone speaks it.](diagrams/two-paths.svg)
 
 <sub>Diagram source: [two-paths.mmd](diagrams/two-paths.mmd) (`make diagrams` redraws it).</sub>
 
@@ -58,7 +58,7 @@ the invariants (what moved, what is gone, what the user corrected), and torch ne
 
 ## Every answer is traceable
 
-![Every answer is traceable: answer, then tool results, then append-only sightings, then the keyframe crop, then the scan, then the models that made it.](diagrams/traceability.svg)
+![An answer leads to the Guide model and tokens that phrased it, to its tool steps, and to the sightings it rests on; each sighting leads to its keyframe crop and to its scan; each scan leads to its provenance: SAM 3.1, MapAnything or LiDAR depth, and the pipeline commit.](diagrams/traceability.svg)
 
 <sub>Diagram source: [traceability.mmd](diagrams/traceability.mmd) (`make diagrams` redraws it).</sub>
 

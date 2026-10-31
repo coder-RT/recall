@@ -22,6 +22,12 @@ export interface ScanMeta {
   stats: { frames: number; total_s: number; sam_calls: number; captured: string };
   /** present when the export built a surface mesh */
   mesh?: { vertices: number; triangles: number };
+  /** present when the export painted the surface with the scan's photos */
+  photo?: { frames_used: number; textured_share: number };
+  /** present when the export regenerated the room (architect.json) */
+  architect?: { walls: number; scanned_walls: number };
+  /** the drawing sheets (SVG) the export made */
+  drawings?: { id: string; title: string; file: string; summary: string }[];
 }
 
 function bandRange(i: number) {
@@ -80,6 +86,8 @@ export function LocalScan({ steps }: { steps: ReactNode }) {
         furniture={meta.furniture}
         things={meta.objects}
         hasMesh={Boolean(meta.mesh)}
+        hasPhoto={Boolean(meta.photo)}
+        hasArchitect={Boolean(meta.architect)}
         viewer={viewer}
         found={{ ...s.found, bandNames: s.bandNames }}
         caption={
@@ -93,6 +101,33 @@ export function LocalScan({ steps }: { steps: ReactNode }) {
       <div className="mt-8">
         <ViewerStats label={s.stats.label} items={stats} />
       </div>
+
+      {meta.drawings && meta.drawings.length > 0 && (
+        <section aria-labelledby="drawings-title" className="mt-10">
+          <h2 id="drawings-title" className="text-sm font-semibold text-muted">
+            {s.drawings.title} · {meta.drawings.length}
+          </h2>
+          <p className="mt-1 text-sm text-muted">{s.drawings.body}</p>
+          <ul className="mt-4 grid gap-6 lg:grid-cols-2">
+            {meta.drawings.map((d) => (
+              <li key={d.id} data-sheet={d.id}>
+                <figure className="overflow-hidden rounded-xl border border-fb-line bg-white">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- a local SVG sheet, not an optimisable photo */}
+                  <img src={`${src}/${d.file}`} alt={d.summary} width={1587} height={1123} className="h-auto w-full" />
+                  <figcaption className="flex items-center justify-between gap-3 border-t border-fb-line px-4 py-3 text-sm">
+                    <span className="font-semibold text-ink">
+                      {d.id} · {d.title}
+                    </span>
+                    <a href={`${src}/${d.file}`} download className="font-semibold text-fb-blue-dark underline">
+                      {format(s.drawings.download, { id: d.id })}
+                    </a>
+                  </figcaption>
+                </figure>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <div className="mt-8 grid gap-8 sm:grid-cols-2">
         <section aria-labelledby="bands-title">

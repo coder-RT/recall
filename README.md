@@ -216,6 +216,13 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
   make viewer HOME_ID=flat
   ```
 - Output: `apps/web/public/local-scan/<home>/` (points, photo colours, confidence, the room model and what Recall found). Git ignores the folder, so your room never leaves your computer.
+- The viewer's **View** switch shows the room five ways, all computed from the scan's measurements (no generative model):
+  - **Dots:** every measured point.
+  - **Room model:** furniture as boxes coloured by kind, things at their measured size and colour.
+  - **Surface:** the points joined into one coloured surface (Poisson reconstruction, Open3D).
+  - **Photo room:** that surface painted with the scan's own photos, each patch from the photo that saw it best (checked against LiDAR depth so nothing behind a chair is painted onto it).
+  - **Architect:** the room regenerated as an architect would draw it: walls squared to the room's main direction, walls the scan never saw marked as such, furniture rebuilt as parametric parts (a desk is a top on four legs) at its measured size and colour.
+- Under the viewer, **Drawings** has A3 sheets drawn from the same data: a dimensioned floor plan (A1.1) and the walls seen square on from the scan's points (A2.1). The algorithms are in `services/pipeline/src/recall_pipeline/domain/` (`architecture.py`, `drawings.py`, `texturing.py`).
 
 ### 3. Backend and pipeline (planned, phases 0 to 2)
 

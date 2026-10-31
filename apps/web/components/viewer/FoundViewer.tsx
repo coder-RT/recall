@@ -24,20 +24,22 @@ interface Props {
   furniture: FurnitureBox[];
   things: Thing[];
   hasMesh?: boolean;
+  hasPhoto?: boolean;
+  hasArchitect?: boolean;
   viewer: ViewerStrings;
   found: FoundStrings;
   caption: React.ReactNode;
 }
 
 /** The 3D room and, beside it in plain HTML, the list of what Recall found; choosing one highlights its pin. */
-export function FoundViewer({ src, bounds, surfaces, room, furniture, things, hasMesh, viewer, found, caption }: Props) {
+export function FoundViewer({ src, bounds, surfaces, room, furniture, things, hasMesh, hasPhoto, hasArchitect, viewer, found, caption }: Props) {
   const [selected, setSelected] = useState<number | null>(null);
   const kinds = [...new Set(furniture.map((f) => f.label))];
   return (
     <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_17rem]">
       <figure className="self-start overflow-hidden rounded-xl border border-fb-line bg-white">
         <div className="aspect-[4/5] sm:aspect-square">
-          <RoomViewer src={src} bounds={bounds} surfaces={surfaces} room={room} furniture={furniture} things={things} selected={selected} hasMesh={hasMesh} t={viewer} />
+          <RoomViewer src={src} bounds={bounds} surfaces={surfaces} room={room} furniture={furniture} things={things} selected={selected} hasMesh={hasMesh} hasPhoto={hasPhoto} hasArchitect={hasArchitect} t={viewer} />
         </div>
         <figcaption className="border-t border-fb-line px-4 py-3 text-sm text-muted">{caption}</figcaption>
       </figure>

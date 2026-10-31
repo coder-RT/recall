@@ -7,6 +7,9 @@ bounds, horizontal surfaces, the room model (floor outline, walls, furniture), t
 With --mesh (default on) it also writes the room as a coloured surface: Poisson reconstruction over the measured
 points (Open3D, classic geometry; nothing is generated), trimmed to where the scan had points: mesh_pos.bin
 (float32 xyz), mesh_col.bin (uint8 rgb), mesh_idx.bin (uint32 triangles).
+Then the Photo view (that mesh textured with the scan's own photos: photo_*.bin, photo_atlas.jpg) and the Architect
+view (the room regenerated as a clean plan with parametric furniture: architect.json, and A3 drawing sheets
+sheet-a1-1.svg, sheet-a2-1.svg); see export_room_views.py.
 
     uv run --project services/pipeline python services/pipeline/scripts/export_viewer_scan.py EPISODE OUT_DIR
 """
@@ -18,6 +21,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+from export_room_views import architect_view, photo_view
 from export_viewer_points import find_surfaces, voxel_downsample
 
 
@@ -65,6 +69,8 @@ def main() -> None:
     ap.add_argument("--target", type=int, default=150_000, help="approximate number of points to keep")
     ap.add_argument("--no-mesh", dest="mesh", action="store_false", help="skip the surface mesh")
     ap.add_argument("--triangles", type=int, default=120_000, help="triangle budget for the surface mesh")
+    ap.add_argument("--no-photo", dest="photo", action="store_false", help="skip the photo-textured view")
+    ap.add_argument("--no-architect", dest="architect", action="store_false", help="skip the architect view and sheets")
     args = ap.parse_args()
 
     ep = args.episode
@@ -144,13 +150,23 @@ def main() -> None:
             col.astype(np.uint8).tofile(args.out_dir / "mesh_col.bin")
             tri.astype("<u4").tofile(args.out_dir / "mesh_idx.bin")
             meta["mesh"] = {"vertices": int(len(pos)), "triangles": int(len(tri))}
+            if args.photo:
+                photo = photo_view(ep, args.out_dir, manifest, result, shift, mesh)
+                if photo:
+                    meta["photo"] = photo
+    if args.architect:
+        # the room's name is in the scan folder's name: scans/<time>_<room-slug>_<id>/episode
+        slug = ep.resolve().parent.name.split("_")[1] if "_" in ep.resolve().parent.name else "room"
+        room_name = slug.replace("-", " ").capitalize()
+        meta["architect"], meta["drawings"] = architect_view(ep, args.out_dir, result, meta, points, colors, room_name)
     kept.astype("<f4").tofile(args.out_dir / "points.bin")
     colors[idx].astype(np.uint8).tofile(args.out_dir / "colors.bin")
     conf_u8.tofile(args.out_dir / "conf.bin")
     (args.out_dir / "meta.json").write_text(json.dumps(meta, indent=1) + "\n")
     print(
         f"{len(kept)} points (voxel {voxel:.3f} m), {len(meta['furniture'])} furniture, {len(meta['objects'])} objects,"
-        f" {len(meta['surfaces'])} surfaces -> {args.out_dir}"
+        f" {len(meta['surfaces'])} surfaces, photo {meta.get('photo')}, architect {meta.get('architect')},"
+        f" {len(meta.get('drawings', []))} sheets -> {args.out_dir}"
     )
 
 

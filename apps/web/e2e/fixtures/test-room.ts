@@ -61,7 +61,50 @@ export const testMeta = {
   ],
   stats: { frames: 48, total_s: 120.4, sam_calls: 384, captured: "2026-10-30" },
   mesh: { vertices: 4, triangles: 2 },
+  photo: { frames_used: 1, textured_share: 1 },
+  architect: { walls: 4, scanned_walls: 2 },
+  drawings: [{ id: "A1.1", title: "Floor plan", file: "sheet-a1-1.svg", summary: "Floor plan of the test room: 4.00 by 3.00 metres." }],
 };
+
+/** A tiny 2 x 2 photo (warm wood and white) as a PNG, served as the photo atlas. */
+const atlasPng = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGO4fu/D////GRj+////HwBUawsLYYhJNwAAAABJRU5ErkJggg==",
+  "base64",
+);
+
+/** The made-up room regenerated: a 4 x 3 m plan, two walls seen, a desk as a top on four legs, one thing. */
+const architect = {
+  theta: 0,
+  height: H,
+  plan: [[-W / 2, -D / 2], [W / 2, -D / 2], [W / 2, D / 2], [-W / 2, D / 2]],
+  walls: [
+    { a: [-W / 2, -D / 2], b: [W / 2, -D / 2], scanned: true, openings: [] },
+    { a: [W / 2, -D / 2], b: [W / 2, D / 2], scanned: false, openings: [] },
+    { a: [W / 2, D / 2], b: [-W / 2, D / 2], scanned: true, openings: [{ kind: "door", offset: 1, width: 0.9, height: 2.05 }] },
+    { a: [-W / 2, D / 2], b: [-W / 2, -D / 2], scanned: false, openings: [] },
+  ],
+  wall_t: 0.12,
+  floor_colour: "#c9b79c",
+  wall_colour: "#eeeae4",
+  furniture: [
+    {
+      label: "desk",
+      colour: "#8a5a35",
+      lo: [-1.6, 0.7, 0],
+      hi: [-0.4, 1.3, 0.76],
+      parts: [
+        { kind: "top", c: [-1.0, 1.0, 0.745], s: [1.2, 0.6, 0.03] },
+        { kind: "leg", c: [-1.55, 0.75, 0.365], s: [0.05, 0.05, 0.73] },
+        { kind: "leg", c: [-0.45, 0.75, 0.365], s: [0.05, 0.05, 0.73] },
+        { kind: "leg", c: [-1.55, 1.25, 0.365], s: [0.05, 0.05, 0.73] },
+        { kind: "leg", c: [-0.45, 1.25, 0.365], s: [0.05, 0.05, 0.73] },
+      ],
+    },
+  ],
+  things: [{ n: 1, label: "keys", color: "grey", at: [-1.0, 1.0, 0.77], size: [0.08, 0.05, 0.03] }],
+};
+
+const sheet = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 297"><title>A1.1 Floor plan</title><rect width="420" height="297" fill="#fff"/><text x="20" y="40">4.00</text></svg>`;
 
 /** The made-up room's surface: the floor as one quad (two triangles), warm grey. */
 const meshPos = new Float32Array([-W / 2, -D / 2, 0, W / 2, -D / 2, 0, W / 2, D / 2, 0, -W / 2, D / 2, 0]);
@@ -76,4 +119,13 @@ export const testFiles: Record<string, Buffer> = {
   "mesh_pos.bin": Buffer.from(meshPos.buffer),
   "mesh_col.bin": Buffer.from(meshCol.buffer),
   "mesh_idx.bin": Buffer.from(meshIdx.buffer),
+  // the photo room: the floor quad again, every corner mapped into the atlas
+  "photo_pos.bin": Buffer.from(meshPos.buffer),
+  "photo_uv.bin": Buffer.from(new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]).buffer),
+  "photo_idx.bin": Buffer.from(meshIdx.buffer),
+  "photo_rest_idx.bin": Buffer.from(new Uint32Array([]).buffer),
+  "photo_col.bin": Buffer.from(meshCol.buffer),
+  "photo_atlas.jpg": atlasPng,
+  "architect.json": Buffer.from(JSON.stringify(architect)),
+  "sheet-a1-1.svg": Buffer.from(sheet),
 };

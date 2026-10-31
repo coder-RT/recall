@@ -1,15 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import {
-  BoxGeometry,
-  BufferAttribute,
-  BufferGeometry,
-  EdgesGeometry,
-  PlaneGeometry,
-  Shape,
-  ShapeGeometry,
-} from "three";
+import { BoxGeometry, BufferAttribute, BufferGeometry, Color, EdgesGeometry, PlaneGeometry, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, type Texture } from "three";
 import type { FurnitureBox, RoomShape, Thing, Tokens } from "./Layers";
 
 /** One colour per kind of furniture, like a semantic map (a legend in the controls names them). */
@@ -226,4 +218,139 @@ export async function loadMesh(src: string): Promise<MeshData | null> {
     colors: new Uint8Array(c),
     index: new Uint32Array(i),
   };
+}
+
+export interface PhotoData {
+  positions: Float32Array;
+  uvs: Float32Array;
+  index: Uint32Array;
+  rest: Uint32Array;
+  colors: Uint8Array;
+  atlas: Texture;
+}
+
+/** The room's surface painted with the scan's own photos (each triangle from the photo that saw it best). */
+export function PhotoRoom({ photo }: { photo: PhotoData }) {
+  const [textured, rest] = useMemo(() => {
+    const position = new BufferAttribute(photo.positions, 3);
+    const a = new BufferGeometry();
+    a.setAttribute("position", position);
+    a.setAttribute("uv", new BufferAttribute(photo.uvs, 2));
+    a.setIndex(new BufferAttribute(photo.index, 1));
+    const b = new BufferGeometry();
+    b.setAttribute("position", position);
+    b.setAttribute("color", new BufferAttribute(photo.colors, 3, true));
+    b.setIndex(new BufferAttribute(photo.rest, 1));
+    b.computeVertexNormals();
+    return [a, b];
+  }, [photo]);
+  return (
+    <>
+      <ambientLight intensity={1.1} />
+      <directionalLight position={[3, -4, 6]} intensity={0.8} />
+      {/* unlit: the photos already carry the room's own light */}
+      <mesh geometry={textured}>
+        <meshBasicMaterial map={photo.atlas} side={2} />
+      </mesh>
+      <mesh geometry={rest}>
+        <meshLambertMaterial vertexColors side={2} />
+      </mesh>
+    </>
+  );
+}
+
+export async function loadPhoto(src: string): Promise<PhotoData | null> {
+  const get = (file: string) => fetch(`${src}/${file}`).then((r) => (r.ok ? r.arrayBuffer() : null));
+  const [p, uv, i, rest, c] = await Promise.all(["photo_pos.bin", "photo_uv.bin", "photo_idx.bin", "photo_rest_idx.bin", "photo_col.bin"].map(get));
+  if (!p || !uv || !i || !rest || !c) return null;
+  const atlas = await new TextureLoader().loadAsync(`${src}/photo_atlas.jpg`).catch(() => null);
+  if (!atlas) return null;
+  atlas.colorSpace = SRGBColorSpace;
+  atlas.anisotropy = 4;
+  return { positions: new Float32Array(p), uvs: new Float32Array(uv), index: new Uint32Array(i), rest: new Uint32Array(rest), colors: new Uint8Array(c), atlas };
+}
+
+/** The regenerated room (architect.json, in its squared plan frame; `theta` turns it back into the scan's frame). */
+export interface ArchitectData {
+  theta: number;
+  height: number;
+  plan: number[][];
+  walls: { a: number[]; b: number[]; scanned: boolean; openings: { kind: string; offset: number; width: number; height: number }[] }[];
+  wall_t: number;
+  floor_colour: string;
+  wall_colour: string;
+  furniture: { label: string; colour: string; lo: number[]; hi: number[]; parts: { kind: string; c: number[]; s: number[] }[] }[];
+  things: { n: number; label: string; color: string | null; at: number[]; size: number[] | null }[];
+}
+
+/** Walls are cut at this height, like an architect's model, so the room can be seen into from any side. */
+const CUT = 1.1;
+
+export function ArchitectRoom({ model, selected, tokens }: { model: ArchitectData; selected: number | null; tokens: Tokens }) {
+  const floor = useMemo(() => new ShapeGeometry(new Shape(model.plan.map(([x, y]) => ({ x, y }) as never))), [model.plan]);
+  const wallHeight = Math.min(CUT, model.height);
+  return (
+    <group rotation={[0, 0, model.theta]}>
+      <hemisphereLight args={["#ffffff", "#c9c2b6", 1.1]} />
+      <directionalLight position={[2, -3, 6]} intensity={1.4} />
+      <mesh geometry={floor} position={[0, 0, -0.004]}>
+        <meshStandardMaterial color={model.floor_colour} roughness={0.85} side={2} />
+      </mesh>
+      {model.walls.flatMap((w, i) => wallPieces(w, model.wall_t).map(([s, e], j) => {
+        const [ax, ay] = w.a;
+        const [bx, by] = w.b;
+        const len = Math.hypot(bx - ax, by - ay);
+        const ux = (bx - ax) / len;
+        const uy = (by - ay) / len;
+        const mid = (s + e) / 2;
+        // the room is on each wall's left, so the wall stands outside the measured floor
+        const cx = ax + ux * mid + uy * (model.wall_t / 2);
+        const cy = ay + uy * mid - ux * (model.wall_t / 2);
+        return (
+          <mesh key={`${i}-${j}`} position={[cx, cy, wallHeight / 2]} rotation={[0, 0, Math.atan2(uy, ux)]}>
+            <boxGeometry args={[e - s, model.wall_t, wallHeight]} />
+            <meshStandardMaterial color={w.scanned ? model.wall_colour : tokens.line} roughness={0.9} transparent={!w.scanned} opacity={w.scanned ? 1 : 0.35} />
+          </mesh>
+        );
+      }))}
+      {model.furniture.flatMap((f, i) =>
+        f.parts.map((p, j) => (
+          <mesh key={`${i}-${j}`} position={p.c as [number, number, number]}>
+            <boxGeometry args={p.s as [number, number, number]} />
+            <meshStandardMaterial color={p.kind === "leg" ? shade(f.colour, 0.7) : f.colour} roughness={0.7} />
+          </mesh>
+        )),
+      )}
+      {model.things.map((t) => {
+        const s = (t.size ?? [0.12, 0.12, 0.12]).map((v) => Math.max(v, 0.05));
+        const chosen = selected === t.n - 1;
+        return (
+          <mesh key={t.n} position={t.at as [number, number, number]} scale={chosen ? 1.4 : 1}>
+            <boxGeometry args={s as [number, number, number]} />
+            <meshStandardMaterial color={(t.color && NAMED[t.color]) || tokens.cta} emissive={chosen ? tokens.blueDark : "#000000"} emissiveIntensity={chosen ? 0.5 : 0} />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+}
+
+/** A wall's solid pieces along its length, leaving door openings out and closing the corners. */
+function wallPieces(w: ArchitectData["walls"][number], t: number): [number, number][] {
+  const len = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
+  let pieces: [number, number][] = [[-t, len + t]];
+  for (const o of w.openings) {
+    pieces = pieces.flatMap(([s, e]) => [[s, Math.min(e, o.offset)], [Math.max(s, o.offset + o.width), e]] as [number, number][]).filter(([s, e]) => e - s > 0.01);
+  }
+  return pieces;
+}
+
+function shade(hex: string, k: number): string {
+  const c = new Color(hex);
+  c.multiplyScalar(k);
+  return `#${c.getHexString()}`;
+}
+
+export async function loadArchitect(src: string): Promise<ArchitectData | null> {
+  return fetch(`${src}/architect.json`).then((r) => (r.ok ? (r.json() as Promise<ArchitectData>) : null)).catch(() => null);
 }

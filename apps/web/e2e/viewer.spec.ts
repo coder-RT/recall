@@ -94,7 +94,7 @@ test.describe("3D viewer: your scan", () => {
     await prepare(page);
     await open(page, PAGE);
     await expect(page.getByRole("img", { name: s.alt })).toBeVisible();
-    const caption = page.locator("figcaption");
+    const caption = page.locator("figure", { has: page.locator("[data-viewer]") }).locator("figcaption");
     await expect(caption).toContainText(s.alt);
     await expect(caption).toContainText(meta.stats.captured);
   });
@@ -112,7 +112,7 @@ test.describe("3D viewer: your scan", () => {
     expect(sizes["points.bin"]).toBe(meta.count * 12);
     expect(sizes["conf.bin"]).toBe(meta.count);
     // colors.bin is gitignored: "Photo" is offered only when it was served
-    const photo = page.getByRole("radio", { name: s.modes.photo });
+    const photo = page.getByRole("radio", { name: s.modes.photo, exact: true });
     if (sizes["colors.bin"] === undefined) await expect(photo).toHaveCount(0);
     else {
       expect(sizes["colors.bin"]).toBe(meta.count * 3);
@@ -146,15 +146,15 @@ test.describe("3D viewer: your scan", () => {
       const blueShare = async () => (await tint(page)).blue;
       // only the points: the grid, walls and pins are drawn in token colours too
       for (const layer of ["grid", "room", "things"] as const) await page.getByRole("checkbox", { name: s[layer] }).uncheck();
-      const photo = page.getByRole("radio", { name: s.modes.photo });
+      const photo = page.getByRole("radio", { name: s.modes.photo, exact: true });
       if (await photo.count()) {
         await photo.check();
         await expect(page.locator("[data-viewer]")).toHaveAttribute("data-mode", "photo");
         await expect.poll(blueShare).toBeLessThan(0.25);
       }
-      await page.getByRole("radio", { name: s.modes.confidence }).check();
+      await page.getByRole("radio", { name: s.modes.confidence, exact: true }).check();
       await expect.poll(blueShare).toBeLessThan(0.05);
-      await page.getByRole("radio", { name: s.modes.height }).check();
+      await page.getByRole("radio", { name: s.modes.height, exact: true }).check();
       await expect.poll(blueShare).toBeGreaterThan(0.5);
     });
 
@@ -197,13 +197,29 @@ test.describe("3D viewer: your scan", () => {
     await expect(viewer).toHaveAttribute("data-view", "model");
     await expect(page.getByText(s.viewNotes.model)).toBeVisible();
     await expect(page.getByRole("list", { name: s.room }).getByRole("listitem")).toHaveText(["desk", "shelf"]);
-    await expect(page.getByRole("radio", { name: s.modes.height })).toHaveCount(0); // point colours only apply to dots
+    await expect(page.getByRole("radio", { name: s.modes.height, exact: true })).toHaveCount(0); // point colours only apply to dots
     await expect.poll(async () => (await tint(page)).drawn).toBeGreaterThan(1000);
 
     await page.getByRole("radio", { name: s.views.surface }).check();
     await expect(viewer).toHaveAttribute("data-view", "surface");
     await expect(page.getByText(s.viewNotes.surface)).toBeVisible();
     await expect.poll(async () => (await tint(page)).drawn).toBeGreaterThan(1000);
+  });
+
+  test("the photo room and the architect's regenerated room draw, and the drawings are listed", async ({ page }) => {
+    await prepare(page);
+    await open(page, PAGE);
+    await formed(page);
+    const viewer = page.locator("[data-viewer]");
+    for (const view of ["photo", "architect"] as const) {
+      await page.getByRole("radio", { name: s.views[view], exact: true }).check();
+      await expect(viewer).toHaveAttribute("data-view", view);
+      await expect(page.getByText(s.viewNotes[view])).toBeVisible();
+      await expect.poll(async () => (await tint(page)).drawn).toBeGreaterThan(1000);
+    }
+    const sheets = page.getByRole("region", { name: new RegExp(s.drawings.title) });
+    await expect(sheets.getByRole("img", { name: meta.drawings[0].summary })).toBeVisible();
+    await expect(sheets.getByRole("link", { name: "Download A1.1" })).toHaveAttribute("href", /sheet-a1-1\.svg$/);
   });
 
   test("lists everything Recall found; choosing one highlights its pin", async ({ page }) => {

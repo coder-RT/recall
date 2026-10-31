@@ -9,10 +9,10 @@ import { gsap, MOTION_OK } from "@/lib/gsap";
 import { useMotionPrefs } from "@/lib/motion-prefs";
 import { FloorGrid, Furniture, HeightBands, Room, Surfaces, Things, type Bounds, type FurnitureBox, type RoomShape, type Surface, type Thing, type Tokens } from "./Layers";
 import { makeUniforms, MODES, RoomCloud, type CloudData, type CloudUniforms, type ColourMode } from "./RoomCloud";
-import { kindColour, loadMesh, RoomModel, SurfaceMesh, type MeshData } from "./RoomViews";
+import { ArchitectRoom, kindColour, loadArchitect, loadMesh, loadPhoto, PhotoRoom, RoomModel, SurfaceMesh, type ArchitectData, type MeshData, type PhotoData } from "./RoomViews";
 
 /** The ways to see the room: every measured point, the room as a plan, or the measured surface. */
-export type View = "dots" | "model" | "surface";
+export type View = "dots" | "model" | "surface" | "photo" | "architect";
 
 const TARGET = new Vector3(0, 0, 0.9);
 
@@ -44,6 +44,10 @@ export interface ViewerProps {
   selected: number | null;
   /** the export has a surface mesh (mesh_pos.bin, mesh_col.bin, mesh_idx.bin) */
   hasMesh?: boolean;
+  /** the export has the photo-textured surface (photo_*.bin, photo_atlas.jpg) */
+  hasPhoto?: boolean;
+  /** the export has the regenerated room (architect.json) */
+  hasArchitect?: boolean;
   t: ViewerStrings;
 }
 
@@ -119,9 +123,9 @@ function useTokens(): Tokens {
   return tokens;
 }
 
-function Scene({ view, mesh, data, uniforms, spin, layers, bounds, surfaces, model, tokens }: { view: View; mesh: MeshData | null; data: CloudData; uniforms: CloudUniforms; spin: boolean; layers: Layers; bounds: Bounds; surfaces: Surface[]; model: Model; tokens: Tokens }) {
+function Scene({ view, mesh, photo, architect, data, uniforms, spin, layers, bounds, surfaces, model, tokens }: { view: View; mesh: MeshData | null; photo: PhotoData | null; architect: ArchitectData | null; data: CloudData; uniforms: CloudUniforms; spin: boolean; layers: Layers; bounds: Bounds; surfaces: Surface[]; model: Model; tokens: Tokens }) {
   const { invalidate } = useThree();
-  useEffect(() => invalidate(), [model.selected, layers, view, mesh, invalidate]);
+  useEffect(() => invalidate(), [model.selected, layers, view, mesh, photo, architect, invalidate]);
   useEffect(() => {
     uniforms.uLow.value = new Color(tokens.line);
     uniforms.uHigh.value = new Color(tokens.blue);
@@ -135,6 +139,23 @@ function Scene({ view, mesh, data, uniforms, spin, layers, bounds, surfaces, mod
     return (
       <>
         <RoomModel room={model.room} furniture={model.furniture} things={model.things} selected={model.selected} tokens={tokens} />
+        <Controls spin={spin} />
+      </>
+    );
+  }
+  if (view === "photo" && photo) {
+    return (
+      <>
+        <PhotoRoom photo={photo} />
+        <Things items={model.things} selected={model.selected} tokens={tokens} />
+        <Controls spin={spin} />
+      </>
+    );
+  }
+  if (view === "architect" && architect) {
+    return (
+      <>
+        <ArchitectRoom model={architect} selected={model.selected} tokens={tokens} />
         <Controls spin={spin} />
       </>
     );
@@ -174,7 +195,7 @@ async function load(src: string): Promise<CloudData> {
   return { positions: new Float32Array(positions!), colors: colors ? new Uint8Array(colors) : null, conf: new Uint8Array(conf!) };
 }
 
-export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, things, selected, hasMesh = false, t }: ViewerProps) {
+export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, things, selected, hasMesh = false, hasPhoto = false, hasArchitect = false, t }: ViewerProps) {
   const root = useRef<HTMLDivElement>(null);
   const id = useId();
   const { reduced } = useMotionPrefs();
@@ -182,6 +203,8 @@ export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, t
   const [layers, setLayers] = useState<Layers>({ mode: "height", grid: true, bands: false, surfaces: false, room: true, things: true });
   const [view, setView] = useState<View>("dots");
   const [mesh, setMesh] = useState<MeshData | null>(null);
+  const [photo, setPhoto] = useState<PhotoData | null>(null);
+  const [architect, setArchitect] = useState<ArchitectData | null>(null);
   const [animate] = useState(() => !reduced && window.matchMedia(MOTION_OK).matches);
   // the same clamp as the Canvas dpr below, so the first frame already has the final point size
   const uniforms = useMemo(() => makeUniforms(animate ? 0 : 1, Math.min(Math.max(window.devicePixelRatio, 1), 2) * 1.15), [animate]);
@@ -217,6 +240,22 @@ export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, t
       cancelled = true;
     };
   }, [view, mesh, hasMesh, src]);
+  useEffect(() => {
+    if (view !== "photo" || photo || !hasPhoto) return;
+    let cancelled = false;
+    loadPhoto(src).then((p) => !cancelled && setPhoto(p));
+    return () => {
+      cancelled = true;
+    };
+  }, [view, photo, hasPhoto, src]);
+  useEffect(() => {
+    if (view !== "architect" || architect || !hasArchitect) return;
+    let cancelled = false;
+    loadArchitect(src).then((a) => !cancelled && setArchitect(a));
+    return () => {
+      cancelled = true;
+    };
+  }, [view, architect, hasArchitect, src]);
 
   // the gather: GSAP owns this one uniform; nothing else animates the canvas
   useEffect(() => {
@@ -250,7 +289,8 @@ export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, t
 
   const toggle = (key: "grid" | "bands" | "surfaces" | "room" | "things") => setLayers((l) => ({ ...l, [key]: !l[key] }));
   const modes = data?.colors ? MODES : MODES.filter((mode) => mode !== "photo");
-  const views: View[] = hasMesh ? ["dots", "model", "surface"] : ["dots", "model"];
+  const views: View[] = ["dots", "model", ...(hasMesh ? (["surface"] as const) : []), ...(hasPhoto ? (["photo"] as const) : []), ...(hasArchitect ? (["architect"] as const) : [])];
+  const pending = (view === "surface" && !mesh) || (view === "photo" && !photo) || (view === "architect" && !architect);
   const kinds = [...new Set(furniture.map((f) => f.label))];
   const check = "size-4 accent-fb-blue";
   const chip = "flex cursor-pointer items-center gap-2 rounded-full border border-fb-line bg-white px-3 py-1.5 text-sm text-ink has-checked:border-fb-blue has-checked:bg-fb-blue-pale";
@@ -265,7 +305,7 @@ export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, t
             camera={{ position: [4.6, -5.8, 5.6], fov: 34, near: 0.1, far: 60 }}
             gl={{ antialias: true, alpha: true, preserveDrawingBuffer: true }}
           >
-            <Scene view={view} mesh={mesh} data={data} uniforms={uniforms} spin={!still} layers={layers} bounds={bounds} surfaces={surfaces} model={{ room, furniture, things, selected }} tokens={tokens} />
+            <Scene view={view} mesh={mesh} photo={photo} architect={architect} data={data} uniforms={uniforms} spin={!still} layers={layers} bounds={bounds} surfaces={surfaces} model={{ room, furniture, things, selected }} tokens={tokens} />
           </Canvas>
         ) : (
           <p className="grid size-full place-items-center text-sm text-muted">{t.loading}</p>
@@ -281,7 +321,7 @@ export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, t
             </label>
           ))}
           <p className="w-full text-sm text-muted" aria-live="polite">
-            {view === "surface" && !mesh ? t.loading : t.viewNotes[view]}
+            {pending ? t.loading : t.viewNotes[view]}
           </p>
         </fieldset>
         {view === "model" && kinds.length > 0 && (

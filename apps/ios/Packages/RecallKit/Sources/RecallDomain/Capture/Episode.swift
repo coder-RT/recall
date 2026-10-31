@@ -8,9 +8,20 @@ public struct PoseRecord: Codable, Sendable, Equatable {
     public var pose: [Float]
     public var tracking: TrackingState
     public var reason: TrackingReason?
+    public var heading: Heading?
 
-    public init(index: Int, t: Double, pose: [Float], tracking: TrackingState, reason: TrackingReason?) {
+    /// The compass at this frame (magnetic north; no location is used).
+    public struct Heading: Codable, Sendable, Equatable {
+        public var magneticDeg: Double
+        public var accuracyDeg: Double
+        enum CodingKeys: String, CodingKey { case magneticDeg = "magnetic_deg", accuracyDeg = "accuracy_deg" }
+        public init(magneticDeg: Double, accuracyDeg: Double) { self.magneticDeg = magneticDeg; self.accuracyDeg = accuracyDeg }
+    }
+
+    public init(index: Int, t: Double, pose: [Float], tracking: TrackingState, reason: TrackingReason?,
+                heading: Heading? = nil) {
         self.index = index; self.t = t; self.pose = pose; self.tracking = tracking; self.reason = reason
+        self.heading = heading
     }
 }
 
@@ -54,19 +65,32 @@ public struct Manifest: Codable, Sendable {
     public var worldMap: String?
     public var files: [FileEntry]
     public var captureMetrics: CaptureMetrics
+    public var compass: Compass?
+
+    /// Where magnetic north lies in this scan's ARKit world (yaw; 0 = facing −Z, clockwise from above).
+    public struct Compass: Codable, Sendable, Equatable {
+        public var northYawDeg: Double
+        public var spreadDeg: Double
+        public var samples: Int
+        enum CodingKeys: String, CodingKey { case northYawDeg = "north_yaw_deg", spreadDeg = "spread_deg", samples }
+        public init(northYawDeg: Double, spreadDeg: Double, samples: Int) {
+            self.northYawDeg = northYawDeg; self.spreadDeg = spreadDeg; self.samples = samples
+        }
+    }
 
     enum CodingKeys: String, CodingKey {
         case scanId = "scan_id", format, device, appVersion = "app_version", createdAt = "created_at"
         case durationS = "duration_s", frameCount = "frame_count", image, depth, intrinsics
-        case worldMap = "world_map", files, captureMetrics = "capture_metrics"
+        case worldMap = "world_map", files, captureMetrics = "capture_metrics", compass
     }
 
     public init(scanId: String, device: String, appVersion: String, createdAt: Date, durationS: Double, frameCount: Int,
                 image: Size, depth: Depth, intrinsics: Intrinsics, worldMap: String?, files: [FileEntry],
-                captureMetrics: CaptureMetrics) {
+                captureMetrics: CaptureMetrics, compass: Compass? = nil) {
         self.scanId = scanId; self.device = device; self.appVersion = appVersion; self.createdAt = createdAt
         self.durationS = durationS; self.frameCount = frameCount; self.image = image; self.depth = depth
         self.intrinsics = intrinsics; self.worldMap = worldMap; self.files = files; self.captureMetrics = captureMetrics
+        self.compass = compass
     }
 
     public static func encoder() -> JSONEncoder {

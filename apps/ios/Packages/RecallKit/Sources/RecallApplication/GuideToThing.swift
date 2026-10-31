@@ -27,6 +27,7 @@ public final class GuideToThing {
         public var tick: Double = 0.4  // how often the pose is read while walking
         public var replanAfterMetres: Double = 1.5  // off the route by more than this → a new route
         public var maxReplans = 3
+        public var faceTimeout: Double = 30  // seconds to turn towards a compass bearing
         public init() {}
     }
 
@@ -41,17 +42,27 @@ public final class GuideToThing {
     private let speech: any SpeechOutput
     private let haptics: any HapticsOutput
     private let clock: any Clock
+    private let compass: (any CompassSensor)?
     private let settings: Settings
     private var cancelled = false
 
     public init(home: String, thing: Thing, roomMap: Data?, locator: any Locator, guide: any GuideService,
-                speech: any SpeechOutput, haptics: any HapticsOutput, clock: any Clock, settings: Settings = .init()) {
+                speech: any SpeechOutput, haptics: any HapticsOutput, clock: any Clock,
+                compass: (any CompassSensor)? = nil, settings: Settings = .init()) {
         self.home = home; self.thing = thing; self.roomMap = roomMap; self.locator = locator; self.guide = guide
-        self.speech = speech; self.haptics = haptics; self.clock = clock; self.settings = settings
+        self.speech = speech; self.haptics = haptics; self.clock = clock; self.compass = compass
+        self.settings = settings
+    }
+
+    /// The compass heading when it can be trusted (else directions leave out "north-east").
+    private var heading: Double? {
+        guard let r = compass?.reading, r.isReliable else { return nil }
+        return r.magneticDeg
     }
 
     /// Runs until arrival, landmark directions, a failure or `stop()`.
     public func run() async {
+        compass?.start()
         let hasMap = roomMap != nil && locator.start(roomMap: roomMap)
         if !hasMap { _ = locator.start(roomMap: nil) }
         speech.say(hasMap ? "Finding where you are. Hold the phone up at chest height and turn slowly."
@@ -63,8 +74,9 @@ public final class GuideToThing {
         var replans = 0
         while !cancelled {
             guard let route = await plan(tracking: tracking) else { return }
+            if tracking == .normal { locator.mark(route.target) }  // the arrow, only where the phone knows the room
             guard route.isWalkable else {
-                finish(.landmarks(route.spokenSteps))
+                await landmarks(route)
                 return
             }
             if let first = route.steps.first { speech.say(first.say, interrupt: true) }
@@ -82,7 +94,9 @@ public final class GuideToThing {
 
     public func stop() {
         cancelled = true
+        locator.mark(nil)
         locator.stop()
+        compass?.stop()
         speech.stop()
     }
 
@@ -91,7 +105,7 @@ public final class GuideToThing {
         switch phase {
         case .locating: speech.say("Still finding where you are. Turn slowly.", interrupt: true)
         case .planning: speech.say("Planning the way.", interrupt: true)
-        case .guiding(let cue, _): speech.say(Directions.say(cue), interrupt: true)
+        case .guiding(let cue, _): speech.say(Directions.say(cue, heading: heading), interrupt: true)
         case .landmarks(let t), .arrived(let t), .failed(let t): speech.say(t, interrupt: true)
         }
     }
@@ -155,9 +169,36 @@ public final class GuideToThing {
                 haptics.tap()
                 lastTick = now
             }
-            if throttle.shouldSay(cue, at: now) { speech.say(Directions.say(cue), interrupt: true) }
+            if throttle.shouldSay(cue, at: now) { speech.say(Directions.say(cue, heading: heading), interrupt: true) }
         }
         return .done
+    }
+
+    /// Landmark directions; with the room's compass bearing and a reliable compass, the phone then ticks while the
+    /// person faces the thing ("Your keys are to the north-east. Turn until I tick.").
+    private func landmarks(_ route: Route) async {
+        guard let bearing = route.bearingDeg, heading != nil else {
+            finish(.landmarks(route.spokenSteps))
+            return
+        }
+        let text = route.spokenSteps + " It's to the \(CompassMath.name(bearing)). Turn until I tick."
+        phase = .landmarks(text)
+        speech.say(text, interrupt: true)
+        let started = clock.now()
+        var facedSince: Date?
+        while !cancelled, clock.now().timeIntervalSince(started) < settings.faceTimeout {
+            try? await clock.sleep(seconds: settings.tick)
+            guard let h = heading else { continue }
+            if CompassMath.facing(h, bearing) {
+                haptics.tap()
+                if facedSince == nil { speech.say("That way.", interrupt: true) }
+                facedSince = facedSince ?? clock.now()
+                if let f = facedSince, clock.now().timeIntervalSince(f) >= 2 { break }  // held it: done
+            } else {
+                facedSince = nil
+            }
+        }
+        locator.stop()
     }
 
     private func finish(_ end: Phase) {

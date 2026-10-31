@@ -16,11 +16,15 @@ public struct Route: Sendable, Equatable {
     public let steps: [Step]
     public let waypoints: [SIMD2<Double>]
     public let arriveSay: String?
+    /// The thing in the phone's ARKit world, where the arrow is drawn.
+    public let target: SIMD3<Double>?
+    /// Compass bearing (magnetic) from the room's middle to the thing, when the scan had a reliable compass.
+    public let bearingDeg: Double?
 
     public init(sessionId: String, landmarksOnly: Bool, reason: String?, steps: [Step], waypoints: [SIMD2<Double>],
-                arriveSay: String?) {
+                arriveSay: String?, target: SIMD3<Double>? = nil, bearingDeg: Double? = nil) {
         self.sessionId = sessionId; self.landmarksOnly = landmarksOnly; self.reason = reason; self.steps = steps
-        self.waypoints = waypoints; self.arriveSay = arriveSay
+        self.waypoints = waypoints; self.arriveSay = arriveSay; self.target = target; self.bearingDeg = bearingDeg
     }
 
     /// The route can be walked on the phone (otherwise the steps are only spoken).

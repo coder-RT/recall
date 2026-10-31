@@ -852,6 +852,36 @@
           "mean_light_lux": {
             "type": "number"
           },
+          "walls_covered": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 12,
+            "description": "Bearings around the room (of 12) where the LiDAR saw a wall or tall surface"
+          },
+          "floor_seen_m2": {
+            "type": "number",
+            "description": "Floor area the LiDAR saw"
+          },
+          "map_status": {
+            "type": "string",
+            "enum": [
+              "not_available",
+              "limited",
+              "extending",
+              "mapped"
+            ],
+            "description": "ARKit's world-mapping status at the end"
+          },
+          "loop_closed": {
+            "type": "boolean",
+            "description": "The scan ended within a metre of where it started"
+          },
+          "compass_spread_deg": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
           "grade": {
             "type": "string",
             "enum": [
@@ -1004,6 +1034,31 @@
           },
           "capture_metrics": {
             "$ref": "#/components/schemas/CaptureMetrics"
+          },
+          "compass": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Where magnetic north lies in the ARKit world of this scan (yaw, degrees, 0 = facing -Z, clockwise seen from above), from the circular mean of compass minus camera yaw while the phone was upright",
+            "required": [
+              "north_yaw_deg",
+              "spread_deg",
+              "samples"
+            ],
+            "properties": {
+              "north_yaw_deg": {
+                "type": "number"
+              },
+              "spread_deg": {
+                "type": "number",
+                "description": "Circular spread of the samples; over 25 means unreliable"
+              },
+              "samples": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
           }
         }
       },
@@ -1096,6 +1151,13 @@
           "height_m": {
             "type": "number",
             "description": "Floor to ceiling, or the tallest wall seen"
+          },
+          "north_deg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Direction of magnetic north in the home frame, degrees clockwise from +y seen from above (null when the scan had no reliable compass)"
           }
         }
       },
@@ -1581,6 +1643,25 @@
           },
           "object_label": {
             "type": "string"
+          },
+          "target_arkit": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "description": "The object's position in the phone's ARKit world [x, y, z], for the arrow drawn above it",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "bearing_deg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Compass bearing from the room's centre to the object (magnetic, clockwise from north), when the scan had a reliable compass; used for landmark directions"
           }
         }
       },

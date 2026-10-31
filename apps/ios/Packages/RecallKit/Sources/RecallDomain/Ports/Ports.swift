@@ -116,4 +116,14 @@ public protocol Clock: Sendable {
     func stop()
     /// The latest pose and whether tracking is normal (nil before the first frame).
     func reading() -> (pose: Pose, tracking: TrackingState)?
+    /// Shows an arrow pointing down at this spot in the camera view (nil removes it).
+    func mark(_ target: SIMD3<Double>?)
+}
+
+/// The phone's compass (magnetic north; no location is read).
+@MainActor public protocol CompassSensor: AnyObject {
+    func start()
+    func stop()
+    /// The latest reading, nil before the first.
+    var reading: HeadingReading? { get }
 }

@@ -114,6 +114,7 @@ public final class FakeClock: Clock, @unchecked Sendable {
     public var readings: [(pose: Pose, tracking: TrackingState)]
     public private(set) var startedWithMap: Bool?
     public private(set) var stopped = false
+    public private(set) var marks: [SIMD3<Double>?] = []
 
     public init(mapReadable: Bool = true, readings: [(Pose, TrackingState)]) {
         self.mapReadable = mapReadable
@@ -125,6 +126,7 @@ public final class FakeClock: Clock, @unchecked Sendable {
         return roomMap == nil || mapReadable
     }
     public func stop() { stopped = true }
+    public func mark(_ target: SIMD3<Double>?) { marks.append(target) }
     public func reading() -> (pose: Pose, tracking: TrackingState)? {
         guard !readings.isEmpty else { return nil }
         return readings.count > 1 ? readings.removeFirst() : readings[0]
@@ -203,4 +205,13 @@ public extension Manifest {
                                                            trackingNormalRatio: 0.95, meanSpeedMps: 0.4, peakSpeedMps: 0.8,
                                                            slowDownCues: 0, areaWalkedM2: 6, meanLightLux: 300))
     }
+}
+
+/// A compass that reads whatever the test sets.
+@MainActor public final class FakeCompass: CompassSensor {
+    public var reading: HeadingReading?
+    public private(set) var running = false
+    public init(_ reading: HeadingReading? = nil) { self.reading = reading }
+    public func start() { running = true }
+    public func stop() { running = false }
 }

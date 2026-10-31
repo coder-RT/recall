@@ -71,14 +71,16 @@ public struct RouteFollower: Sendable {
 
 /// How a cue is spoken: "Straight ahead, 2 metres", "At 3 o'clock, 1 metre", "Behind you, turn around".
 public enum Directions {
-    public static func say(_ cue: RouteFollower.Cue) -> String {
+    /// `heading`: the phone's compass heading now (magnetic), to add where that is: "At 2 o'clock, north-east, 3 metres."
+    public static func say(_ cue: RouteFollower.Cue, heading: Double? = nil) -> String {
         let way: String
         switch cue.clock {
         case 12: way = "Straight ahead"
         case 6: way = "Behind you, turn around"
         default: way = "At \(cue.clock) o'clock"
         }
-        return "\(way), \(metres(cue.metres))."
+        let compass = heading.map { ", " + CompassMath.name($0 + Double(cue.clock % 12) * 30) } ?? ""
+        return "\(way)\(compass), \(metres(cue.metres))."
     }
 
     public static func metres(_ m: Double) -> String {

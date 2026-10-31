@@ -123,7 +123,8 @@ asked once per question.
 
 ## Facts at a glance
 
-Answers to what people ask most about Recall, measured on the real system.
+Recall isn't released yet. These are the questions a reader is likely to have, answered with numbers measured
+on the working build in my own home (an iPhone 16 Pro and an M5 Pro Mac), not estimates.
 
 **What does a scan cost?** Measured on the living room (56 frames): **456 SAM 3.1 calls** (19 views × 24 concepts),
 119 s of SAM time cold and cached afterwards, MapAnything on the Mac's own GPU, and **48 MB** on disk. Price per SAM

@@ -122,6 +122,9 @@ final class LiveServer: HomeMemory, GuideService, Transcriber, ScanProcessing, C
     func route(home: String, to thing: String, from pose: Pose, tracking: TrackingState) async throws -> Route {
         try await current().route(home: home, to: thing, from: pose, tracking: tracking)
     }
+    func verify(session: String, frame: ArrivalFrame) async throws -> ArrivalCheck {
+        try await current().verify(session: session, frame: frame)
+    }
     func transcribe(wav: Data) async throws -> String { try await current().transcribe(wav: wav) }
     func status(scan: String) async throws -> ScanReport { try await current().status(scan: scan) }
     func check() async throws -> String { try await current().check() }

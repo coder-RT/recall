@@ -57,6 +57,14 @@ public final class FakeGuide: GuideService, @unchecked Sendable {
         routeRequests.append((pose, tracking))
         return routes.count > 1 ? routes.removeFirst() : routes[0]
     }
+    /// The arrival check's answer (nil: the Mac can't check, the call throws).
+    public var check: ArrivalCheck? = ArrivalCheck(outcome: .confirmed, say: "Found it. Your keys are at 12 o'clock, 40 centimetres away.")
+    public private(set) var verified: [ArrivalFrame] = []
+    public func verify(session: String, frame: ArrivalFrame) async throws -> ArrivalCheck {
+        verified.append(frame)
+        guard let check else { throw RecallError.status(501) }
+        return check
+    }
 }
 
 public final class FakeProcessing: ScanProcessing, @unchecked Sendable {
@@ -133,6 +141,9 @@ public final class FakeClock: Clock, @unchecked Sendable {
     public private(set) var paths: [[SIMD2<Double>]] = []
     public func mark(_ target: SIMD3<Double>?) { marks.append(target) }
     public func showPath(_ path: [SIMD2<Double>], floorY: Double?) { paths.append(path) }
+    /// The frame the arrival check gets (nil: the camera has none).
+    public var frame: ArrivalFrame? = ArrivalFrame.sample
+    public func arrivalFrame() -> ArrivalFrame? { frame }
     public func reading() -> (pose: Pose, tracking: TrackingState)? {
         guard !readings.isEmpty else { return nil }
         return readings.count > 1 ? readings.removeFirst() : readings[0]
@@ -220,4 +231,10 @@ public extension Manifest {
     public init(_ reading: HeadingReading? = nil) { self.reading = reading }
     public func start() { running = true }
     public func stop() { running = false }
+}
+
+public extension ArrivalFrame {
+    static let sample = ArrivalFrame(jpeg: Data("jpeg".utf8), depthMM: Data(count: 8), depthSize: (2, 2),
+                                     imageSize: (640, 480), intrinsics: (500, 500, 320, 240),
+                                     pose: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
 }

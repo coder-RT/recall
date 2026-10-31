@@ -16,6 +16,8 @@ public protocol HomeMemory: Sendable {
 public protocol GuideService: Sendable {
     func ask(home: String, question: String) async throws -> Answer
     func route(home: String, to thing: String, from pose: Pose, tracking: TrackingState) async throws -> Route
+    /// The arrival check: is the thing really there? (SAM 3.1 + depth + geometry on the Mac)
+    func verify(session: String, frame: ArrivalFrame) async throws -> ArrivalCheck
 }
 
 /// Speech to text on the Mac (Muse Voice Transcribe), from mono 16-bit WAV at 16 kHz.
@@ -118,6 +120,8 @@ public protocol Clock: Sendable {
     func reading() -> (pose: Pose, tracking: TrackingState)?
     /// Shows an arrow pointing down at this spot in the camera view (nil removes it).
     func mark(_ target: SIMD3<Double>?)
+    /// One camera frame with depth and pose, for the arrival check (nil when the camera has none yet).
+    func arrivalFrame() -> ArrivalFrame?
     /// Lays arrows on the floor along the route (ARKit x, z), at the floor's height when known; empty clears them.
     func showPath(_ path: [SIMD2<Double>], floorY: Double?)
 }

@@ -111,6 +111,30 @@ extension RecallAPI: GuideService, Transcriber {
         }
     }
 
+    /// The arrival check: the photo, the depth and the pose as multipart (VerificationRequest.yaml).
+    public func verify(session: String, frame: ArrivalFrame) async throws -> ArrivalCheck {
+        let boundary = "recall-\(UUID().uuidString)"
+        var body = Data()
+        func part(_ name: String, filename: String?, type: String?, _ data: Data) {
+            body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"".utf8))
+            if let filename { body.append(Data("; filename=\"\(filename)\"".utf8)) }
+            body.append(Data("\r\n".utf8))
+            if let type { body.append(Data("Content-Type: \(type)\r\n".utf8)) }
+            body.append(Data("\r\n".utf8))
+            body.append(data)
+            body.append(Data("\r\n".utf8))
+        }
+        part("image", filename: "arrival.jpg", type: "image/jpeg", frame.jpeg)
+        part("depth", filename: "depth.bin", type: "application/octet-stream", frame.depthMM)
+        part("pose", filename: nil, type: nil, frame.poseJSON)
+        body.append(Data("--\(boundary)--\r\n".utf8))
+        let json = try await send(request("guidance/sessions/\(session)/verify", method: "POST",
+                                          contentType: "multipart/form-data; boundary=\(boundary)", body: body))
+        guard let raw = json["outcome"] as? String, let outcome = ArrivalCheck.Outcome(rawValue: raw),
+              let say = json["say"] as? String else { throw RecallError.server("The Mac sent no arrival check.") }
+        return ArrivalCheck(outcome: outcome, say: say)
+    }
+
     /// Muse Voice Transcribe on the Mac: mono 16-bit PCM WAV at 16 kHz, as multipart (it carries a file).
     public func transcribe(wav: Data) async throws -> String {
         let boundary = "recall-\(UUID().uuidString)"

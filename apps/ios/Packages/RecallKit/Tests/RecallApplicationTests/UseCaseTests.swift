@@ -40,12 +40,15 @@ struct GuideToThingTests {
         g.onChange = { phases.append($0) }
         await g.run()
 
-        #expect(g.phase == .arrived("Your keys should be in front of you, on the desk."))
+        #expect(g.phase == .arrived("Found it. Your keys are at 12 o'clock, 40 centimetres away."))
         #expect(service.routeRequests.first?.tracking == .normal)
         #expect(phases.contains { if case .guiding(let c, _) = $0 { c.clock == 3 } else { false } })
         #expect(speech.lines.first == "Finding where you are. Hold the phone up at chest height and turn slowly.")
         #expect(speech.lines.contains("Straight ahead, then 2 metres."))
-        #expect(speech.lines.last == "Your keys should be in front of you, on the desk.")
+        #expect(speech.lines.contains("Your keys should be in front of you, on the desk. Hold the phone towards it. "
+                                      + "I'm checking with the camera."))
+        #expect(speech.lines.last == "Found it. Your keys are at 12 o'clock, 40 centimetres away.")  // the camera check has the last word
+        #expect(service.verified.count == 1)
         #expect(haptics.events.last == "success")
         #expect(locator.stopped)
     }
@@ -61,7 +64,30 @@ struct GuideToThingTests {
         #expect(!speech.lines.contains { $0.hasPrefix("Finding where you are") })
         #expect(speech.lines.first == "Straight ahead, then 2 metres.")
         #expect(service.routeRequests.first?.tracking == .normal)
-        #expect(g.phase == .arrived("Your keys should be in front of you, on the desk."))
+        #expect(g.phase == .arrived("Found it. Your keys are at 12 o'clock, 40 centimetres away."))
+    }
+
+    @Test func arrivingChecksWithTheCamera() async {
+        func arrive(check: ArrivalCheck?, frame: ArrivalFrame? = .sample) async -> (GuideToThing, FakeSpeech, FakeHaptics, FakeGuide) {
+            let locator = FakeLocator(readings: [(.at(x: 0, z: 0), .normal), (.at(x: 0, z: 0), .normal), (.at(x: 0, z: -3.7), .normal)])
+            locator.frame = frame
+            let service = FakeGuide(routes: [route([[0, 0], [0, -4]])])
+            service.check = check
+            let (g, speech, haptics, _) = guide(locator: locator, service: service)
+            await g.run()
+            return (g, speech, haptics, service)
+        }
+        let arrived = "Your keys should be in front of you, on the desk."
+        var (g, speech, haptics, service) = await arrive(check: ArrivalCheck(outcome: .foundNearby, say: "Your keys are here, but moved."))
+        #expect(g.phase == .arrived("Your keys are here, but moved.") && service.verified == [.sample])
+        #expect(haptics.events.suffix(2) == ["success", "success"])  // arrived, then found
+        (g, speech, haptics, _) = await arrive(check: ArrivalCheck(outcome: .notHere, say: "I can't see your keys from here."))
+        #expect(g.phase == .arrived("I can't see your keys from here.") && haptics.events.last == "warning")
+        (g, speech, _, service) = await arrive(check: nil)  // the Mac couldn't check
+        #expect(g.phase == .arrived(arrived + " I couldn't check with the camera."))
+        (g, _, _, service) = await arrive(check: ArrivalCheck(outcome: .confirmed, say: "x"), frame: nil)  // no camera frame
+        #expect(g.phase == .arrived(arrived + " I couldn't check with the camera.") && service.verified.isEmpty)
+        #expect(speech.lines.last == arrived + " I couldn't check with the camera.")
     }
 
     @Test func withoutARoomMapItGivesLandmarkDirections() async {
@@ -113,7 +139,7 @@ struct GuideToThingTests {
         await g.run()
         #expect(service.routeRequests.count == 2)
         #expect(speech.lines.contains("You're off the route. Finding a new way."))
-        #expect(g.phase == .arrived("Your keys should be in front of you, on the desk."))
+        #expect(g.phase == .arrived("Found it. Your keys are at 12 o'clock, 40 centimetres away."))
     }
 
     @Test func weakTrackingPausesDirectionsAndSaysWhyOnce() async {
@@ -127,7 +153,7 @@ struct GuideToThingTests {
         await g.run()
         #expect(speech.lines.filter { $0.hasPrefix("Tracking is weak") }.count == 1)
         #expect(haptics.events.contains("warning"))
-        #expect(g.phase == .arrived("Your keys should be in front of you, on the desk."))
+        #expect(g.phase == .arrived("Found it. Your keys are at 12 o'clock, 40 centimetres away."))
     }
 }
 

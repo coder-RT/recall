@@ -10,6 +10,7 @@ public final class GuideToThing {
         case locating
         case planning
         case guiding(RouteFollower.Cue, weakTracking: Bool)
+        case checking  // arrived: the camera is checking the thing is really there
         case landmarks(String)
         case arrived(String)
         case failed(String)
@@ -24,6 +25,7 @@ public final class GuideToThing {
 
     public struct Settings: Sendable {
         public var locateTimeout: Double = 25  // seconds to look for a map match before landmark directions
+        public var aimSeconds: Double = 1.5  // after arriving, time to point the phone at the thing before the check
         public var tick: Double = 0.4  // how often the pose is read while walking
         public var replanAfterMetres: Double = 1.5  // off the route by more than this → a new route
         public var maxReplans = 3
@@ -112,6 +114,7 @@ public final class GuideToThing {
         switch phase {
         case .locating: speech.say("Still finding where you are. Turn slowly.", interrupt: true)
         case .planning: speech.say("Planning the way.", interrupt: true)
+        case .checking: speech.say("Checking with the camera. Hold the phone towards it.", interrupt: true)
         case .guiding(let cue, _): speech.say(Directions.say(cue, heading: heading), interrupt: true)
         case .landmarks(let t), .arrived(let t), .failed(let t): speech.say(t, interrupt: true)
         }
@@ -168,7 +171,7 @@ public final class GuideToThing {
             if cue.arrived {
                 locator.showPath([], floorY: nil)
                 haptics.success()
-                finish(.arrived(arrive))
+                await check(session: route.sessionId, arrive: arrive)
                 return .done
             }
             if cue.offRouteMetres > settings.replanAfterMetres { return .offRoute }
@@ -180,6 +183,28 @@ public final class GuideToThing {
             if throttle.shouldSay(cue, at: now) { speech.say(Directions.say(cue, heading: heading), interrupt: true) }
         }
         return .done
+    }
+
+    /// Arrived: one camera frame goes to the Mac's Verifier (SAM 3.1 + depth + the 30 cm rule), and its answer is the
+    /// last word. Without a frame or an answer the arrival stands, and says so.
+    private func check(session: String, arrive: String) async {
+        phase = .checking
+        speech.say(arrive + " Hold the phone towards it. I'm checking with the camera.", interrupt: true)
+        try? await clock.sleep(seconds: settings.aimSeconds)
+        guard !cancelled else { return }
+        guard let frame = locator.arrivalFrame() else {
+            finish(.arrived(arrive + " I couldn't check with the camera."))
+            return
+        }
+        do {
+            let result = try await guide.verify(session: session, frame: frame)
+            guard !cancelled else { return }
+            if result.found { haptics.success() } else { haptics.warning() }
+            finish(.arrived(result.say))
+        } catch {
+            guard !cancelled else { return }
+            finish(.arrived(arrive + " I couldn't check with the camera."))
+        }
     }
 
     /// Landmark directions; with the room's compass bearing and a reliable compass, the phone then ticks while the

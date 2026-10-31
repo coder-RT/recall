@@ -33,6 +33,9 @@ public final class ARLocator: Locator {
     public func start(roomMap: Data?) -> Bool {
         let config = ARWorldTrackingConfiguration()
         config.planeDetection = []
+        if ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
+            config.frameSemantics = [.sceneDepth]  // LiDAR depth, for the arrival check's one frame
+        }
         guard let roomMap else {
             if running, !runningWithMap { return true }
             session.run(config, options: [.resetTracking, .removeExistingAnchors])
@@ -66,6 +69,39 @@ public final class ARLocator: Locator {
     public func stop() {
         session.pause()
         running = false
+    }
+
+    private let encoder = FrameEncoder()
+
+    public func arrivalFrame() -> ArrivalFrame? {
+        guard let frame = session.currentFrame, let depth = frame.sceneDepth?.depthMap,
+              let (jpeg, size) = encoder.jpeg(frame.capturedImage) else { return nil }
+        // ARKit's intrinsics are for the full camera image; the JPEG is scaled to a 1024-pixel long edge
+        let s = Double(size.width) / Double(frame.camera.imageResolution.width)
+        let k = frame.camera.intrinsics
+        let pose = frame.camera.transform.columnMajor.map(Double.init)
+        guard let (mm, w, h) = Self.millimetres(depth) else { return nil }
+        return ArrivalFrame(jpeg: jpeg, depthMM: mm, depthSize: (w, h), imageSize: (Int(size.width), Int(size.height)),
+                            intrinsics: (Double(k.columns.0.x) * s, Double(k.columns.1.y) * s,
+                                         Double(k.columns.2.x) * s, Double(k.columns.2.y) * s), pose: pose)
+    }
+
+    /// Float32 metres to unsigned 16-bit little-endian millimetres, row by row (0 where there is no depth).
+    static func millimetres(_ depth: CVPixelBuffer) -> (Data, Int, Int)? {
+        CVPixelBufferLockBaseAddress(depth, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(depth, .readOnly) }
+        guard CVPixelBufferGetPixelFormatType(depth) == kCVPixelFormatType_DepthFloat32,
+              let base = CVPixelBufferGetBaseAddress(depth) else { return nil }
+        let w = CVPixelBufferGetWidth(depth), h = CVPixelBufferGetHeight(depth), row = CVPixelBufferGetBytesPerRow(depth)
+        var mm = [UInt16](repeating: 0, count: w * h)
+        for y in 0..<h {
+            let line = base.advanced(by: y * row).assumingMemoryBound(to: Float32.self)
+            for x in 0..<w {
+                let m = line[x]
+                mm[y * w + x] = m.isFinite && m > 0 ? UInt16(min(65535, (m * 1000).rounded())).littleEndian : 0
+            }
+        }
+        return (mm.withUnsafeBytes { Data($0) }, w, h)
     }
 
     /// Whether the session is running at the moment (a prepared locator nobody used is paused after a while).

@@ -12,9 +12,11 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from recall_api.application.audit import NoAudit
 from recall_api.application.plan_guidance import GuidanceError, PlanGuidance
 from recall_api.application.ports import Clock, Segmenter, VisionProvider
 from recall_api.domain.assistant import is_plural
+from recall_api.domain.audit import Action, Actor
 from recall_api.domain.memory import Observation, Position
 from recall_api.domain.ports import TrackedObjectRepository
 from recall_api.domain.spatial import CameraView, clock_and_distance, lift_box
@@ -49,11 +51,21 @@ class VerifyArrival:
         vision: VisionProvider | None,
         clock: Clock,
         new_id,
+        audit=None,
     ) -> None:
         self.guidance, self.objects, self.segmenter, self.vision = guidance, objects, segmenter, vision
         self.clock, self.new_id = clock, new_id
+        self.audit = audit or NoAudit()
 
     def __call__(self, session_id: str, jpeg: bytes, view: CameraView) -> Verification:
+        v = self._check(session_id, jpeg, view)
+        session = self.guidance.sessions.get(session_id)
+        self.audit(Action.ARRIVAL_VERIFIED, Actor.OWNER, target_type="object",
+                   target_id=session.object_id if session else None, result=v.outcome, distance_cm=v.distance_cm,
+                   sam_score=v.sam_score, memory_updated=v.outcome in ("confirmed", "found_nearby"))  # fmt: skip
+        return v
+
+    def _check(self, session_id: str, jpeg: bytes, view: CameraView) -> Verification:
         session = self.guidance.sessions.get(session_id)
         if session is None:
             raise GuidanceError("unknown_session", "No such guidance session.")

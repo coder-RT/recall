@@ -48,7 +48,10 @@ class Settings(BaseSettings):
     home_memory_a2a_enabled: bool = Field(False, alias="HOME_MEMORY_A2A_ENABLED")
     # how other agents reach this Mac (written into the Agent Card); a robot in Docker uses host.docker.internal
     public_url: str = Field("http://localhost:8000", alias="RECALL_PUBLIC_URL")
-    home_id: str = Field("flat", alias="RECALL_HOME_ID")  # the home the Home Memory agent answers about
+    home_id: str = Field("flat", alias="RECALL_HOME_ID")
+    audit_retention_days: int = Field(
+        90, alias="RECALL_AUDIT_RETENTION_DAYS"
+    )  # older audit events are dropped  # the home the Home Memory agent answers about
 
     # the home's clock, for "seen yesterday at 04:21" (sightings are stored in UTC)
     home_timezone: str = Field("Europe/Warsaw", alias="HOME_TIMEZONE")

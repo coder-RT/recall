@@ -354,6 +354,42 @@ class SharingUpdate(BaseModel):
     robot_access: bool
 
 
+class Actor(StrEnum):
+    owner = "owner"
+    robot = "robot"
+    pipeline = "pipeline"
+    unknown = "unknown"
+
+
+class Action(StrEnum):
+    robot_access_changed = "robot_access.changed"
+    robot_export_read = "robot_export.read"
+    home_memory_query = "home_memory.query"
+    auth_refused = "auth.refused"
+    object_corrected = "object.corrected"
+    object_forgotten = "object.forgotten"
+    scan_ingested = "scan.ingested"
+    arrival_verified = "arrival.verified"
+
+
+class Outcome(StrEnum):
+    ok = "ok"
+    refused = "refused"
+    failed = "failed"
+
+
+class AuditEvent(BaseModel):
+    id: str
+    at: AwareDatetime
+    actor: Actor
+    action: Action
+    outcome: Outcome
+    target_type: str | None = None
+    target_id: str | None = None
+    detail: dict[str, Any]
+    request_id: str | None = None
+
+
 class Negate(IntEnum):
     integer_0 = 0
 
@@ -523,7 +559,7 @@ class VerificationRequest(BaseModel):
     ]
 
 
-class Outcome(StrEnum):
+class Outcome1(StrEnum):
     confirmed = "confirmed"
     found_nearby = "found_nearby"
     uncertain = "uncertain"
@@ -531,7 +567,7 @@ class Outcome(StrEnum):
 
 
 class VerificationResult(BaseModel):
-    outcome: Outcome
+    outcome: Outcome1
     say: str
     distance_cm: float | None = None
     sam_score: float | None = None

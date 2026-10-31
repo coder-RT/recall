@@ -12,8 +12,10 @@ import re
 from dataclasses import dataclass, field
 
 from recall_api.application.ask_where_is import fallback_sentence
-from recall_api.application.ports import PromptScreener
+from recall_api.application.audit import NoAudit
+from recall_api.application.ports import PromptScreener, Screening
 from recall_api.application.tools import ToolContext, Tools
+from recall_api.domain.audit import Action, Actor, Outcome
 from recall_api.domain.ports import ScanRepository, TrackedObjectRepository
 
 FILLER = re.compile(
@@ -40,11 +42,24 @@ def thing_name(text: str) -> str:
 
 class AnswerExternalQuery:
     def __init__(
-        self, screener: PromptScreener, tools: Tools, objects: TrackedObjectRepository, scans: ScanRepository
-    ) -> None:
+        self, screener: PromptScreener, tools: Tools, objects: TrackedObjectRepository, scans: ScanRepository,
+        audit=None,
+    ) -> None:  # fmt: skip
         self.screener, self.tools, self.objects, self.scans = screener, tools, objects, scans
+        self.audit = audit or NoAudit()
 
     def __call__(self, home_id: str, text: str) -> ExternalAnswer:
+        answer, verdict = self._answer(home_id, text)
+        refused = not answer.allowed
+        self.audit(
+            Action.HOME_MEMORY_QUERY, Actor.ROBOT, Outcome.REFUSED if refused else Outcome.OK,
+            target_type="object" if answer.data.get("object_id") else None, target_id=answer.data.get("object_id"),
+            screen=verdict.reason, screened_by=verdict.by, found=answer.data.get("found"),
+            asked=text if refused else thing_name(text),  # a refused message is kept (trimmed) for review
+        )  # fmt: skip
+        return answer
+
+    def _answer(self, home_id: str, text: str) -> tuple[ExternalAnswer, Screening]:
         verdict = self.screener.screen(text)
         if not verdict.safe:
             why = (
@@ -52,14 +67,13 @@ class AnswerExternalQuery:
                 if verdict.reason == "attack"
                 else "I can't check messages right now, so I'm not answering. The owner can turn the safety check on."
             )
-            return ExternalAnswer(False, why, {"refused": verdict.reason})
+            return ExternalAnswer(False, why, {"refused": verdict.reason}), verdict
         name = thing_name(text)
         ctx = ToolContext(home_id=home_id)
         found = self.tools.find_object(ctx, name)
         if found.get("result") != "found":
-            return ExternalAnswer(
-                True, f"I haven't seen {name} yet.", {"found": False, "name": name, **self._earlier(home_id, name)}
-            )
+            data = {"found": False, "name": name, **self._earlier(home_id, name)}
+            return ExternalAnswer(True, f"I haven't seen {name} yet.", data), verdict
         oid = found["matches"][0]["object_id"]
         facts = self.tools.describe_location(ctx, oid)
         ctx.outputs = [json.dumps({**facts, "name": None, "note": None})]  # the user's own words stay on the Mac
@@ -82,7 +96,7 @@ class AnswerExternalQuery:
             "confidence": round(where.confidence, 3),
         }
         spoken = fallback_sentence(ctx.outputs).replace("Your ", "The ", 1)
-        return ExternalAnswer(True, spoken, {**data, "spoken": spoken})
+        return ExternalAnswer(True, spoken, {**data, "spoken": spoken}), verdict
 
     def _earlier(self, home_id: str, name: str) -> dict:
         """A thing seen only unsurely (or long gone): when it was last seen, so the caller can say so."""

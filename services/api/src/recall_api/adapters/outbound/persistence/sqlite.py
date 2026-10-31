@@ -8,6 +8,7 @@ from datetime import datetime
 
 from sqlalchemy import Engine, text
 
+from recall_api.domain.audit import Action, Actor, AuditEvent, Outcome
 from recall_api.domain.memory import (
     BBox,
     Corrections,
@@ -267,3 +268,46 @@ class SqliteOwnerSettings:
                 ),
                 {"k": key, "v": value},
             )
+
+
+class SqliteAuditLog:
+    """Append-only audit events; the newest first when read."""
+
+    def __init__(self, engine: Engine) -> None:
+        self.engine = engine
+
+    def record(self, e: AuditEvent) -> None:
+        with self.engine.begin() as c:
+            c.execute(
+                text("""INSERT INTO audit_events
+                        (id, at, actor, action, outcome, target_type, target_id, detail, request_id)
+                        VALUES (:id, :at, :actor, :action, :outcome, :tt, :ti, :detail, :rid)"""),
+                {"id": e.id, "at": e.at.isoformat(), "actor": e.actor.value, "action": e.action.value,
+                 "outcome": e.outcome.value, "tt": e.target_type, "ti": e.target_id, "detail": json.dumps(e.detail),
+                 "rid": e.request_id},
+            )  # fmt: skip
+
+    def recent(self, limit=50, action=None, actor=None, since=None) -> list[AuditEvent]:
+        where, p = [], {"limit": max(1, min(int(limit), 500))}
+        if action:
+            where.append("action = :action")
+            p["action"] = action
+        if actor:
+            where.append("actor = :actor")
+            p["actor"] = actor
+        if since:
+            where.append("at >= :since")
+            p["since"] = since.isoformat()
+        sql = "SELECT * FROM audit_events" + (" WHERE " + " AND ".join(where) if where else "")
+        with self.engine.connect() as c:
+            rows = c.execute(text(sql + " ORDER BY at DESC, id DESC LIMIT :limit"), p).mappings().all()
+        return [
+            AuditEvent(r["id"], datetime.fromisoformat(r["at"]), Actor(r["actor"]), Action(r["action"]),
+                       Outcome(r["outcome"]), r["target_type"], r["target_id"], json.loads(r["detail"]),
+                       r["request_id"])
+            for r in rows
+        ]  # fmt: skip
+
+    def prune(self, before: datetime) -> int:
+        with self.engine.begin() as c:
+            return c.execute(text("DELETE FROM audit_events WHERE at < :b"), {"b": before.isoformat()}).rowcount

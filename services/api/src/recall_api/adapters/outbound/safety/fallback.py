@@ -4,6 +4,7 @@ can run, the message is not safe (fails closed)."""
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 
 from recall_api.application.ports import Screening
 
@@ -18,6 +19,7 @@ class FirstAvailable:
         for s in self.screeners:
             v = s.screen(text)
             if v.reason != "unavailable":
-                log.info("screened by %s: %s", getattr(s, "name", type(s).__name__), v.reason)
-                return v
+                name = getattr(s, "name", type(s).__name__)
+                log.info("screened by %s: %s", name, v.reason)
+                return replace(v, by=name)
         return Screening(False, "unavailable")

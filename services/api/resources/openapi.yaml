@@ -26,6 +26,8 @@ tags:
     description: Speech to text through Muse Voice Transcribe
   - name: robots
     description: Read-only home memory for robots (off by default)
+  - name: audit
+    description: Who did what to the home's memory and its sharing (append-only, owner only)
   - name: a2a
     description: The Home Memory agent for other agents, over A2A 1.0 (off by default)
 components:
@@ -58,6 +60,8 @@ paths:
     $ref: paths/objects.yaml#/objects
   /sharing:
     $ref: paths/sharing.yaml#/sharing
+  /audit:
+    $ref: paths/audit.yaml#/audit
   /homes/{home_id}/robot-export:
     $ref: paths/homes.yaml#/robot_export
   /a2a/home-memory:

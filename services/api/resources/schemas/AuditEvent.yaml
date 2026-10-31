@@ -1,0 +1,18 @@
+type: object
+description: >
+  One recorded event: who (by the key they used), what, how it ended. Append-only, kept on the Mac for
+  RECALL_AUDIT_RETENTION_DAYS (90). Never a key, token or password; free text is trimmed.
+required: [id, at, actor, action, outcome, detail]
+properties:
+  id: {type: string}
+  at: {type: string, format: date-time}
+  actor: {type: string, enum: [owner, robot, pipeline, unknown]}
+  action:
+    type: string
+    enum: [robot_access.changed, robot_export.read, home_memory.query, auth.refused, object.corrected,
+           object.forgotten, scan.ingested, arrival.verified]
+  outcome: {type: string, enum: [ok, refused, failed]}
+  target_type: {type: [string, "null"]}
+  target_id: {type: [string, "null"]}
+  detail: {type: object, additionalProperties: true}
+  request_id: {type: [string, "null"]}

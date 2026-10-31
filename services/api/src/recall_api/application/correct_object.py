@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from recall_api.application.audit import NoAudit
+from recall_api.domain.audit import Action, Actor
 from recall_api.domain.memory import COLOR_NAMES, TrackedObject
 from recall_api.domain.ports import TrackedObjectRepository
 
@@ -29,8 +31,9 @@ class CorrectionInput:
 
 
 class CorrectObject:
-    def __init__(self, objects: TrackedObjectRepository) -> None:
+    def __init__(self, objects: TrackedObjectRepository, audit=None) -> None:
         self.objects = objects
+        self.audit = audit or NoAudit()
 
     def _get(self, home_id: str, object_id: str) -> TrackedObject:
         obj = self.objects.get(object_id)
@@ -58,11 +61,17 @@ class CorrectObject:
         if change.confirmed is not _UNSET:
             c.confirmed = bool(change.confirmed)
         self.objects.save(obj)
+        changed = sorted(
+            k for k in ("name", "color", "height_m", "note", "confirmed") if getattr(change, k) is not _UNSET
+        )
+        self.audit(Action.OBJECT_CORRECTED, Actor.OWNER, target_type="object", target_id=obj.id, label=obj.label,
+                   fields=changed, confirmed=c.confirmed)  # fmt: skip
         return obj
 
     def remove(self, home_id: str, object_id: str) -> None:
-        self._get(home_id, object_id)
+        obj = self._get(home_id, object_id)
         self.objects.delete(object_id)
+        self.audit(Action.OBJECT_FORGOTTEN, Actor.OWNER, target_type="object", target_id=object_id, label=obj.label)
 
 
 def _text(value: object, limit: int, field: str) -> str | None:

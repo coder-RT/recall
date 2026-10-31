@@ -1,0 +1,18 @@
+audit:
+  get:
+    tags: [audit]
+    operationId: listAuditEvents
+    summary: The audit log, newest first (the owner's device key only)
+    parameters:
+      - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 500, default: 50}}
+      - {name: action, in: query, required: false, schema: {type: string}, description: "e.g. home_memory.query"}
+      - {name: actor, in: query, required: false, schema: {type: string, enum: [owner, robot, pipeline, unknown]}}
+      - {name: since, in: query, required: false, schema: {type: string, format: date-time}}
+    responses:
+      "200":
+        description: Events
+        content:
+          application/json:
+            schema:
+              type: array
+              items: {$ref: ../schemas/AuditEvent.yaml}

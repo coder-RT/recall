@@ -8,7 +8,13 @@ from functools import cached_property
 from zoneinfo import ZoneInfo
 
 from recall_api.adapters.outbound.llm.openai_compatible import from_settings as llm_from_settings
-from recall_api.adapters.outbound.persistence.sqlite import SqliteHomes, SqliteObjects, SqliteOwnerSettings, SqliteScans
+from recall_api.adapters.outbound.persistence.sqlite import (
+    SqliteAuditLog,
+    SqliteHomes,
+    SqliteObjects,
+    SqliteOwnerSettings,
+    SqliteScans,
+)
 from recall_api.adapters.outbound.safety.fallback import FirstAvailable
 from recall_api.adapters.outbound.safety.prompt_guard_pipeline import PromptGuardViaPipeline
 from recall_api.adapters.outbound.safety.spark_screen_meta_api import SparkScreener
@@ -19,6 +25,7 @@ from recall_api.adapters.outbound.vision.spark_vision_meta_api import SparkVisio
 from recall_api.adapters.outbound.voice.muse_transcribe import MuseTranscriber
 from recall_api.application.answer_external_query import AnswerExternalQuery
 from recall_api.application.ask_where_is import AskWhereIs
+from recall_api.application.audit import Auditor
 from recall_api.application.correct_object import CorrectObject
 from recall_api.application.export_for_robot import ExportForRobot
 from recall_api.application.ingest_scan import IngestScan
@@ -78,11 +85,11 @@ class Container:
 
     @cached_property
     def ingest_scan(self) -> IngestScan:
-        return IngestScan(self.scans, self.homes, self.objects, self.clock, new_id)
+        return IngestScan(self.scans, self.homes, self.objects, self.clock, new_id, audit=self.auditor)
 
     @cached_property
     def correct_object(self) -> CorrectObject:
-        return CorrectObject(self.objects)
+        return CorrectObject(self.objects, audit=self.auditor)
 
     @cached_property
     def guidance(self) -> PlanGuidance:
@@ -91,7 +98,9 @@ class Container:
     @cached_property
     def robot_access(self) -> RobotAccess:
         s = self.settings
-        return RobotAccess(SqliteOwnerSettings(self.engine), s.robot_export_enabled, s.home_memory_a2a_enabled)
+        return RobotAccess(
+            SqliteOwnerSettings(self.engine), s.robot_export_enabled, s.home_memory_a2a_enabled, audit=self.auditor
+        )
 
     @cached_property
     def screener(self) -> FirstAvailable:
@@ -104,7 +113,15 @@ class Container:
 
     @cached_property
     def answer_external_query(self) -> AnswerExternalQuery:
-        return AnswerExternalQuery(self.screener, self.tools, self.objects, self.scans)
+        return AnswerExternalQuery(self.screener, self.tools, self.objects, self.scans, audit=self.auditor)
+
+    @cached_property
+    def audit_log(self) -> SqliteAuditLog:
+        return SqliteAuditLog(self.engine)
+
+    @cached_property
+    def auditor(self) -> Auditor:
+        return Auditor(self.audit_log, self.clock, new_id, self.settings.audit_retention_days)
 
     @cached_property
     def export_for_robot(self) -> ExportForRobot:
@@ -125,7 +142,9 @@ class Container:
         if key is None:
             raise RuntimeError("META_MUSE_API_KEY is not set: the arrival check uses SAM 3.1 on the Meta Model API")
         k = key.get_secret_value()
-        return VerifyArrival(self.guidance, self.objects, Sam31MetaApi(k), SparkVisionMetaApi(k), self.clock, new_id)
+        return VerifyArrival(
+            self.guidance, self.objects, Sam31MetaApi(k), SparkVisionMetaApi(k), self.clock, new_id, audit=self.auditor
+        )
 
     @cached_property
     def transcriber(self) -> MuseTranscriber:

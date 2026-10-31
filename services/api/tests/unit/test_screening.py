@@ -18,9 +18,9 @@ class Fixed:
 
 def test_the_first_screen_that_can_run_decides():
     guard, spark = Fixed(Screening(False, "unavailable")), Fixed(Screening(True, "ok"))
-    assert FirstAvailable(guard, spark).screen("keys") == Screening(True, "ok")
+    assert FirstAvailable(guard, spark).screen("keys") == Screening(True, "ok", by="Fixed")  # says who decided
     guard2, spark2 = Fixed(Screening(False, "attack")), Fixed(Screening(True, "ok"))
-    assert FirstAvailable(guard2, spark2).screen("x") == Screening(False, "attack") and spark2.calls == 0
+    assert FirstAvailable(guard2, spark2).screen("x").reason == "attack" and spark2.calls == 0
     down = Fixed(Screening(False, "unavailable"))
     assert FirstAvailable(down, down).screen("keys") == Screening(False, "unavailable")  # fails closed
     assert FirstAvailable().screen("keys") == Screening(False, "unavailable")

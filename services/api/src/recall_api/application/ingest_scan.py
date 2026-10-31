@@ -6,7 +6,9 @@ from collections import defaultdict
 from dataclasses import replace
 from typing import Any
 
+from recall_api.application.audit import NoAudit
 from recall_api.application.ports import Clock
+from recall_api.domain.audit import Action, Actor
 from recall_api.domain.memory import (
     BBox,
     Landmark,
@@ -46,9 +48,11 @@ def _inside(poly: tuple[tuple[float, float], ...], p: Position) -> bool:
 
 class IngestScan:
     def __init__(
-        self, scans: ScanRepository, homes: HomeRepository, objects: TrackedObjectRepository, clock: Clock, new_id
-    ) -> None:
+        self, scans: ScanRepository, homes: HomeRepository, objects: TrackedObjectRepository, clock: Clock, new_id,
+        audit=None,
+    ) -> None:  # fmt: skip
         self.scans, self.homes, self.objects, self.clock, self.new_id = scans, homes, objects, clock, new_id
+        self.audit = audit or NoAudit()
 
     def __call__(self, scan_id: str, result: dict[str, Any]) -> Scan:
         scan = self.scans.get(scan_id)
@@ -160,6 +164,9 @@ class IngestScan:
         scan.transform_to_home = tuple(result.get("transform_to_home") or ())
         scan.detail = ", ".join(f"{v} {k.replace('_', ' ')}" for k, v in report.items() if v)
         self.scans.save(scan)
+        self.audit(Action.SCAN_INGESTED, Actor.PIPELINE, target_type="scan", target_id=scan.id, room=scan.room,
+                   objects=scan.object_count, aligned_to=scan.aligned_to, fresh=scan.fresh,
+                   changes=len(scan.changes), **report)  # fmt: skip
         return scan
 
     def _earlier_scan(self, scan: Scan) -> Scan | None:

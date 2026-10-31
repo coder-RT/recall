@@ -5,7 +5,10 @@ from __future__ import annotations
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
+
+if TYPE_CHECKING:
+    from recall_api.domain.audit import AuditEvent
 
 
 class Clock(Protocol):
@@ -98,6 +101,17 @@ class Screening:
 
     safe: bool
     reason: str  # "ok", "attack", or "unavailable"
+    by: str | None = None  # which screen decided ("prompt-guard", "muse-spark"), for the audit log
+
+
+class AuditLog(Protocol):
+    """Append-only: events are recorded and read, never changed (old ones are dropped after the retention period)."""
+
+    def record(self, event: AuditEvent) -> None: ...
+    def recent(
+        self, limit: int = 50, action: str | None = None, actor: str | None = None, since: datetime | None = None
+    ) -> list[AuditEvent]: ...
+    def prune(self, before: datetime) -> int: ...
 
 
 class OwnerSettings(Protocol):

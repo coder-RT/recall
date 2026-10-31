@@ -46,8 +46,8 @@ Indie track · Theme: <strong>Build for Your World</strong></p>
 
 1. [What it is](#what-it-is)
 2. [Why I built it](#why-i-built-it)
-3. [Why agents](#why-agents)
-4. [Robots and other agents](#robots-and-other-agents)
+3. [Recall's three agents](#recalls-three-agents)
+4. [Sharing with robots](#sharing-with-robots)
 5. [How it works: the Meta models](#how-it-works-the-meta-models)
 6. [Guardrails](#guardrails)
 7. [Algorithms](#algorithms)
@@ -80,7 +80,7 @@ The landing page. No image of anyone's home is in this repo: the 3D viewer shows
 **How**
 - The iPhone records frames, LiDAR depth and ARKit poses, and leads the scan by voice, step by step: turn round, walk the walls, sweep the floor, close the loop. It measures how much floor and wall the LiDAR saw and whether ARKit's room map is ready, and says when to slow down, step back, add light or tilt down. Meta's MapAnything turns the frames into a metric 3D map; SAM 3.1 finds the furniture and objects in every frame.
 - Geometry decides the facts (floor, surfaces, height bands, distances). Muse Spark Open, Meta's open model, understands the question, chooses the tools that look the facts up, and turns them into a short spoken answer.
-- A small team of agents answers, verifies and shares; every model they call is a Meta model.
+- Recall's own three agents answer, verify and share; every model they call is a Meta model.
 
 **Frameworks and stack**
 - Web: Next.js 16, React 19, TypeScript, GSAP (scroll storytelling), Motion (UI), react-three-fiber (3D viewer).
@@ -96,17 +96,22 @@ The landing page. No image of anyone's home is in this repo: the 3D viewer shows
 - The pieces now exist as open Meta models: metric 3D from photos (MapAnything), find anything by name (SAM 3.1), a language model that can call tools and phrase a short spoken answer (Muse Spark Open / Glimmer).
 - I wanted the result measured on real objects in a real flat, with the numbers published, rather than demonstrated on slides.
 
-## Why agents
+## Recall's three agents
+
+These are Recall's own parts. Each one runs only Meta models.
 
 - **Guide** is the only agent on the live question path. It understands the question, chooses among five tools (`find_object`, `describe_location`, `localize`, `plan_route`, `explain`) and words the answer. It never states a place, distance or time that no tool returned. The phone says "Looking for your keys." as soon as it has the question; the Guide's answer follows in 2.3 s (median of 10 real questions, one tool call each, Muse Spark Open at low reasoning effort; `docs/verification.md`).
 - **Verifier** runs once, on arrival: one camera frame, SAM 3.1 plus the LiDAR depth, and a yes or no on whether the object is really there. Muse Spark 1.1 can only lower confidence. If it's found nearby, memory moves it there; if it isn't there, Recall says so plainly. The Guide calls it in-process by default and in the live demo; A2A between the two is optional.
-- **Home Memory** is the house's face to other agents (a robot, a pair of glasses, another assistant) over the open A2A 1.0 protocol: read-only, off by default, never the user's live position. It accepts only structured input (one object name, checked against a schema), and a Meta model (Muse Spark Open, or Glimmer) checks that name before any tool runs. Every request is in the owner's audit log.
+- **Home Memory** answers a robot or another app you connect (a pair of glasses, another assistant) over the open A2A 1.0 protocol: read-only, off by default, never the user's live position. It accepts only structured input (one object name, checked against a schema), and a Meta model (Muse Spark Open, or Glimmer) checks that name before any tool runs. Every request is in the owner's audit log.
 - One rule: every agent has a job no other agent does. Complexity is not the goal; the three jobs are different.
 
-## Robots and other agents
+## Sharing with robots
 
 A home robot can use the same memory to go and find something. Recall finds it on the map; picking it up is the
 robot's own skill.
+
+A robot, or any other app you connect, is a separate system that *asks* Recall a question. Recall answers it but never
+runs its software or its models; every model Recall itself calls is a Meta model.
 
 - **Off by default.** The owner turns it on in the app (Devices → Home robots → Robot Access); the switch is kept on
   the Mac. Robots use their own read-only key (`RECALL_ROBOT_KEY`), never the phone's.
@@ -132,14 +137,14 @@ robot's own skill.
 
 | Model | Job | Runs on | Code |
 |---|---|---|---|
-| Muse Spark Open (`meta-models/muse-spark-open-1026`) | Guide agent: calls tools, phrases the answer (default) | Baseten | `services/api/.../adapters/outbound/llm/` |
+| Muse Spark Open (`meta-models/muse-spark-open-1026`) | Guide agent: understands the question, chooses the tools, words the answer (default) | Baseten | `services/api/.../adapters/outbound/llm/` |
 | Muse Glimmer | Guide agent alternative; local privacy mode | Modal / Fireworks; LM Studio on the Mac | same adapter |
 | Muse Spark (hosted) | Guide fallback | Meta Model API | same adapter |
 | Muse Spark 1.1 (multimodal) | Verifier tie-break; may only downgrade a result, never confirm | Meta Model API | `services/api/.../adapters/outbound/vision/spark_vision_meta_api.py` |
 | SAM 3.1 | Objects and furniture in every frame, by text prompt; the arrival check | Meta Model API (optional self-hosted on Modal) | `services/pipeline/.../sam31_meta_api.py`, `services/api/.../sam31_meta_api.py` |
 | MapAnything (`facebook/map-anything-apache`) | Metric 3D reconstruction from the frames, depth and poses | Mac (Apple GPU); Modal if too slow | `services/pipeline/.../mapanything_local.py` |
 | Muse Voice Transcribe | Speech to text with turn detection | Meta Model API | `services/api/.../voice/muse_transcribe.py`, `apps/web/app/api/voice/transcribe/` |
-| Muse Spark Open (or Muse Glimmer) as a screen | Checks the object name other agents send the home memory, after the schema; strict JSON verdict, fails closed | Baseten (LM Studio for Glimmer) | `services/api/.../safety/meta_model_screen.py` |
+| Muse Spark Open (or Muse Glimmer) as a screen | Checks the object name a robot or outside app sends the home memory, after the schema; strict JSON verdict, fails closed | Baseten (LM Studio for Glimmer) | `services/api/.../safety/meta_model_screen.py` |
 
 **The scan path** (minutes, in the background)
 1. The iPhone walks the room and records keyframes, LiDAR depth and ARKit poses as an episode.
@@ -181,7 +186,7 @@ robot's own skill.
   6. At most 6 agent steps; on failure, the best grounded partial answer.
 - **Every answer is traceable.** Sightings are append-only. Every answer is logged with its model and tool steps and the sightings it rests on, and **Why?** on the phone (or `GET /answers/{id}/evidence`, or asking the Guide "why?") leads back to the camera's view, the scan and the models that made it. An answer that names a place with no sighting behind it is never said.
 - **The Verifier can only downgrade.** The vision model may turn a result into "uncertain"; only SAM plus geometry can confirm.
-- **Two checks on the door.** Another agent can send only one object name (letters, digits, spaces and hyphens, at most 40 characters, `services/api/resources/agents/find-object.input.schema.json`); free text is refused and never reaches a model or a tool. Then Muse Spark Open (or Glimmer) must answer `{"verdict": "safe", ...}` in strict JSON; anything else, a timeout or "injection" refuses. Measured: 21 ordinary names allowed, 18 instruction-like names refused, none wrong.
+- **Two checks on the door.** A robot or outside app can send only one object name (letters, digits, spaces and hyphens, at most 40 characters, `services/api/resources/agents/find-object.input.schema.json`); free text is refused and never reaches a model or a tool. Then Muse Spark Open (or Glimmer) must answer `{"verdict": "safe", ...}` in strict JSON; anything else, a timeout or "injection" refuses. Measured: 21 ordinary names allowed, 18 instruction-like names refused, none wrong.
 - **Privacy.** The home's memory lives on the owner's own computer (a Mac today); there is no Recall server. Scan photos go to SAM 3.1 on the Meta Model API, voice clips to Muse Voice Transcribe, and questions (no photos) to Muse Spark Open, or stay on the Mac with Glimmer in private mode. Deleting a scan on the phone erases it from the Mac too. No scan of anyone's home is in the repo or on the hosted site. Full note: [docs/privacy.md](docs/privacy.md), the same as the app's Settings → Privacy and the site's `/privacy`.
 - **Honesty.** Sample and recorded data are labelled as such in the UI and the docs; the demo shows only what was built.
 - **Rules.** Only Meta models at runtime; no non-Meta model anywhere, and no TTS model of any kind.

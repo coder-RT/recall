@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     # queue: the Huey worker runs it (make worker); subprocess: start it right away (tests, no worker)
     pipeline_runner: Literal["queue", "subprocess"] = Field("queue", alias="RECALL_PIPELINE_RUNNER")
 
+    # the home's clock, for "seen yesterday at 04:21" (sightings are stored in UTC)
+    home_timezone: str = Field("Europe/Warsaw", alias="HOME_TIMEZONE")
+
     log_level: str = Field("INFO", alias="RECALL_LOG_LEVEL")
     # traces: "file" writes data/logs/traces.jsonl; "otlp" sends to OTEL_EXPORTER_OTLP_ENDPOINT; "off" for tests
     traces: Literal["file", "otlp", "off"] = Field("file", alias="RECALL_TRACES")

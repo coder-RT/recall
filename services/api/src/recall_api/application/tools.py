@@ -5,8 +5,10 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from recall_api.application.ports import Clock
+from recall_api.domain.assistant import spoken_when
 from recall_api.domain.memory import Home
 from recall_api.domain.ports import HomeRepository, TrackedObjectRepository
 from recall_api.domain.spatial import relate, shelf_level
@@ -23,8 +25,16 @@ class ToolContext:
 
 
 class Tools:
-    def __init__(self, homes: HomeRepository, objects: TrackedObjectRepository, clock: Clock, guidance=None) -> None:
+    def __init__(
+        self,
+        homes: HomeRepository,
+        objects: TrackedObjectRepository,
+        clock: Clock,
+        guidance=None,
+        tz: ZoneInfo | None = None,
+    ) -> None:
         self.homes, self.objects, self.clock, self.guidance = homes, objects, clock, guidance
+        self.tz = tz or ZoneInfo("Europe/Warsaw")
 
     def run(self, ctx: ToolContext, name: str, args: dict[str, Any]) -> str:
         fn = {
@@ -37,6 +47,9 @@ class Tools:
         text = json.dumps(out)
         ctx.outputs.append(text)
         return text
+
+    def _when(self, t) -> str:
+        return spoken_when(t, self.clock.now(), self.tz)
 
     def _minutes(self, t) -> int:
         return max(0, int((self.clock.now() - t).total_seconds() // 60))
@@ -53,6 +66,7 @@ class Tools:
                         "name": o.corrections.name,
                         "color": o.display_color(),
                         "minutes_since_seen": self._minutes(last.seen_at),
+                        "seen_when": self._when(last.seen_at),
                         "confidence": round(last.confidence, 2),
                     }
                 )
@@ -84,7 +98,7 @@ class Tools:
             "shelf_level": shelf_level(last.position.z, shelves) if shelves else None,
             "height_band": rel.band.value,
             "minutes_since_seen": self._minutes(last.seen_at),
-            "seen_at": last.seen_at.strftime("%H:%M"),
+            "seen_when": self._when(last.seen_at),
             "confidence": round(last.confidence, 2),
         }
 

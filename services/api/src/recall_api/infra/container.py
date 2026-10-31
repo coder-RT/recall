@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from functools import cached_property
+from zoneinfo import ZoneInfo
 
 from recall_api.adapters.outbound.llm.openai_compatible import from_settings as llm_from_settings
 from recall_api.adapters.outbound.persistence.sqlite import SqliteHomes, SqliteObjects, SqliteScans
@@ -80,7 +81,7 @@ class Container:
 
     @cached_property
     def tools(self) -> Tools:
-        return Tools(self.homes, self.objects, self.clock, self.guidance)
+        return Tools(self.homes, self.objects, self.clock, self.guidance, ZoneInfo(self.settings.home_timezone))
 
     @cached_property
     def ask(self) -> AskWhereIs:

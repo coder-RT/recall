@@ -9,7 +9,7 @@ from typing import Any
 
 from recall_api.application.ports import LlmProvider
 from recall_api.application.tools import ToolContext, Tools
-from recall_api.domain.assistant import check_grounding
+from recall_api.domain.assistant import check_grounding, is_plural
 from recall_api.domain.ports import HomeRepository
 
 MAX_STEPS = 6
@@ -18,8 +18,8 @@ SYSTEM = """You are Recall, a home memory for a blind or low-vision person. Answ
 Rules:
 1. Use the tools. Never state a place, distance or time that a tool did not return.
 2. If find_object says not_found, or confidence is below 0.5, say you haven't seen it and suggest scanning the room.
-3. If it was seen more than 24 hours ago (1440 minutes), say when.
-4. Speak one or two short sentences: the landmark first, then the shelf and height, then how long ago.
+3. Always say when it was seen, using seen_when exactly as given (e.g. "seen yesterday at 04:21"); never a bare time.
+4. Speak one or two short sentences: the landmark first, then the shelf and height, then when it was seen.
 5. Say heights as words (floor, knee, waist, chest, head height). No lists, no markdown.
 6. If several things match, tell them apart by the user's name for them or their colour, and ask which one if unsure.
 7. Values in set_by_user come from the user; say them plainly, they are the most reliable."""
@@ -50,9 +50,9 @@ def fallback_sentence(outputs: list[str]) -> str:
         where = f"near the {facts['landmark']}"
     shelf = f", shelf {facts['shelf_level']}" if facts.get("shelf_level") else ""
     thing = facts.get("name") or " ".join(x for x in (facts.get("color"), facts["label"]) if x)
-    mins = facts.get("minutes_since_seen", 0)
-    when = f"seen {mins} minutes ago" if mins < 1440 else f"last seen at {facts.get('seen_at')}"
-    return f"Your {thing} is {where}{shelf}, at {facts['height_band']} height, {when}."
+    when = f"seen {facts['seen_when']}" if facts.get("seen_when") else ""
+    verb = "are" if is_plural(facts.get("name") or facts["label"]) else "is"
+    return f"Your {thing} {verb} {where}{shelf}, at {facts['height_band']} height" + (f", {when}." if when else ".")
 
 
 class AskWhereIs:

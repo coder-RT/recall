@@ -343,6 +343,17 @@ class ObjectLocation(BaseModel):
     ] = None
 
 
+class Sharing(BaseModel):
+    robot_access: bool
+    a2a_url: Annotated[str, Field(description="The Home Memory agent (A2A 1.0, JSON-RPC); robots use the robot key")]
+    agent_card_url: str
+    export_url: Annotated[str, Field(description="The robot export (GET, robot key)")]
+
+
+class SharingUpdate(BaseModel):
+    robot_access: bool
+
+
 class Negate(IntEnum):
     integer_0 = 0
 

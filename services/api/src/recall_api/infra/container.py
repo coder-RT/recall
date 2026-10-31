@@ -8,7 +8,7 @@ from functools import cached_property
 from zoneinfo import ZoneInfo
 
 from recall_api.adapters.outbound.llm.openai_compatible import from_settings as llm_from_settings
-from recall_api.adapters.outbound.persistence.sqlite import SqliteHomes, SqliteObjects, SqliteScans
+from recall_api.adapters.outbound.persistence.sqlite import SqliteHomes, SqliteObjects, SqliteOwnerSettings, SqliteScans
 from recall_api.adapters.outbound.safety.fallback import FirstAvailable
 from recall_api.adapters.outbound.safety.prompt_guard_pipeline import PromptGuardViaPipeline
 from recall_api.adapters.outbound.safety.spark_screen_meta_api import SparkScreener
@@ -23,6 +23,7 @@ from recall_api.application.correct_object import CorrectObject
 from recall_api.application.export_for_robot import ExportForRobot
 from recall_api.application.ingest_scan import IngestScan
 from recall_api.application.plan_guidance import PlanGuidance
+from recall_api.application.robot_access import RobotAccess
 from recall_api.application.tools import Tools
 from recall_api.application.upload_scan import UploadScan
 from recall_api.application.verify_arrival import VerifyArrival
@@ -86,6 +87,11 @@ class Container:
     @cached_property
     def guidance(self) -> PlanGuidance:
         return PlanGuidance(self.homes, self.scans, self.objects, self.blobs, new_id)
+
+    @cached_property
+    def robot_access(self) -> RobotAccess:
+        s = self.settings
+        return RobotAccess(SqliteOwnerSettings(self.engine), s.robot_export_enabled, s.home_memory_a2a_enabled)
 
     @cached_property
     def screener(self) -> FirstAvailable:

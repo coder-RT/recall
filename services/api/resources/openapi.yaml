@@ -56,6 +56,8 @@ paths:
     $ref: paths/homes.yaml#/room
   /homes/{home_id}/objects:
     $ref: paths/objects.yaml#/objects
+  /sharing:
+    $ref: paths/sharing.yaml#/sharing
   /homes/{home_id}/robot-export:
     $ref: paths/homes.yaml#/robot_export
   /a2a/home-memory:

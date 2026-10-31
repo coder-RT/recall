@@ -20,7 +20,8 @@ robot_export:
     operationId: getRobotExport
     summary: One room's memory for a robot (Nav2 map, things, furniture); off unless the owner turns it on
     description: >
-      Read-only. Needs ROBOT_EXPORT_ENABLED=true on the Mac and the robot key (RECALL_ROBOT_KEY) or the device key.
+      Read-only. Needs robot access on (PUT /sharing, or ROBOT_EXPORT_ENABLED=true on the Mac) and the robot key
+      (RECALL_ROBOT_KEY) or the device key.
       `room` picks a room; the default is the newest processed scan's.
     security:
       - deviceKey: []
@@ -38,7 +39,7 @@ robot_export:
             schema:
               $ref: ../schemas/RobotExport.yaml
       "403":
-        description: Robot export is turned off on the Mac
+        description: Robot access is off
         content:
           application/json:
             schema: {$ref: ../schemas/Error.yaml}

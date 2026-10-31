@@ -12,7 +12,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from recall_api.adapters.inbound.http import ask, guidance, health, homes, robots, scans
+from recall_api.adapters.inbound.http import ask, guidance, health, homes, robots, scans, sharing
 from recall_api.config.settings import Settings
 from recall_api.infra import logging as recall_logging
 from recall_api.infra import telemetry
@@ -27,7 +27,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     recall_logging.configure(settings.log_dir, settings.log_level)
     app = FastAPI(title="Recall API", version="0.1.0")
     app.state.container = Container(settings)
-    for r in (health.router, scans.router, homes.router, ask.router, guidance.router, robots.router):
+    for r in (health.router, scans.router, homes.router, ask.router, guidance.router, robots.router, sharing.router):
         app.include_router(r)
     _mount_home_memory(app, settings)
 
@@ -82,7 +82,7 @@ def _mount_home_memory(app: FastAPI, settings: Settings) -> None:
     async def _home_memory_gate(request: Request, call_next):  # noqa: ANN202
         if not request.url.path.startswith(hm.PATH):
             return await call_next(request)
-        if not settings.home_memory_a2a_enabled:
+        if not c.robot_access.a2a_open:
             return JSONResponse({"error": "not_found", "detail": "Home Memory sharing is off."}, status_code=404)
         if request.url.path != hm.CARD_PATH:
             keys = [k.get_secret_value() for k in (settings.robot_key, settings.device_key) if k is not None]

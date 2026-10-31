@@ -1,0 +1,4 @@
+type: object
+required: [robot_access]
+properties:
+  robot_access: {type: boolean}

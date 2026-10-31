@@ -249,3 +249,21 @@ class SqliteObjects:
                         "stale": int(o.stale),
                     },
                 )
+
+
+class SqliteOwnerSettings:
+    def __init__(self, engine: Engine) -> None:
+        self.engine = engine
+
+    def get(self, key: str) -> str | None:
+        with self.engine.connect() as c:
+            return c.execute(text("SELECT value FROM owner_settings WHERE key = :k"), {"k": key}).scalar()
+
+    def put(self, key: str, value: str) -> None:
+        with self.engine.begin() as c:
+            c.execute(
+                text(
+                    "INSERT INTO owner_settings (key, value) VALUES (:k, :v) ON CONFLICT(key) DO UPDATE SET value = :v"
+                ),
+                {"k": key, "v": value},
+            )

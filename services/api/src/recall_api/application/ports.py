@@ -100,6 +100,13 @@ class Screening:
     reason: str  # "ok", "attack", or "unavailable"
 
 
+class OwnerSettings(Protocol):
+    """Settings the owner changes from the phone, kept on the Mac (strings, missing = default)."""
+
+    def get(self, key: str) -> str | None: ...
+    def put(self, key: str, value: str) -> None: ...
+
+
 class PromptScreener(Protocol):
     """Llama Prompt Guard: screens every message from outside before any tool runs."""
 

@@ -1,4 +1,4 @@
-"""The robot export: mapping only. Off unless the owner sets ROBOT_EXPORT_ENABLED=true; read-only; the robot key."""
+"""The robot export: mapping only. Off unless the owner turns robot access on; read-only; the robot key."""
 
 from __future__ import annotations
 
@@ -17,8 +17,8 @@ router = APIRouter(tags=["robots"], dependencies=[Depends(require_robot_or_devic
 
 @router.get("/homes/{home_id}/robot-export", response_model=RobotExport)
 def get_robot_export(home_id: str, room: str | None = None, c=Depends(container)) -> RobotExport:
-    if not c.settings.robot_export_enabled:
-        raise HTTPException(403, {"error": "robot_export_off", "detail": "Set ROBOT_EXPORT_ENABLED=true on the Mac."})
+    if not c.robot_access.export_open:
+        raise HTTPException(403, {"error": "robot_access_off", "detail": "Robot access is off. Turn it on in the app."})
     try:
         e = c.export_for_robot(home_id, room)
     except RobotExportError as err:

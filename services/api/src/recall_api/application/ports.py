@@ -40,6 +40,7 @@ class EpisodeUnpacker(Protocol):
 
 class PipelineTrigger(Protocol):
     def start(self, name: str, scan_id: str, episode_dir: str) -> None: ...  # name: the scan's folder name
+    def warm(self) -> None: ...  # a scan started uploading: get the model loaded meanwhile (best effort)
 
 
 @dataclass

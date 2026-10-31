@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import time
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -30,7 +30,7 @@ log = logging.getLogger("recall_pipeline")
 class PipelineConfig:
     max_views: int = 120  # MapAnything views per run (memory on the Mac)
     sam_every: int = 3  # SAM on every Nth reconstructed view
-    sam_workers: int = 4  # SAM calls in flight at once (the adapter backs off on 429)
+    sam_workers: int = 8  # SAM calls in flight at once (the adapter backs off on 429; TODO(verify) the rate limit)
     min_score: float = 0.5
     furniture: tuple[str, ...] = ("sofa", "table", "desk", "shelf", "tv", "bed", "door", "chair", "cabinet")
     objects: tuple[str, ...] = (
@@ -63,6 +63,14 @@ def _resample(image: np.ndarray, shape: tuple[int, int]) -> np.ndarray:
     return image[rows][:, cols]
 
 
+def start_sam(
+    pool: ThreadPoolExecutor, sam: Segmenter, source: EpisodeSource, frames: list[int], concepts: tuple[str, ...]
+) -> dict[int, list[Future]]:
+    """Submits every (frame, prompt) SAM call and returns at once: SAM needs only the photos, so its calls run while
+    MapAnything reconstructs. Each frame's futures are in prompt order."""
+    return {i: [pool.submit(sam.boxes, jpeg, c) for c in concepts] for i, jpeg in ((i, source.jpeg(i)) for i in frames)}
+
+
 def _subsample(n: int, k: int) -> list[int]:
     return list(range(n)) if n <= k else [int(round(i)) for i in np.linspace(0, n - 1, k)]
 
@@ -81,6 +89,15 @@ def process_episode(
     episode = source.load()
     indices = _subsample(len(episode.frames), cfg.max_views)
     log.info("episode %s: %d frames, reconstructing %d views", episode.scan_id, len(episode.frames), len(indices))
+
+    # SAM 3.1 on every Nth view starts now, in the background, and overlaps the reconstruction
+    concepts = cfg.furniture + cfg.objects
+    pool = ThreadPoolExecutor(cfg.sam_workers)
+    t1 = time.perf_counter()
+    pending = start_sam(pool, sam, source, indices[:: cfg.sam_every], concepts)
+    log.info(
+        "SAM 3.1: %d views x %d prompts = %d calls, started", len(pending), len(concepts), len(pending) * len(concepts)
+    )
 
     views = recon.reconstruct(episode, source, indices)
     t_recon = time.perf_counter() - t0
@@ -106,19 +123,16 @@ def process_episode(
 
     # SAM 3.1 boxes on a subset of views, lifted to 3D with depth + pose
     sightings: dict[str, list[tuple[np.ndarray, float, int, np.ndarray, str | None]]] = defaultdict(list)
-    sam_views = views[:: cfg.sam_every]
-    t1 = time.perf_counter()
+    sam_views = [v for v in views if v.index in pending] or views[:: cfg.sam_every]
     calls = 0
-    concepts = cfg.furniture + cfg.objects
-    log.info("SAM 3.1: %d views x %d prompts = %d calls", len(sam_views), len(concepts), len(sam_views) * len(concepts))
-    pool = ThreadPoolExecutor(cfg.sam_workers)
     for n, v in enumerate(sam_views, 1):
         jpeg = source.jpeg(v.index)
         rgb = source.image_rgb(v.index)
         h, w = v.depth.shape
         img_w, img_h = episode.image_size
         sx, sy = w / img_w, h / img_h  # SAM boxes are in source-image pixels; depth is at the output size
-        found = pool.map(lambda c, jpeg=jpeg: sam.boxes(jpeg, c), concepts)  # results come back in prompt order
+        futures = pending.get(v.index) or [pool.submit(sam.boxes, jpeg, c) for c in concepts]
+        found = [f.result() for f in futures]  # prompt order
         for concept, boxes in zip(concepts, found, strict=True):
             calls += 1
             for b in boxes:
@@ -135,7 +149,7 @@ def process_episode(
                 sightings[concept].append((np.median(pts, axis=0), b.score, v.index, pts, color))
         log.info("SAM view %d/%d done, %d sightings so far", n, len(sam_views), sum(map(len, sightings.values())))
     pool.shutdown()
-    t_sam = time.perf_counter() - t1
+    t_sam = time.perf_counter() - t1  # wall time from the first SAM call, which overlaps the reconstruction
 
     # one thing per cluster of sightings of the same label
     things = {"landmarks": [], "objects": []}

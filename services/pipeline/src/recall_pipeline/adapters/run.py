@@ -24,7 +24,8 @@ def _env() -> dict[str, str]:
     return env
 
 
-def process(episode_dir: str, scan_id: str, post: bool = True, out: str | None = None) -> int:
+def process(episode_dir: str, scan_id: str, post: bool = True, out: str | None = None, recon=None) -> int:
+    """One episode. `recon`: an already loaded reconstructor (the warm server's); otherwise MapAnything loads here."""
     from recall_pipeline.adapters.api_client import ApiResultSink
     from recall_pipeline.adapters.mapanything_local import MapAnythingLocal
     from recall_pipeline.adapters.open3d_geometry import Open3DGeometry
@@ -48,7 +49,7 @@ def process(episode_dir: str, scan_id: str, post: bool = True, out: str | None =
     sam = CachedSegmenter(Sam31MetaApi(env["META_MUSE_API_KEY"]), Path(episode_dir) / "cache" / "sam")
     result = process_episode(
         DiskEpisodeSource(episode_dir),
-        MapAnythingLocal(),
+        recon or MapAnythingLocal(),
         sam,
         Open3DGeometry(),
         sink,

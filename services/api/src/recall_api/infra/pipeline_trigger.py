@@ -11,6 +11,9 @@ class SubprocessPipelineTrigger:
     def __init__(self, command: str, cwd: Path, log_dir: Path) -> None:
         self.command, self.cwd, self.log_dir = command, cwd, log_dir
 
+    def warm(self) -> None:  # a fresh process per scan has nothing to warm
+        pass
+
     def start(self, name: str, scan_id: str, episode_dir: str) -> None:
         self.log_dir.mkdir(parents=True, exist_ok=True)
         log = (self.log_dir / f"{name}.log").open("ab")

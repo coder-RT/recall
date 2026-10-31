@@ -19,8 +19,8 @@ setup: ## Install Python 3.12 services (uv), the web app (pnpm) and generate the
 dev: ## Run the API on :8000 (reachable on the LAN), the scan worker and the web app on :3000
 	( cd $(API) && uv run recall-api ) & $(MAKE) worker & ( cd $(WEB) && pnpm dev ) ; wait
 
-worker: ## The scan job worker (Huey on SQLite): processes uploaded scans one at a time, nightly regression at 03:17
-	cd $(API) && uv run huey_consumer recall_api.infra.jobs.huey -w 1 -k thread
+worker: ## The scan job worker (Huey on SQLite) and the warm pipeline (MapAnything kept loaded, freed after 10 min idle)
+	( cd $(PIPE) && uv run recall-pipeline serve ) & ( cd $(API) && uv run huey_consumer recall_api.infra.jobs.huey -w 1 -k thread ) ; wait
 
 regression: ## Re-run every processed scan now (no posting; cached SAM answers) and compare with the last run
 	cd $(API) && uv run python -c "from recall_api.infra import jobs, regression; print('\n'.join(regression.run(jobs.settings, jobs.run_pipeline)))"

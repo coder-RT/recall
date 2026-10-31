@@ -50,9 +50,13 @@ class MemoryUnpacker:
 class RecordingTrigger:
     def __init__(self) -> None:
         self.started: list[tuple[str, str]] = []
+        self.warmed = 0
 
     def start(self, name, scan_id, episode_dir):
         self.started.append((scan_id, episode_dir))
+
+    def warm(self):
+        self.warmed += 1
 
 
 class FixedClock:

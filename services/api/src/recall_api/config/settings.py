@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     pipeline_command: str = "uv run --project services/pipeline recall-pipeline process"
     # queue: the Huey worker runs it (make worker); subprocess: start it right away (tests, no worker)
     pipeline_runner: Literal["queue", "subprocess"] = Field("queue", alias="RECALL_PIPELINE_RUNNER")
+    # the warm pipeline (recall-pipeline serve); jobs fall back to a fresh process when it isn't running
+    pipeline_server: str = Field("http://127.0.0.1:8766", alias="RECALL_PIPELINE_SERVER")
 
     # the home's clock, for "seen yesterday at 04:21" (sightings are stored in UTC)
     home_timezone: str = Field("Europe/Warsaw", alias="HOME_TIMEZONE")

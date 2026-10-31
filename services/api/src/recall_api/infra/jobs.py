@@ -18,17 +18,25 @@ from pathlib import Path
 from huey import SqliteHuey, crontab
 
 from recall_api.config.settings import REPO_ROOT, Settings
+from recall_api.infra.pipeline_server import PipelineServer
 
 log = logging.getLogger("recall_api.jobs")
 settings = Settings.load()
 settings.data_dir.mkdir(parents=True, exist_ok=True)
 huey = SqliteHuey("recall", filename=str(settings.data_dir / "jobs.db"))
+key = settings.device_key.get_secret_value() if settings.device_key else None
+server = PipelineServer(settings.pipeline_server, key)
 
 
-def run_pipeline(name: str, args: list[str]) -> int:
-    """The pipeline in its own process and environment (it owns torch); output goes to data/logs/<name>.log."""
+def run_pipeline(name: str, args: list[str], warm: PipelineServer | None = None) -> int:
+    """The pipeline in its own environment (it owns torch); output goes to data/logs/<name>.log. On the warm server
+    when it runs (no model load), else as a fresh process."""
     settings.log_dir.mkdir(parents=True, exist_ok=True)
-    with (settings.log_dir / f"{name}.log").open("ab") as out:
+    log_file = settings.log_dir / f"{name}.log"
+    code = (warm or server).run(args, str(log_file))
+    if code is not None:
+        return code
+    with log_file.open("ab") as out:
         out.write(f"\n=== {datetime.now(UTC):%Y-%m-%d %H:%M:%S}Z {' '.join(args[:1])} ===\n".encode())
         out.flush()
         return subprocess.run(
@@ -68,6 +76,9 @@ class QueuedPipelineTrigger:
 
     def start(self, name: str, scan_id: str, episode_dir: str) -> None:
         process_scan(name, scan_id, episode_dir)
+
+    def warm(self) -> None:
+        server.warm()
 
 
 def episode_dirs(data_dir: Path) -> list[Path]:

@@ -35,6 +35,7 @@ def test_a_full_upload_verifies_and_starts_the_pipeline():
     up, trigger, archive, manifest = setup()
     plan = up.create(SCAN, "flat", "Living room", len(archive), hashlib.sha256(archive).hexdigest(), PART)
     assert plan.scan.part_count == 2 and plan.received == set()
+    assert trigger.warmed == 1  # the pipeline loads its model while the parts upload
     for n, p in enumerate(parts(archive), 1):
         up.put_part(SCAN, n, p, hashlib.sha256(p).hexdigest())
     up.put_manifest(SCAN, manifest)

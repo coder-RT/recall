@@ -78,6 +78,7 @@ class UploadScan:
                 created_at=self.clock.now(),
             )
             self.scans.save(scan)
+            self.trigger.warm()  # the model loads while the parts upload
         elif (scan.archive_size, scan.archive_sha256, scan.part_size) != (size, sha256, part_size):
             raise UploadError("archive_changed", "This scan id was started with a different archive.", 409)
         return UploadPlan(scan, self._received(scan))

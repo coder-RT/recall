@@ -9,9 +9,11 @@ from zoneinfo import ZoneInfo
 
 from recall_api.adapters.outbound.llm.openai_compatible import from_settings as llm_from_settings
 from recall_api.adapters.outbound.persistence.sqlite import SqliteHomes, SqliteObjects, SqliteScans
+from recall_api.adapters.outbound.safety.prompt_guard_pipeline import PromptGuardViaPipeline
 from recall_api.adapters.outbound.storage.local_disk import LocalDiskBlobStore
 from recall_api.adapters.outbound.storage.zip_unpacker import ZipEpisodeUnpacker
 from recall_api.adapters.outbound.voice.muse_transcribe import MuseTranscriber
+from recall_api.application.answer_external_query import AnswerExternalQuery
 from recall_api.application.ask_where_is import AskWhereIs
 from recall_api.application.correct_object import CorrectObject
 from recall_api.application.export_for_robot import ExportForRobot
@@ -79,6 +81,15 @@ class Container:
     @cached_property
     def guidance(self) -> PlanGuidance:
         return PlanGuidance(self.homes, self.scans, self.objects, self.blobs, new_id)
+
+    @cached_property
+    def screener(self) -> PromptGuardViaPipeline:
+        key = self.settings.device_key.get_secret_value() if self.settings.device_key else None
+        return PromptGuardViaPipeline(self.settings.pipeline_server, key)
+
+    @cached_property
+    def answer_external_query(self) -> AnswerExternalQuery:
+        return AnswerExternalQuery(self.screener, self.tools, self.objects, self.scans)
 
     @cached_property
     def export_for_robot(self) -> ExportForRobot:

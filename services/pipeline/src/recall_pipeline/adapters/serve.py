@@ -4,6 +4,7 @@ once per scan; jobs run one at a time, as before. Local only (127.0.0.1), and ea
     GET  /health  -> {"loaded": bool, "busy": bool}
     POST /warm    -> starts loading the model (a scan is uploading), returns at once
     POST /jobs    {"args": [...process args...], "log": "<file>"} -> runs the job, returns {"code": int} when done
+    POST /screen  {"text": "..."} -> Llama Prompt Guard's verdict, for Recall's A2A server (503 when unavailable)
 
 The model is unloaded after `idle` seconds unused, so the Mac's memory is free again (CLAUDE.md: never alongside LM
 Studio)."""
@@ -95,8 +96,8 @@ def run_job(model: WarmModel, args: list[str], log_file: Path) -> int:
             model.touch()
 
 
-def make_server(port: int, model: WarmModel, key: str) -> ThreadingHTTPServer:
-    """The HTTP side (separate from `serve` so tests can start and stop it)."""
+def make_server(port: int, model: WarmModel, key: str, guard=None) -> ThreadingHTTPServer:
+    """The HTTP side (separate from `serve` so tests can start and stop it). `guard`: Prompt Guard (screen(text))."""
     jobs = threading.Lock()  # one job at a time: MapAnything needs most of the GPU memory
 
     class Handler(BaseHTTPRequestHandler):
@@ -129,6 +130,11 @@ def make_server(port: int, model: WarmModel, key: str) -> ThreadingHTTPServer:
                 threading.Thread(target=model.get, daemon=True).start()
                 self._reply(202, {"loading": not model.loaded})
                 return
+            if self.path == "/screen":
+                body = json.loads(self.rfile.read(int(self.headers.get("content-length", 0))) or b"{}")
+                verdict = guard.screen(str(body.get("text", ""))) if guard else {"available": False}
+                self._reply(200 if verdict.get("available") else 503, verdict)
+                return
             if self.path == "/jobs":
                 body = json.loads(self.rfile.read(int(self.headers.get("content-length", 0))) or b"{}")
                 with jobs:
@@ -147,7 +153,14 @@ def make_server(port: int, model: WarmModel, key: str) -> ThreadingHTTPServer:
 
 def serve(port: int, idle: float, load=_load) -> int:
     model = WarmModel(load, idle)
-    server = make_server(port, model, _env().get("RECALL_DEVICE_KEY", ""))
+    from recall_pipeline.adapters.prompt_guard import PromptGuard
+
+    env = _env()
+    if env.get("HF_TOKEN"):
+        import os
+
+        os.environ.setdefault("HF_TOKEN", env["HF_TOKEN"])  # from .env, for the gated Prompt Guard weights
+    server = make_server(port, model, env.get("RECALL_DEVICE_KEY", ""), guard=PromptGuard())
 
     def reaper() -> None:
         while True:

@@ -26,6 +26,8 @@ tags:
     description: Speech to text through Muse Voice Transcribe
   - name: robots
     description: Read-only home memory for robots (off by default)
+  - name: a2a
+    description: The Home Memory agent for other agents, over A2A 1.0 (off by default)
 components:
   securitySchemes:
     deviceKey:
@@ -56,6 +58,10 @@ paths:
     $ref: paths/objects.yaml#/objects
   /homes/{home_id}/robot-export:
     $ref: paths/homes.yaml#/robot_export
+  /a2a/home-memory:
+    $ref: paths/a2a.yaml#/home_memory
+  /a2a/home-memory/.well-known/agent-card.json:
+    $ref: paths/a2a.yaml#/home_memory_card
   /homes/{home_id}/objects/{object_id}:
     $ref: paths/objects.yaml#/object
   /ask:

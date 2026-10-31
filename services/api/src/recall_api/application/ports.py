@@ -92,7 +92,15 @@ class Transcriber(Protocol):
     def transcribe(self, audio: bytes, content_type: str) -> str: ...
 
 
-class PromptScreener(Protocol):
-    """Llama Prompt Guard: True when a message is safe to act on."""
+@dataclass(frozen=True)
+class Screening:
+    """A screener's verdict. `safe` only when the screen ran and found no attack: unavailable means not safe."""
 
-    def is_safe(self, text: str) -> bool: ...
+    safe: bool
+    reason: str  # "ok", "attack", or "unavailable"
+
+
+class PromptScreener(Protocol):
+    """Llama Prompt Guard: screens every message from outside before any tool runs."""
+
+    def screen(self, text: str) -> Screening: ...

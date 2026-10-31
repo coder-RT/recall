@@ -1,0 +1,26 @@
+{
+  "name": "Recall Home Memory",
+  "description": "Where things are in this home, from Recall's 3D memory of it: the room, the furniture a thing is on or near, its height and its position in that room's map frame (metres, z up, floor at 0), and when it was last seen. Read-only. Off unless the owner turns it on. Never anyone's live position. Every message is screened by Llama Prompt Guard before anything runs.",
+  "version": "1.0.0",
+  "supportedInterfaces": [
+    {"url": "{public_url}/a2a/home-memory", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}
+  ],
+  "capabilities": {"streaming": false},
+  "securitySchemes": {
+    "robotKey": {"httpAuthSecurityScheme": {"scheme": "bearer", "description": "The owner's robot key (RECALL_ROBOT_KEY on the Mac)"}}
+  },
+  "securityRequirements": [{"schemes": {"robotKey": {"list": []}}}],
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain", "application/json"],
+  "skills": [
+    {
+      "id": "find_object",
+      "name": "Where is it?",
+      "description": "Finds a remembered thing by name (\"keys\", \"grey bag\") and answers with a sentence and a data part: found, room, landmark, relation, height band, position [x, y, z] with frame_id \"map\", last_seen, confidence. Not found, or seen only unsurely: found false, with when it was last seen if known.",
+      "tags": ["home", "memory", "where-is", "read-only"],
+      "examples": ["keys", "where are my keys?", "find the grey bag"],
+      "inputModes": ["text/plain"],
+      "outputModes": ["text/plain", "application/json"]
+    }
+  ]
+}

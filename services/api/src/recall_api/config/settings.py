@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, SecretStr
+from pydantic import AliasChoices, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[5]
@@ -40,7 +40,13 @@ class Settings(BaseSettings):
 
     # robots: the read-only export of one room's memory, off unless the owner turns it on; robots get their own key
     robot_export_enabled: bool = Field(False, alias="ROBOT_EXPORT_ENABLED")
-    robot_key: SecretStr | None = Field(None, alias="RECALL_ROBOT_KEY")
+    # one key for robots and other agents: the export and the Home Memory agent (A2A); never the phone's routes
+    robot_key: SecretStr | None = Field(None, validation_alias=AliasChoices("RECALL_ROBOT_KEY", "A2A_HOME_MEMORY_KEY"))
+    # the Home Memory agent over A2A (read-only "where is X?"), off unless the owner turns it on
+    home_memory_a2a_enabled: bool = Field(False, alias="HOME_MEMORY_A2A_ENABLED")
+    # how other agents reach this Mac (written into the Agent Card); a robot in Docker uses host.docker.internal
+    public_url: str = Field("http://localhost:8000", alias="RECALL_PUBLIC_URL")
+    home_id: str = Field("flat", alias="RECALL_HOME_ID")  # the home the Home Memory agent answers about
 
     # the home's clock, for "seen yesterday at 04:21" (sightings are stored in UTC)
     home_timezone: str = Field("Europe/Warsaw", alias="HOME_TIMEZONE")

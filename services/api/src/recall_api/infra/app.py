@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hmac
 import json
 import logging
 import time
@@ -28,6 +29,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.container = Container(settings)
     for r in (health.router, scans.router, homes.router, ask.router, guidance.router, robots.router):
         app.include_router(r)
+    _mount_home_memory(app, settings)
 
     @app.middleware("http")
     async def _access_log(request: Request, call_next):  # noqa: ANN001, ANN202
@@ -65,6 +67,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.openapi = lambda: spec  # type: ignore[method-assign]
     telemetry.setup(app, settings)
     return app
+
+
+def _mount_home_memory(app: FastAPI, settings: Settings) -> None:
+    """The Home Memory agent (A2A). Mounted always; the gate below answers 404 while the owner hasn't turned it on,
+    and every call but the Agent Card needs the robot key."""
+    from recall_api.adapters.inbound.a2a import home_memory_server as hm
+
+    c = app.state.container
+    card = hm.load_card(API_ROOT / "resources" / "agents" / "home-memory.card.json", settings.public_url)
+    app.router.routes.extend(hm.routes(lambda h, t: c.answer_external_query(h, t), settings.home_id, card))
+
+    @app.middleware("http")
+    async def _home_memory_gate(request: Request, call_next):  # noqa: ANN202
+        if not request.url.path.startswith(hm.PATH):
+            return await call_next(request)
+        if not settings.home_memory_a2a_enabled:
+            return JSONResponse({"error": "not_found", "detail": "Home Memory sharing is off."}, status_code=404)
+        if request.url.path != hm.CARD_PATH:
+            keys = [k.get_secret_value() for k in (settings.robot_key, settings.device_key) if k is not None]
+            got = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+            if not keys or not any(hmac.compare_digest(got, k) for k in keys):
+                return JSONResponse({"error": "unauthorized", "detail": "Missing or wrong key."}, status_code=401)
+        return await call_next(request)
 
 
 def main() -> None:

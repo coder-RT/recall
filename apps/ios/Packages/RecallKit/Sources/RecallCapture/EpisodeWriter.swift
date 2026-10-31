@@ -29,7 +29,7 @@ public final class EpisodeWriter: @unchecked Sendable {
 
     /// Writes the keyframe. Returns false when an image could not be encoded (the frame is then skipped).
     func write(image: CVPixelBuffer, depth: CVPixelBuffer, confidence: CVPixelBuffer?, pose: simd_float4x4, t: Double,
-               tracking: TrackingState, reason: TrackingReason?, cameraIntrinsics: simd_float3x3, cameraSize: CGSize) -> Bool {
+               tracking: TrackingState, reason: TrackingReason?, heading: PoseRecord.Heading? = nil, cameraIntrinsics: simd_float3x3, cameraSize: CGSize) -> Bool {
         let name = String(format: "%06d", frameCount)
         guard let (jpeg, size) = encoder.jpeg(image), let (depthPNG, dsize) = encoder.depthPNG(depth) else { return false }
         save(jpeg, "frames/\(name).jpg")
@@ -47,7 +47,8 @@ public final class EpisodeWriter: @unchecked Sendable {
             imageSize = size
             depthSize = dsize
         }
-        let record = PoseRecord(index: frameCount, t: t, pose: pose.columnMajor, tracking: tracking, reason: reason)
+        let record = PoseRecord(index: frameCount, t: t, pose: pose.columnMajor, tracking: tracking, reason: reason,
+                                heading: heading)
         if var line = try? JSONEncoder().encode(record) {
             line.append(0x0A)
             posesData.append(line)
@@ -57,7 +58,7 @@ public final class EpisodeWriter: @unchecked Sendable {
     }
 
     /// Writes poses.jsonl, the world map and, last, manifest.json. Returns the manifest.
-    func finish(worldMap: Data?, metrics: CaptureMetrics, duration: Double, device: String, appVersion: String,
+    func finish(worldMap: Data?, metrics: CaptureMetrics, compass: Manifest.Compass? = nil, duration: Double, device: String, appVersion: String,
                 createdAt: Date) throws -> Manifest {
         save(posesData, "poses.jsonl")
         var mapPath: String?
@@ -67,7 +68,7 @@ public final class EpisodeWriter: @unchecked Sendable {
             frameCount: frameCount, image: .init(width: Int(imageSize.width), height: Int(imageSize.height)),
             depth: .init(width: Int(depthSize.width), height: Int(depthSize.height)),
             intrinsics: intrinsics ?? .init(fx: 0, fy: 0, cx: 0, cy: 0), worldMap: mapPath, files: files,
-            captureMetrics: metrics)
+            captureMetrics: metrics, compass: compass)
         try Manifest.encoder().encode(manifest).write(to: directory.appending(path: "manifest.json"), options: .atomic)
         return manifest
     }

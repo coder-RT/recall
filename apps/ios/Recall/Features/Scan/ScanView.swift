@@ -1,6 +1,7 @@
 import ARKit
 import RecallCapture
 import RecallDesign
+import RecallDomain
 import SwiftUI
 
 /// The capture screen. Built for use without looking: everything important is spoken; the screen is for a helper.
@@ -35,22 +36,25 @@ struct ScanView: View {
                 .ignoresSafeArea()
                 .accessibilityHidden(true)
             VStack(spacing: 12) {
+                StepCard(update: model.update, time: time)
                 if let cue = model.cue { CueBanner(cue) }
                 Spacer()
                 GlassEffectContainer(spacing: 12) {
                     VStack(spacing: 14) {
                         HStack(spacing: 16) {
                             CoverageDial(covered: model.update.sectors, count: model.update.directionsCovered)
-                            VStack(spacing: 10) {
-                                StatTile(time, "time")
-                                StatTile("\(model.update.keyframes)", "frames")
-                            }
+                            MiniMap(surfaces: model.update.surfaces)
                         }
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(model.spokenProgress)
                         .accessibilityAddTraits(.updatesFrequently)
                         if model.phase == .finishing {
                             ProgressView("Saving the scan…").foregroundStyle(Tokens.ink).card()
+                        } else if model.confirmingStop {
+                            BigButton("Stop anyway", systemImage: "stop.fill",
+                                      hint: "The room map isn't ready. Finish the scan without it.", style: .stop) {
+                                Task { await model.stop() }
+                            }
                         } else {
                             BigButton("Stop", systemImage: "stop.fill", hint: "Finish the scan and hear the report.", style: .stop) {
                                 Task { await model.stop() }
@@ -67,6 +71,85 @@ struct ScanView: View {
     private var time: String {
         let s = Int(model.update.elapsed)
         return String(format: "%d:%02d", s / 60, s % 60)
+    }
+}
+
+/// The current voice step, the room map's state and the time, for a helper (all of it is also spoken).
+private struct StepCard: View {
+    let update: CaptureUpdate
+    let time: String
+
+    private var number: Int { min(update.step.rawValue + 1, 5) }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(update.step == .finish ? "Last step" : "Step \(number) of 5")
+                    .font(.footnote.weight(.semibold)).foregroundStyle(.white)
+                Text(update.step.title).font(.title3.weight(.bold)).foregroundStyle(.white)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 6) {
+                Label(update.mapStatus == .mapped ? "Map ready" : "Mapping",
+                      systemImage: update.mapStatus == .mapped ? "checkmark.circle.fill" : "circle.dashed")
+                    .font(.footnote.weight(.bold))
+                    .foregroundStyle(update.mapStatus == .mapped ? Tokens.blueDeep : .white)
+                    .padding(.horizontal, 10).padding(.vertical, 6)
+                    .background(update.mapStatus == .mapped ? Tokens.amber : .white.opacity(0.18), in: .capsule)
+                Text(time).font(.headline).monospacedDigit().foregroundStyle(.white)
+            }
+        }
+        .padding(16)
+        .background(Tokens.blueDeep.opacity(0.88), in: .rect(cornerRadius: 22))
+        .glassRim(.rect(cornerRadius: 22))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Step \(number): \(update.step.title). \(update.mapStatus.spoken). \(time).")
+    }
+}
+
+/// A top-down sketch of the scan: floor the LiDAR saw (white squares), where the person walked (amber line), and
+/// which sides have had a wall in view (ticks round the edge).
+private struct MiniMap: View {
+    let surfaces: SurfaceCoverage
+
+    var body: some View {
+        Canvas { ctx, size in
+            let cells = surfaces.floorCells.map { CGPoint(x: CGFloat($0.x) * 0.25, y: CGFloat($0.y) * 0.25) }
+            let path = surfaces.path.map { CGPoint(x: CGFloat($0.x), y: CGFloat($0.y)) }
+            let all = cells + path
+            let inner = size.width - 28
+            if let minX = all.map(\.x).min(), let maxX = all.map(\.x).max(),
+               let minY = all.map(\.y).min(), let maxY = all.map(\.y).max() {
+                let span = max(maxX - minX + 0.25, maxY - minY + 0.25, 2)
+                let k = inner / span
+                let ox = (size.width - (maxX - minX + 0.25) * k) / 2, oy = (size.height - (maxY - minY + 0.25) * k) / 2
+                func at(_ p: CGPoint) -> CGPoint { CGPoint(x: ox + (p.x - minX) * k, y: oy + (p.y - minY) * k) }
+                for c in cells {
+                    ctx.fill(Path(CGRect(origin: at(c), size: CGSize(width: 0.25 * k, height: 0.25 * k))),
+                             with: .color(.white.opacity(0.55)))
+                }
+                if path.count > 1 {
+                    var line = Path()
+                    line.addLines(path.map { at(CGPoint(x: $0.x + 0.125, y: $0.y + 0.125)) })
+                    ctx.stroke(line, with: .color(Tokens.amber), style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                }
+            }
+            // wall sides: 12 ticks, sector 0 (ARKit −z) at the top, clockwise
+            let c = CGPoint(x: size.width / 2, y: size.height / 2), r = size.width / 2 - 5
+            for i in 0..<12 {
+                let a = (Double(i) * 30 + 15) * .pi / 180
+                let p = CGPoint(x: c.x + r * sin(a), y: c.y - r * cos(a))
+                let seen = surfaces.wallSectors.contains(i)
+                ctx.fill(Path(ellipseIn: CGRect(x: p.x - 4, y: p.y - 4, width: 8, height: 8)),
+                         with: .color(seen ? Tokens.amber : .white.opacity(0.35)))
+            }
+        }
+        .frame(width: 112, height: 112)
+        .padding(10)
+        .background(Tokens.blueDeep.opacity(0.85), in: .rect(cornerRadius: 24))
+        .glassRim(.rect(cornerRadius: 24))
+        .accessibilityHidden(true)
     }
 }
 

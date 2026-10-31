@@ -1,4 +1,5 @@
 import ARKit
+import SceneKit
 import RecallDesign
 import RecallDomain
 import SwiftUI
@@ -16,7 +17,7 @@ struct GuideView: View {
 
     var body: some View {
         ZStack {
-            GuideCamera(session: model.session).ignoresSafeArea().accessibilityHidden(true)
+            GuideCamera(session: model.session, scene: model.scene).ignoresSafeArea().accessibilityHidden(true)
             VStack(spacing: 12) {
                 if case .guiding(_, weakTracking: true) = model.phase { CueBanner("Slow down, tracking is weak") }
                 Spacer()
@@ -118,12 +119,14 @@ private struct DirectionDial: View {
     }
 }
 
-/// The camera feed of the guidance session, for a sighted helper.
+/// The camera feed of the guidance session, for a sighted helper, with the blue arrow over the thing.
 private struct GuideCamera: UIViewRepresentable {
     let session: ARSession
+    let scene: SCNScene
     func makeUIView(context: Context) -> ARSCNView {
         let v = ARSCNView(frame: .zero)
         v.session = session
+        v.scene = scene
         v.automaticallyUpdatesLighting = false
         return v
     }

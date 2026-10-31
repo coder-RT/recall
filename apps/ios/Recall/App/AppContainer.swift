@@ -16,6 +16,7 @@ final class AppContainer {
 
     let speech = Announcer()
     let haptics = Haptics()
+    let compass = CoreLocationCompass()
     let clock: any Clock = SystemClock()
     let server = LiveServer()
     let files: any EpisodeFiles = FileEpisodeFiles()
@@ -45,12 +46,12 @@ final class AppContainer {
     func guideModel(for thing: Thing) -> GuideModel {
         let locator = ARLocator()
         let use = GuideToThing(home: settings.connection.homeId, thing: thing, roomMap: scans.roomMap(), locator: locator,
-                               guide: server, speech: speech, haptics: haptics, clock: clock)
-        return GuideModel(guide: use, session: locator.session, supported: ARLocator.isSupported)
+                               guide: server, speech: speech, haptics: haptics, clock: clock, compass: compass)
+        return GuideModel(guide: use, session: locator.session, scene: locator.scene, supported: ARLocator.isSupported)
     }
 
     func scanModel(room: String) -> ScanModel {
-        ScanModel(room: room, scans: scans, files: files, speech: speech, haptics: haptics)
+        ScanModel(room: room, scans: scans, files: files, compass: compass, speech: speech, haptics: haptics)
     }
 }
 

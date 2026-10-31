@@ -9,37 +9,62 @@ public struct CaptureUpdate: Sendable, Equatable {
     public var keyframes: Int
     public var droppedBlurry: Int
     public var tracking: TrackingState
-    public var coach: SpeedCoach.Event?
+    /// A cue to say (or `.clear` when the problem went away); nil when nothing changed.
+    public var signal: ScanSignals.Event?
     public var lightLux: Double
     /// Which of the 12 directions (30° each) have been seen, for the dial.
     public var sectors: Set<Int>
+    public var mapStatus: MapStatus
+    public var step: ScanGuide.Step
+    /// A voice step to say (a new step, or the room map becoming ready); nil when nothing changed.
+    public var guideLine: String?
+    public var mapReady: Bool
+    /// Floor and walls the LiDAR saw, and the walked path, for the mini-map.
+    public var surfaces: SurfaceCoverage
 
     public init(elapsed: Double, directionsCovered: Int, keyframes: Int, droppedBlurry: Int, tracking: TrackingState,
-                coach: SpeedCoach.Event?, lightLux: Double, sectors: Set<Int> = []) {
+                signal: ScanSignals.Event? = nil, lightLux: Double, sectors: Set<Int> = [],
+                mapStatus: MapStatus = .notAvailable, step: ScanGuide.Step = .start, guideLine: String? = nil,
+                mapReady: Bool = false, surfaces: SurfaceCoverage = .init()) {
         self.elapsed = elapsed; self.directionsCovered = directionsCovered; self.keyframes = keyframes
-        self.droppedBlurry = droppedBlurry; self.tracking = tracking; self.coach = coach; self.lightLux = lightLux
-        self.sectors = sectors
+        self.droppedBlurry = droppedBlurry; self.tracking = tracking; self.signal = signal; self.lightLux = lightLux
+        self.sectors = sectors; self.mapStatus = mapStatus; self.step = step; self.guideLine = guideLine
+        self.mapReady = mapReady; self.surfaces = surfaces
     }
+
+    public var wallsCovered: Int { surfaces.wallsCovered }
+    public var floorSeenM2: Double { surfaces.floorSeenM2 }
 }
 
 /// Plain ARKit world tracking on our own ARSession with LiDAR scene depth. No scene reconstruction and no plane
-/// detection or classification (those are Apple models; CLAUDE.md rule 8).
+/// detection or classification (those are Apple models; CLAUDE.md rule 8). Depth is only sampled (a 16 × 12 grid)
+/// to measure what the scan saw; the room itself is built on the Mac.
 public final class CaptureSession: NSObject, ARSessionDelegate, @unchecked Sendable {
     public let session = ARSession()
     private let queue = DispatchQueue(label: "recall.capture", qos: .userInitiated)
 
     // capture-queue state
     private var writer: EpisodeWriter?
+    private var heading: (@Sendable () -> HeadingReading?)?
     private var selector = KeyframeSelector()
     private var coverage = CoverageTracker()
-    private var coach = SpeedCoach()
+    private var surfaces = SurfaceCoverage()
+    private var signals = ScanSignals()
+    private var guide = ScanGuide()
+    private var calibration = CompassCalibration()
+    private var mapStatus = MapStatus.notAvailable
     private var start: TimeInterval?
     private var startedAt = Date()
     private var lastEmit: Double = -1
     private var lastBlurCheck: Double = -1
+    private var lastDepthSample: Double = -1
+    private var lastPosition: simd_float3?
+    private var centreDepth: Double?
+    private var highConfidence: Double?
     private var keptSharpness: [Float] = []
     private var dropped = 0
-    private var pendingCoach: SpeedCoach.Event?
+    private var pendingSignal: ScanSignals.Event?
+    private var pendingLine: String?
 
     public var onUpdate: (@Sendable (CaptureUpdate) -> Void)?
 
@@ -47,11 +72,16 @@ public final class CaptureSession: NSObject, ARSessionDelegate, @unchecked Senda
         ARWorldTrackingConfiguration.isSupported && ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth)
     }
 
-    public func start(writer: EpisodeWriter) {
+    /// `heading` reads the compass (any thread); without it the scan has no compass.
+    public func start(writer: EpisodeWriter, heading: (@Sendable () -> HeadingReading?)? = nil) {
         queue.sync {
             self.writer = writer
-            selector = KeyframeSelector(); coverage = CoverageTracker(); coach = SpeedCoach()
-            start = nil; startedAt = Date(); lastEmit = -1; lastBlurCheck = -1; keptSharpness = []; dropped = 0
+            self.heading = heading
+            selector = KeyframeSelector(); coverage = CoverageTracker(); surfaces = SurfaceCoverage()
+            signals = ScanSignals(); guide = ScanGuide(); calibration = CompassCalibration(); mapStatus = .notAvailable
+            start = nil; startedAt = Date(); lastEmit = -1; lastBlurCheck = -1; lastDepthSample = -1
+            lastPosition = nil; centreDepth = nil; highConfidence = nil; keptSharpness = []; dropped = 0
+            pendingSignal = nil; pendingLine = ScanGuide.Step.start.spoken
         }
         let config = ARWorldTrackingConfiguration()
         config.frameSemantics = [.sceneDepth]
@@ -69,15 +99,18 @@ public final class CaptureSession: NSObject, ARSessionDelegate, @unchecked Senda
         session.pause()
         return try queue.sync {
             guard let writer, writer.frameCount > 0 else { throw CaptureError.noFrames }
+            let compass = calibration.summary
             let metrics = CaptureMetrics(
                 directionsCovered: coverage.directionsCovered, keyframesKept: writer.frameCount,
                 keyframesDroppedBlurry: dropped, trackingNormalRatio: coverage.trackingNormalRatio,
-                meanSpeedMps: coverage.meanSpeed, peakSpeedMps: coverage.peakSpeed, slowDownCues: coach.cues,
-                areaWalkedM2: coverage.areaWalked, meanLightLux: coverage.meanLight)
+                meanSpeedMps: coverage.meanSpeed, peakSpeedMps: coverage.peakSpeed, slowDownCues: signals.cues,
+                areaWalkedM2: coverage.areaWalked, meanLightLux: coverage.meanLight,
+                wallsCovered: surfaces.wallsCovered, floorSeenM2: (surfaces.floorSeenM2 * 100).rounded() / 100,
+                mapStatus: mapStatus, loopClosed: guide.loopClosed, compassSpreadDeg: compass?.spreadDeg)
             let duration = Date().timeIntervalSince(startedAt)
             self.writer = nil
-            return try writer.finish(worldMap: mapData, metrics: metrics, duration: duration, device: device,
-                                     appVersion: appVersion, createdAt: startedAt)
+            return try writer.finish(worldMap: mapData, metrics: metrics, compass: compass, duration: duration,
+                                     device: device, appVersion: appVersion, createdAt: startedAt)
         }
     }
 
@@ -107,10 +140,29 @@ public final class CaptureSession: NSObject, ARSessionDelegate, @unchecked Senda
         start = t0
         let t = frame.timestamp - t0
         let pose = frame.camera.transform
+        let position = pose.columns.3.xyz
+        let pitch = Double(pose.pitchDegrees)
         let (tracking, reason) = Self.tracking(frame.camera.trackingState)
         let lux = frame.lightEstimate.map { Double($0.ambientIntensity) }
         let (speed, turn) = coverage.add(pose: pose, t: t, tracking: tracking, lux: lux)
-        if let event = coach.update(t: t, speed: speed, turnRate: turn, reason: reason) { pendingCoach = event }
+        mapStatus = Self.mapStatus(frame.worldMappingStatus)
+        let jump = lastPosition.map { Double(simd_distance($0, position)) } ?? 0
+        lastPosition = position
+
+        let compass = heading?()
+        if tracking == .normal, let compass {
+            calibration.add(compass, cameraYaw: Double(pose.headingDegrees), pitch: pitch)
+        }
+
+        // what the LiDAR sees, twice a second: distance to surfaces, confidence, and floor and wall coverage
+        if tracking == .normal, t - lastDepthSample >= 0.5, let depth = frame.sceneDepth {
+            lastDepthSample = t
+            let s = Self.sample(depth: depth.depthMap, confidence: depth.confidenceMap, intrinsics: frame.camera.intrinsics,
+                                imageSize: frame.camera.imageResolution, pose: pose)
+            centreDepth = s.centre
+            highConfidence = s.high
+            surfaces.add(samples: s.points, camera: position)
+        }
 
         if tracking == .normal, t - lastBlurCheck >= selector.minInterval, selector.qualifies(pose, at: t),
            let depth = frame.sceneDepth {
@@ -120,6 +172,7 @@ public final class CaptureSession: NSObject, ARSessionDelegate, @unchecked Senda
                 dropped += 1
             } else if writer.write(image: frame.capturedImage, depth: depth.depthMap, confidence: depth.confidenceMap,
                                    pose: pose, t: t, tracking: tracking, reason: reason,
+                                   heading: compass.map { .init(magneticDeg: $0.magneticDeg, accuracyDeg: $0.accuracyDeg) },
                                    cameraIntrinsics: frame.camera.intrinsics,
                                    cameraSize: CGSize(width: frame.camera.imageResolution.width,
                                                       height: frame.camera.imageResolution.height)) {
@@ -129,12 +182,25 @@ public final class CaptureSession: NSObject, ARSessionDelegate, @unchecked Senda
             }
         }
 
-        if t - lastEmit >= 0.1 || pendingCoach != nil {
+        let input = ScanSignals.Input(t: t, speed: speed, turnRate: turn, reason: reason, jump: jump, pitch: pitch,
+                                      centreDepth: centreDepth, highConfidence: highConfidence, lux: lux,
+                                      sinceKeyframe: selector.since(t), floorSeen: surfaces.floorSeenM2 > 0)
+        if let event = signals.update(input) { pendingSignal = event }
+        let progress = ScanGuide.Progress(elapsed: t, directions: coverage.directionsCovered,
+                                          walls: surfaces.wallsCovered, floorSeenM2: surfaces.floorSeenM2,
+                                          areaWalkedM2: coverage.areaWalked, walkedM: surfaces.walkedM,
+                                          fromStartM: surfaces.fromStartM, map: mapStatus)
+        if let line = guide.update(progress) { pendingLine = line }
+
+        if t - lastEmit >= 0.1 || pendingSignal != nil || pendingLine != nil {
             lastEmit = t
             let update = CaptureUpdate(elapsed: t, directionsCovered: coverage.directionsCovered,
                                        keyframes: writer.frameCount, droppedBlurry: dropped, tracking: tracking,
-                                       coach: pendingCoach, lightLux: lux ?? 0, sectors: coverage.sectors)
-            pendingCoach = nil
+                                       signal: pendingSignal, lightLux: lux ?? 0, sectors: coverage.sectors,
+                                       mapStatus: mapStatus, step: guide.step, guideLine: pendingLine,
+                                       mapReady: guide.mapReady, surfaces: surfaces)
+            pendingSignal = nil
+            pendingLine = nil
             onUpdate?(update)
         }
     }
@@ -145,6 +211,58 @@ public final class CaptureSession: NSObject, ARSessionDelegate, @unchecked Senda
         guard keptSharpness.count >= 5 else { return false }
         let median = keptSharpness.sorted()[keptSharpness.count / 2]
         return s < median * 0.35
+    }
+
+    /// Reads the LiDAR depth on a 16 × 12 grid: world points where confidence is high, the distance straight ahead
+    /// (median of the middle samples) and the share of high-confidence samples.
+    static func sample(depth: CVPixelBuffer, confidence: CVPixelBuffer?, intrinsics: simd_float3x3, imageSize: CGSize,
+                       pose: simd_float4x4) -> (points: [SIMD3<Float>], centre: Double?, high: Double?) {
+        CVPixelBufferLockBaseAddress(depth, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(depth, .readOnly) }
+        if let confidence { CVPixelBufferLockBaseAddress(confidence, .readOnly) }
+        defer { if let confidence { CVPixelBufferUnlockBaseAddress(confidence, .readOnly) } }
+        guard CVPixelBufferGetPixelFormatType(depth) == kCVPixelFormatType_DepthFloat32,
+              let base = CVPixelBufferGetBaseAddress(depth) else { return ([], nil, nil) }
+        let w = CVPixelBufferGetWidth(depth), h = CVPixelBufferGetHeight(depth)
+        let row = CVPixelBufferGetBytesPerRow(depth)
+        let cBase = confidence.flatMap { CVPixelBufferGetBaseAddress($0) }
+        let cRow = confidence.map { CVPixelBufferGetBytesPerRow($0) } ?? 0
+
+        // ARKit's intrinsics are for the full camera image; the depth map is smaller
+        let s = Float(w) / Float(imageSize.width)
+        let fx = intrinsics.columns.0.x * s, fy = intrinsics.columns.1.y * s
+        let cx = intrinsics.columns.2.x * s, cy = intrinsics.columns.2.y * s
+
+        var points: [SIMD3<Float>] = []
+        var middle: [Float] = []
+        var high = 0, total = 0
+        for j in 0..<12 {
+            for i in 0..<16 {
+                let u = Int((Float(i) + 0.5) * Float(w) / 16), v = Int((Float(j) + 0.5) * Float(h) / 12)
+                let d = base.load(fromByteOffset: v * row + u * MemoryLayout<Float32>.size, as: Float32.self)
+                guard d.isFinite, d > 0.1, d < 6 else { continue }
+                total += 1
+                if (6...9).contains(i), (4...7).contains(j) { middle.append(d) }
+                let c = cBase.map { $0.load(fromByteOffset: v * cRow + u, as: UInt8.self) } ?? 2
+                guard c >= 2 else { continue }  // ARConfidenceLevel.high
+                high += 1
+                // camera space (ARKit: +x right, +y up, looking along −z; image v grows downwards)
+                let p = SIMD4((Float(u) - cx) / fx * d, -(Float(v) - cy) / fy * d, -d, 1)
+                points.append((pose * p).xyz)
+            }
+        }
+        let centre = middle.isEmpty ? nil : Double(middle.sorted()[middle.count / 2])
+        return (points, centre, total == 0 ? nil : Double(high) / Double(total))
+    }
+
+    static func mapStatus(_ s: ARFrame.WorldMappingStatus) -> MapStatus {
+        switch s {
+        case .notAvailable: .notAvailable
+        case .limited: .limited
+        case .extending: .extending
+        case .mapped: .mapped
+        @unknown default: .limited
+        }
     }
 
     static func tracking(_ s: ARCamera.TrackingState) -> (TrackingState, TrackingReason?) {

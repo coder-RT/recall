@@ -1,4 +1,5 @@
 import ARKit
+import SceneKit
 import Observation
 import RecallApplication
 import RecallDomain
@@ -8,13 +9,15 @@ import RecallDomain
 final class GuideModel {
     private(set) var phase = GuideToThing.Phase.locating
     let session: ARSession
+    /// The arrow over the thing, drawn on the camera feed.
+    let scene: SCNScene
     let thing: Thing
     private let guide: GuideToThing
     private let supported: Bool
     private var task: Task<Void, Never>?
 
-    init(guide: GuideToThing, session: ARSession, supported: Bool) {
-        self.guide = guide; self.session = session; self.supported = supported; thing = guide.thing
+    init(guide: GuideToThing, session: ARSession, scene: SCNScene, supported: Bool) {
+        self.guide = guide; self.session = session; self.scene = scene; self.supported = supported; thing = guide.thing
         guide.onChange = { [weak self] in self?.phase = $0 }
     }
 

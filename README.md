@@ -78,7 +78,7 @@ The landing page. No image of anyone's home is in this repo: the 3D viewer shows
 - Independence and accessibility, not care: Recall is a memory and a guide, nothing medical.
 
 **How**
-- The iPhone records frames, LiDAR depth and ARKit poses, and tells you to slow down if you move too fast. Meta's MapAnything turns the frames into a metric 3D map; SAM 3.1 finds the furniture and objects in every frame.
+- The iPhone records frames, LiDAR depth and ARKit poses, and leads the scan by voice, step by step: turn round, walk the walls, sweep the floor, close the loop. It measures how much floor and wall the LiDAR saw and whether ARKit's room map is ready, and says when to slow down, step back, add light or tilt down. Meta's MapAnything turns the frames into a metric 3D map; SAM 3.1 finds the furniture and objects in every frame.
 - Geometry decides the facts (floor, surfaces, height bands, distances). A Meta language model only phrases them.
 - A small team of agents answers, verifies and shares; every model they call is a Meta model.
 
@@ -137,7 +137,7 @@ The landing page. No image of anyone's home is in this repo: the 3D viewer shows
 | Feature | Used for | Where |
 |---|---|---|
 | LiDAR depth, ARKit tracking, ARWorldMap | Capture in metres; relocalisation for live guidance | iPhone |
-| Core Motion, compass | Speed and turn rate for scan coaching; heading while guiding | iPhone, Watch (stretch) |
+| Core Motion, compass (magnetic north, no location) | Speed and turn rate for scan coaching; the scan learns where north lies in the room, so directions can say "north-east" | iPhone, Watch (stretch) |
 | Haptics | Turn and arrival cues | iPhone, Apple Watch |
 | VoiceOver, Dynamic Type | The app is usable without looking | iPhone, Watch |
 | AVSpeechSynthesizer | Speaking answers and steps | iPhone |
@@ -236,8 +236,8 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
 - XcodeGen generates the project (`cd apps/ios && xcodegen generate`); it needs an iPhone with LiDAR running iOS 26 and a free Apple ID for signing.
 - In the app's Settings, enter the Mac's address (the API on your network, a Tailscale HTTPS address or a Cloudflare Tunnel URL) and the device key from `.env`. No other keys live on the phone.
 - Tabs:
-  - **Find**: ask "where are my keys?" by typing or speaking (Muse Voice Transcribe on the Mac), hear the answer, then **Take me there**. The phone relocalises in the saved room map, the Mac plans a route, and the phone speaks clock-face turns and distances, with a tick when you face the right way.
-  - **Scans**: record a room and upload it.
+  - **Find**: ask "where are my keys?" by typing or speaking (Muse Voice Transcribe on the Mac), hear the answer, then **Take me there**. The phone relocalises in the saved room map, the Mac plans a route, and the phone speaks clock-face turns with the compass point and distance ("At 2 o'clock, north-east, 3 metres"), with a tick when you face the right way and a blue arrow over the thing in the camera view for a sighted helper. Without a map match it says the landmark and which way it lies, and ticks when you face it.
+  - **Scans**: record a room, led by voice, with a step card, a top-down mini-map and the room-map state on screen; then upload it.
   - **Found**: check what Recall found and correct the name, colour or height.
   - **Settings**: the Mac's address and key, and Appearance (automatic, light or dark, plus high contrast in black, white and yellow).
 

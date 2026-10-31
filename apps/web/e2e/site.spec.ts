@@ -71,7 +71,7 @@ test.describe("privacy note", () => {
     const note = page.getByRole("region", { name: en.cookie.region });
     await expect(note).toBeVisible({ timeout: 4_000 });
     await expect(note).toContainText(en.cookie.title);
-    await expect(note.getByRole("link", { name: en.cookie.privacy })).toHaveAttribute("href", "#privacy");
+    await expect(note.getByRole("link", { name: en.cookie.privacy })).toHaveAttribute("href", "/privacy");
     await note.getByRole("button", { name: en.cookie.gotIt }).click();
     await expect(note).toBeHidden();
     await page.reload();

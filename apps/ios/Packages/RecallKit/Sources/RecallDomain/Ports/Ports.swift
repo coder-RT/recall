@@ -32,6 +32,11 @@ public protocol ScanProcessing: Sendable {
     func erase(scan: String) async throws
 }
 
+/// What the Mac keeps and sends where, under its current settings.
+public protocol PrivacySource: Sendable {
+    func privacy() async throws -> PrivacyStatus
+}
+
 /// That the Mac answers and accepts the key; returns the model the Guide runs on.
 public protocol ConnectionCheck: Sendable {
     func check() async throws -> String

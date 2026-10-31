@@ -28,6 +28,16 @@ struct SettingsView: View {
 
                     Section {
                         NavigationLink {
+                            PrivacyView()
+                        } label: {
+                            Label("Privacy", systemImage: "hand.raised.fill").foregroundStyle(Tokens.ink)
+                        }
+                        .accessibilityHint("What stays on your Mac and iPhone, and what is sent where.")
+                        .accessibilityIdentifier("privacy")
+                    }
+
+                    Section {
+                        NavigationLink {
                             AppearanceView()
                         } label: {
                             HStack {

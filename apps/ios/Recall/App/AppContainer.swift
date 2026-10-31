@@ -47,6 +47,10 @@ final class AppContainer {
         }
     }
 
+    func privacySource() -> any PrivacySource {
+        UITestSamples.enabled ? UITestSamples.Privacy() : server
+    }
+
     func robotAccessModel() -> RobotAccessModel {
         RobotAccessModel(sharing: UITestSamples.enabled ? UITestSamples.Sharing() : server, settings: settings, speech: speech)
     }
@@ -97,7 +101,7 @@ struct SystemClock: Clock {
 /// The Mac, as every Mac-facing port, reached with the current connection settings. Changing Settings swaps the
 /// client underneath; a call made before setup throws the setup issue, in words.
 final class LiveServer: HomeMemory, GuideService, Transcriber, ScanProcessing, ConnectionCheck, ScanServer, RobotSharing,
-    @unchecked Sendable {
+    PrivacySource, @unchecked Sendable {
     private let lock = NSLock()
     private var api: RecallAPI?
     private var issue: SetupIssue = .nothingSet
@@ -137,6 +141,7 @@ final class LiveServer: HomeMemory, GuideService, Transcriber, ScanProcessing, C
     func transcribe(wav: Data) async throws -> String { try await current().transcribe(wav: wav) }
     func status(scan: String) async throws -> ScanReport { try await current().status(scan: scan) }
     func erase(scan: String) async throws { try await current().erase(scan: scan) }
+    func privacy() async throws -> PrivacyStatus { try await current().privacy() }
     func check() async throws -> String { try await current().check() }
     func createScan(scan: String, home: String, room: String, size: Int, sha256: String, partSize: Int) async throws -> UploadPlan {
         try await current().createScan(scan: scan, home: home, room: room, size: size, sha256: sha256, partSize: partSize)

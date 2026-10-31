@@ -18,6 +18,7 @@ export const en = {
     home: "Recall, back to top",
     sections: "Sections",
     tryDemo: "Try the demo",
+    privacy: "Privacy",
     links: [
       { href: "#how", label: "How it works" },
       { href: "#feed", label: "Memories" },
@@ -284,9 +285,10 @@ export const en = {
     items: [
       { title: "VoiceOver first", body: "Every screen works without sight. Every control has a spoken label. Nothing depends on colour alone." },
       { title: "Geometry decides", body: "Places, distances and times come from the 3D map. The language model only phrases them, so it cannot invent a location." },
-      { title: "Your home stays yours", body: "Raw walkthrough video is never stored. Only the map and the objects found in it are kept." },
+      { title: "Your home stays yours", body: "Your scans and memory live on your own Mac, not on a Recall server. Delete a scan and it is erased from your iPhone and your Mac." },
       { title: "Honest when unsure", body: "If something has not been seen, or was seen long ago, Recall says so and suggests which room to walk through." },
     ],
+    more: "What is sent where",
   },
 
   faq: {
@@ -303,6 +305,12 @@ export const en = {
       },
       { q: "Is this a medical device?", a: "No. Recall is an independence and accessibility tool. It does not give health or vision-care advice." },
       {
+        q: "Where is my data kept?",
+        a: "On your own Mac. Scan photos go to Meta's SAM 3.1 to find things, and your questions to Muse Spark Open, or stay on your Mac in private mode. The privacy page lists everything that leaves your Mac.",
+        href: "/privacy",
+        link: "Read the privacy page",
+      },
+      {
         q: "Is the feed on this page real?",
         a: "No. The memories and answers shown here are illustrative examples of the kind of answer Recall is designed to give.",
       },
@@ -315,6 +323,48 @@ export const en = {
     linkedin: "LinkedIn",
     github: "GitHub",
     fineprint: "Built by {author} during the {event}. Not affiliated with or endorsed by Meta.",
+  },
+
+  privacy: {
+    title: "Privacy",
+    description: "What Recall keeps on your own Mac and iPhone, and exactly what is sent where.",
+    eyebrow: "Privacy",
+    heading: "Your home's memory lives on your own Mac.",
+    short:
+      "There is no Recall account and no Recall server: nobody else holds your scans or your memory. Some steps use Meta's models online, and this page says exactly what they receive.",
+    keptTitle: "Kept on your devices",
+    kept: [
+      "On your Mac: every scan you upload (photos, LiDAR depth, the phone's path through the room), the 3D map, the things and furniture found, your own names and notes for things, and the activity log.",
+      "On your iPhone: your scans until you delete them, the room map used to find your way, and the Mac's address. The device key is in the iPhone's Keychain.",
+      "Between them: your home network, or an encrypted tunnel you set up yourself (Tailscale or Cloudflare Tunnel). Every request needs the device key.",
+    ],
+    sentTitle: "What leaves your Mac, to whom, and when",
+    sentLabels: { to: "To", when: "When" },
+    sent: [
+      { what: "Scan photos, about 50 per room (no depth, no sound)", to: "Meta Model API: SAM 3.1", when: "While your Mac processes a scan, to find furniture and things" },
+      { what: "Your spoken question (a few seconds of audio)", to: "Meta Model API: Muse Voice Transcribe", when: "When you ask by voice" },
+      { what: "Your question as text, and what memory says about the thing (names, rooms, heights, times; no photos)", to: "Baseten: Muse Spark Open. In private mode, Muse Glimmer on your Mac, so nothing leaves", when: "Each time you ask" },
+      { what: "One photo from the camera", to: "Meta Model API: SAM 3.1, and Muse Spark 1.1 only when SAM is unsure", when: "When you check on arrival" },
+      { what: "The room map, things and furniture (no photos, your names or notes, or anyone's position)", to: "Robots and agents you gave the robot key", when: "Only while Robot Access is on (off by default)" },
+      { what: "The object name a robot asked about", to: "Muse Spark Open (or Glimmer on your Mac), to check it is only a name", when: "Before any robot request is answered" },
+    ],
+    theirTerms: "These services process what they receive under their own terms. Recall doesn't claim how long they keep it.",
+    neverTitle: "Never",
+    never: [
+      "No account, no ads, no analytics, no tracking in the app, and nothing sold.",
+      "No Recall server receives your home: the developer never sees your scans, your memory or your questions.",
+      "Robots never get photos, your own names or notes for things, or anyone's position.",
+    ],
+    controlsTitle: "Your controls",
+    controls: [
+      { title: "Delete a scan", body: "In Scans, hold a scan and choose Delete. It is erased from your iPhone and your Mac, with its photos, depth and the things only it found. Memory goes back to your other scans of that room." },
+      { title: "Forget a thing", body: "In Found, open a thing and choose “Not there, forget it”." },
+      { title: "Robot Access", body: "Off by default. Every robot request is in the activity log, kept 90 days on your Mac." },
+      { title: "Private mode", body: "Run the Guide on Muse Glimmer in LM Studio, so your questions stay on your Mac. Scans and voice still use Meta's online models." },
+    ],
+    siteTitle: "This website",
+    site: "No cookies and no analytics. It keeps two small settings in your browser: Reduce motion, and that you saw the storage note. Vercel Speed Insights measures page speed without cookies or anything personal. “Ask by voice” sends your recording through our server to Muse Voice Transcribe and doesn't store it. The demo shows recorded output of a real run, not your data.",
+    source: "The same note is in the iPhone app, under Settings → Privacy, where your Mac also shows what it sends right now.",
   },
 
   cookie: {

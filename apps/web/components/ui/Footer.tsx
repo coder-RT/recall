@@ -21,11 +21,16 @@ export function Footer() {
           <ul className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
             {t.nav.links.map((item) => (
               <li key={item.href}>
-                <a href={item.href} className={link}>
+                <a href={`/${item.href}`} className={link}>
                   {item.label}
                 </a>
               </li>
             ))}
+            <li>
+              <a href="/privacy" className={link}>
+                {t.nav.privacy}
+              </a>
+            </li>
             <li aria-hidden="true" className="select-none text-[0.5rem] text-fb-line">
               ■
             </li>

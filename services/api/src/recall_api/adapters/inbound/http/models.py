@@ -391,6 +391,22 @@ class AuditEvent(BaseModel):
     request_id: str | None = None
 
 
+class SentItem(BaseModel):
+    what: Annotated[str, Field(description="What leaves this Mac")]
+    to: Annotated[str, Field(description="Who receives it and which model")]
+    when: str
+    on_this_mac: Annotated[
+        bool | None, Field(description="True when it never leaves the Mac (a model run locally)")
+    ] = None
+
+
+class Privacy(BaseModel):
+    stored_on: Annotated[str, Field(description='Where scans and memory are kept, e.g. "This Mac"')]
+    sent: list[SentItem]
+    robot_access: bool
+    audit_days: Annotated[int, Field(description="How long the activity log keeps events")]
+
+
 class Negate(IntEnum):
     integer_0 = 0
 

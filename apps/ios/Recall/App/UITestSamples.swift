@@ -37,6 +37,17 @@ enum UITestSamples {
         return [again, first]
     }()
 
+    /// The Mac's privacy facts for the UI tests (as a Mac with the default settings reports them).
+    struct Privacy: PrivacySource {
+        func privacy() async throws -> PrivacyStatus {
+            PrivacyStatus(storedOn: "This Mac", sent: [
+                DataFlow(what: "Scan photos, about 50 per room (no depth, no sound)", to: "Meta Model API: SAM 3.1",
+                         when: "While this Mac processes a scan, to find furniture and things"),
+                DataFlow(what: "Your question as text", to: "Baseten: Muse Spark Open", when: "Each time you ask"),
+            ], robotAccess: false, auditDays: 90)
+        }
+    }
+
     /// Robot Access for the UI tests: kept in memory, with a small made-up map.
     final class Sharing: RobotSharing, @unchecked Sendable {
         private var on = false

@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, useMotionValueEvent, useScroll } from "motion/react";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useT } from "@/i18n/I18nProvider";
 import { useHashAfterPins } from "@/lib/gsap";
@@ -12,6 +13,8 @@ export function Nav() {
   const { scrollY } = useScroll();
   const [compact, setCompact] = useState(false);
   const t = useT();
+  // the section links point into the landing page; from another page (Privacy) they lead back to it
+  const home = usePathname() === "/" ? "" : "/";
   useHashAfterPins();
   useMotionValueEvent(scrollY, "change", (y) => setCompact(y > 40));
 
@@ -34,23 +37,28 @@ export function Nav() {
         {t.nav.skip}
       </a>
       <div className="mx-auto flex h-full max-w-6xl items-center justify-between gap-4 px-4">
-        <a href="#top" aria-label={t.nav.home} className="min-h-11 content-center">
+        <a href={`${home}#top`} aria-label={t.nav.home} className="min-h-11 content-center">
           <Logo />
         </a>
         <nav aria-label={t.nav.sections} data-section-links className="hidden lg:block">
           <ul className="flex gap-1 font-classic text-sm font-bold">
             {t.nav.links.map((item) => (
               <li key={item.href}>
-                <a href={item.href} className="block rounded-md px-3 py-2 hover:bg-white/15">
+                <a href={`${home}${item.href}`} className="block rounded-md px-3 py-2 hover:bg-white/15">
                   {item.label}
                 </a>
               </li>
             ))}
+            <li>
+              <a href="/privacy" className="block rounded-md px-3 py-2 hover:bg-white/15">
+                {t.nav.privacy}
+              </a>
+            </li>
           </ul>
         </nav>
         <div className="flex items-center gap-2">
           <AccessibilityMenu />
-          <a href="#ask" className="btn btn-green hidden sm:inline-flex">
+          <a href={`${home}#ask`} className="btn btn-green hidden sm:inline-flex">
             {t.nav.tryDemo}
           </a>
         </div>

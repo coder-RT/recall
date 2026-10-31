@@ -271,6 +271,32 @@ final class AccessibilityTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["You turned robot access on"].waitForExistence(timeout: 3))  // the log, too
     }
 
+    /// Privacy from Devices and from Settings: what leaves the Mac right now, what never happens, the controls.
+    func testPrivacy() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-UITestSampleThings"]
+        app.launch()
+        app.tabBars.buttons["Devices"].tap()
+        let link = app.descendants(matching: .any)["privacy-link"]
+        for _ in 0..<4 where !link.isHittable { app.swipeUp() }
+        link.tap()
+        XCTAssertTrue(app.navigationBars["Privacy"].waitForExistence(timeout: 5))
+        let now = app.descendants(matching: .any)["privacy-right-now"]
+        XCTAssertTrue(now.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any).containing(NSPredicate(
+            format: "label BEGINSWITH 'Scan photos, about 50 per room (no depth, no sound). Sent to Meta Model API: SAM 3.1.'"
+        )).firstMatch.exists)
+        XCTAssertTrue(app.descendants(matching: .any).containing(NSPredicate(
+            format: "label BEGINSWITH 'Never: No Recall server receives your home'")).firstMatch.exists)
+        shot("ios-privacy")
+        try auditBothEnds(app)
+        app.tabBars.buttons["Settings"].tap()
+        let row = app.descendants(matching: .any)["privacy"]
+        XCTAssertTrue(row.waitForExistence(timeout: 3))
+        row.tap()
+        XCTAssertTrue(app.navigationBars["Privacy"].waitForExistence(timeout: 5))
+    }
+
     func testHomePassesTheAudit() throws {
         let app = XCUIApplication()
         app.launch()

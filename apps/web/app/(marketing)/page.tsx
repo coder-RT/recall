@@ -63,6 +63,11 @@ export default function LandingPage() {
               </li>
             ))}
           </ul>
+          <p className="mt-8 text-lg">
+            <a href="/privacy" className="font-bold text-fb-blue-dark underline">
+              {t.principles.more}
+            </a>
+          </p>
         </div>
       </RevealSection>
 

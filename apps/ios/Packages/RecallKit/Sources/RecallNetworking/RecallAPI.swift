@@ -151,6 +151,20 @@ extension RecallAPI: GuideService, Transcriber {
 
 // MARK: ConnectionCheck, ScanProcessing, ScanServer
 
+extension RecallAPI: PrivacySource {
+    public func privacy() async throws -> PrivacyStatus {
+        let r = try await call { try await client.getPrivacy() }
+        switch r {
+        case .ok(let ok):
+            let p = try ok.body.json
+            return PrivacyStatus(storedOn: p.storedOn,
+                                 sent: p.sent.map { DataFlow(what: $0.what, to: $0.to, when: $0.when, onThisMac: $0.onThisMac ?? false) },
+                                 robotAccess: p.robotAccess, auditDays: p.auditDays)
+        case .undocumented(let code, _): throw RecallError.status(code)
+        }
+    }
+}
+
 extension RecallAPI: ConnectionCheck, ScanProcessing, ScanServer {
     /// The Mac answers (health) and accepts the key: a status call for a scan that doesn't exist answers "not found"
     /// only when the key was accepted.

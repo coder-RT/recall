@@ -156,7 +156,7 @@ The landing page. No image of anyone's home is in this repo: the 3D viewer shows
   6. At most 6 agent steps; on failure, the best grounded partial answer.
 - **The Verifier can only downgrade.** The vision model may turn a result into "uncertain"; only SAM plus geometry can confirm.
 - **Two checks on the door.** Another agent can send only one object name (letters, digits, spaces and hyphens, at most 40 characters, `resources/agents/find-object.input.schema.json`); free text is refused and never reaches a model or a tool. Then Muse Spark Open (or Glimmer) must answer `{"verdict": "safe", ...}` in strict JSON; anything else, a timeout or "injection" refuses. Measured: 21 ordinary names allowed, 18 instruction-like names refused, none wrong.
-- **Privacy.** No scan of anyone's home is in the repo or on the hosted site: raw video, frames and point clouds stay on the Mac that made them, and the viewer reads your own export from a gitignored folder. Voice clips are sent for transcription and not stored. The phone holds no API keys and talks only to our backend. In local privacy mode the agent runs on the Mac. Vercel Speed Insights: cookieless page-speed measurements, no personal data.
+- **Privacy.** The home's memory lives on the owner's own Mac; there is no Recall server. Scan photos go to SAM 3.1 on the Meta Model API, voice clips to Muse Voice Transcribe, and questions (no photos) to Muse Spark Open, or stay on the Mac with Glimmer in private mode. Deleting a scan on the phone erases it from the Mac too. No scan of anyone's home is in the repo or on the hosted site. Full note: [docs/privacy.md](docs/privacy.md), the same as the app's Settings → Privacy and the site's `/privacy`.
 - **Honesty.** Sample and recorded data are labelled as such in the UI and the docs; the demo shows only what was built.
 - **Rules.** Only Meta models at runtime; no non-Meta model anywhere, and no TTS model of any kind.
 
@@ -226,7 +226,7 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
 ### 3. Backend and pipeline (planned, phases 0 to 2)
 
 - `make setup`: Python 3.12 with uv, both services, the web app.
-- `make demo`: will replay a recorded sample scan and recorded model responses from `samples/replay/`, no keys, labelled as recorded output. Not built yet: until recordings of real runs exist it says so and exits. It never uses the Home Memory agent or its screens, so it never needs a Hugging Face token.
+- `make demo`: no keys, no GPU. Builds a memory from a recorded real scan (`samples/replay/`, geometry and labels only, no photos) through the real ingest code, then serves the API on `localhost:8000` with Muse Spark Open's recorded replies; every answer is labelled `replay:muse-spark-open (recorded)`, and the command prints questions to try. `make record` re-records it with real calls.
 - `make live`: real Meta model calls with the keys from `.env`. The minimum is one Meta Model API key from [dev.meta.ai](https://dev.meta.ai) with `LLM_PROVIDER=meta`; the demo video uses Muse Spark Open on Baseten (`LLM_PROVIDER=baseten_spark_open`); the local privacy mode uses Muse Glimmer in LM Studio (`LLM_PROVIDER=lmstudio`).
 - **Home Memory agent (A2A) with `make live`:** its check runs on Muse Spark Open with the Baseten key (`SCREEN_PROVIDER=baseten_spark_open`, the default) or on Glimmer in LM Studio (`SCREEN_PROVIDER=lmstudio`); no other key is needed.
 - `make test`, `make lint`, `make lint-imports`: tests, ruff and ESLint, and the architecture rule (domain ← application ← adapters).

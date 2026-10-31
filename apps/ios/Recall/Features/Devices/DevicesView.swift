@@ -17,12 +17,23 @@ struct DevicesView: View {
                 }
                 .padding(.horizontal, Tokens.gutter)
                 DeviceCarousel()
-                NavigationLink { RobotAccessView() } label: { RobotAccessLink() }
+                NavigationLink { RobotAccessView() } label: {
+                    LinkCard(icon: "gearshape.2.fill", title: "Robot Access",
+                             text: "Share your home map with a robot, or keep it private", id: "robot-access-link")
+                }
                     .buttonStyle(.plain)
                     .padding(.horizontal, Tokens.gutter)
                     .padding(.top, 8)
                     .accessibilityHint("Share your home map with robots, or turn it off.")
                     .padding(.top, 4)
+                NavigationLink { PrivacyView() } label: {
+                    LinkCard(icon: "hand.raised.fill", title: "Your privacy",
+                             text: "Your memory lives on your Mac. See what is sent where", id: "privacy-link")
+                }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, Tokens.gutter)
+                    .padding(.top, 8)
+                    .accessibilityHint("What stays on your Mac and iPhone, and what is sent where.")
                 VStack(alignment: .leading, spacing: 16) {
                     SectionTitle("Why it works")
                     Promises()
@@ -193,15 +204,20 @@ struct Device: Identifiable {
     ]
 }
 
-/// The way into Robot Access, under the devices.
-private struct RobotAccessLink: View {
+/// A way into a screen under the devices: Robot Access, Your privacy.
+private struct LinkCard: View {
+    let icon: String
+    let title: String
+    let text: String
+    let id: String
+
     var body: some View {
         HStack(spacing: 14) {
-            Image(systemName: "gearshape.2.fill").font(.system(size: 22, weight: .semibold)).foregroundStyle(Tokens.onAccent)
+            Image(systemName: icon).font(.system(size: 22, weight: .semibold)).foregroundStyle(Tokens.onAccent)
                 .frame(width: 48, height: 48).background(Tokens.accentFill, in: .rect(cornerRadius: 14))
             VStack(alignment: .leading, spacing: 2) {
-                Text("Robot Access").font(.headline).foregroundStyle(Tokens.ink)
-                Text("Share your home map with a robot, or keep it private").font(.subheadline).foregroundStyle(Tokens.muted)
+                Text(title).font(.headline).foregroundStyle(Tokens.ink)
+                Text(text).font(.subheadline).foregroundStyle(Tokens.muted)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 4)
@@ -209,7 +225,7 @@ private struct RobotAccessLink: View {
         }
         .card()
         .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("robot-access-link")
+        .accessibilityIdentifier(id)
     }
 }
 

@@ -39,7 +39,17 @@ export function Faq() {
                   transition={{ duration: 0.25, ease: "easeOut" }}
                   className="overflow-hidden"
                 >
-                  <p className="px-5 pb-5 text-[1.05rem] leading-relaxed text-muted">{item.a}</p>
+                  <p className="px-5 pb-5 text-[1.05rem] leading-relaxed text-muted">
+                    {item.a}
+                    {"href" in item && (
+                      <>
+                        {" "}
+                        <a href={item.href} className="font-bold text-fb-blue-dark underline">
+                          {item.link}
+                        </a>
+                      </>
+                    )}
+                  </p>
                 </motion.div>
               )}
             </AnimatePresence>

@@ -100,7 +100,7 @@ The landing page. No image of anyone's home is in this repo: the 3D viewer shows
 
 - **Guide** is the only agent on the live question path. It calls four tools (`find_object`, `describe_location`, `localize`, `plan_route`) and phrases the answer. It never states a place, distance or time that no tool returned. Target: first spoken words within 2 seconds.
 - **Verifier** runs once, on arrival: one camera frame, SAM 3.1 plus the LiDAR depth, and a yes or no on whether the object is really there. Muse Spark 1.1 can only lower confidence. If the object isn't there, the memory heals itself and the Guide says when it was last seen. The Guide calls it in-process by default and in the live demo; A2A between the two is optional.
-- **Home Memory** is the house's face to other agents (a robot, a pair of glasses, another assistant) over the open A2A 1.0 protocol: read-only, off by default, never the user's live position, and every incoming message is screened by Llama Prompt Guard first.
+- **Home Memory** is the house's face to other agents (a robot, a pair of glasses, another assistant) over the open A2A 1.0 protocol: read-only, off by default, never the user's live position, and every incoming message is screened by Llama Prompt Guard and Muse Spark first. Every request is in the owner's audit log.
 - One rule: every agent has a job no other agent does. Complexity is not the goal; the three jobs are different.
 
 ## How it works: the Meta models
@@ -116,7 +116,8 @@ The landing page. No image of anyone's home is in this repo: the 3D viewer shows
 | SAM 3.1 | Objects and furniture in every frame, by text prompt; the arrival check | Meta Model API (optional self-hosted on Modal) | `services/pipeline/.../sam31_meta_api.py`, `services/api/.../sam31_meta_api.py` |
 | MapAnything (`facebook/map-anything-apache`) | Metric 3D reconstruction from the frames, depth and poses | Mac (Apple GPU); Modal if too slow | `services/pipeline/.../mapanything_local.py` |
 | Muse Voice Transcribe | Speech to text with turn detection | Meta Model API | `services/api/.../voice/muse_transcribe.py`, `apps/web/app/api/voice/transcribe/` |
-| Llama Prompt Guard | Screens every message other agents send to the home memory | Mac | `services/api/.../safety/prompt_guard_local.py` |
+| Llama Prompt Guard 2 22M | First screen on every message other agents send to the home memory (classic injections, about 15 ms) | Mac | `services/pipeline/.../adapters/prompt_guard.py`, called by `services/api/.../safety/prompt_guard_pipeline.py` |
+| Muse Spark 1.1 as a screen | Second screen: is the message only a request for an object? | Meta Model API | `services/api/.../safety/spark_screen_meta_api.py` |
 | Muse Spark (hosted), in the demo client | A "home robot" agent that asks Recall over A2A | Meta Model API | `examples/a2a-client/home_robot.py` |
 
 **The scan path** (minutes, in the background)
@@ -156,7 +157,7 @@ The landing page. No image of anyone's home is in this repo: the 3D viewer shows
   5. One or two short sentences: landmark first, then shelf and height, then time.
   6. At most 6 agent steps; on failure, the best grounded partial answer.
 - **The Verifier can only downgrade.** The vision model may turn a result into "uncertain"; only SAM plus geometry can confirm.
-- **Prompt Guard on the door.** Every message from an external agent is screened by Llama Prompt Guard before any tool runs.
+- **Two Meta screens on the door.** Every message from an external agent passes Llama Prompt Guard (classic injections and jailbreaks) and then Muse Spark (is it only a request for an object?) before any tool runs; if neither can run, the message is refused. Measured on 28 plain requests and 24 attacks: none blocked, none let through.
 - **Privacy.** No scan of anyone's home is in the repo or on the hosted site: raw video, frames and point clouds stay on the Mac that made them, and the viewer reads your own export from a gitignored folder. Voice clips are sent for transcription and not stored. The phone holds no API keys and talks only to our backend. In local privacy mode the agent runs on the Mac. Vercel Speed Insights: cookieless page-speed measurements, no personal data.
 - **Honesty.** Sample and recorded data are labelled as such in the UI and the docs; the demo shows only what was built.
 - **Rules.** Only Meta models at runtime; no non-Meta model anywhere, and no TTS model of any kind.
@@ -287,3 +288,5 @@ Planned next, not built or not working yet (updated before submission; removed i
 ---
 
 <p align="center">Built by <a href="https://www.linkedin.com/in/rachit-thariani/">Rachit Thariani</a> · <a href="https://github.com/coder-RT">GitHub</a></p>
+
+Built with Llama: the Home Memory agent's first screen is Llama Prompt Guard 2 (Llama 4 Community License).

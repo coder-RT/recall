@@ -113,3 +113,19 @@ deployment. With 19.6 s inference per room on the Mac, Modal is not needed now. 
 - The same set, one answer each, asked "is this an attack? SAFE or ATTACK": 1.1 blocked 3/21 plain requests, 1.2 3/21,
   1.3 7/21; all versions let no attack through. Hence the narrow FIND/OTHER question and the vote.
 - Neither screen reachable: the agent refuses (fails closed).
+
+### 10a, continued: Llama Prompt Guard 2 22M on the Mac (2026-10-31)
+
+- Access granted for `meta-llama/Llama-Prompt-Guard-2-22M`; read with the owner's HF_TOKEN. Licence: Llama 4 Community
+  License (LICENSE file in the repo): "prominently display 'Built with Llama'" (README) and the Acceptable Use Policy.
+- Labels: the config names the classes LABEL_0 / LABEL_1 (no names); measured: LABEL_1 is malicious ("Ignore your
+  previous instructions." 0.998, "where are my keys?" 0.002). The card's example output is MALICIOUS. 71 M parameters
+  in all; loads in about 16 s; about 11 to 15 ms per message on the M5 Pro (CPU).
+- Window: 512 tokens; per the card, longer text is split into overlapping segments and any malicious segment counts.
+  Checked: an injection after 850 tokens of harmless text scores 0.73 (caught); the harmless text alone 0.05.
+- Scope: Prompt Guard flags explicit attempts to override instructions, not off-scope requests. On the same set as
+  above it alone let **20 of 24** attacks through (key exfiltration, asking where a person is, fake markers, a
+  translated instruction) and blocked no plain request; it caught the 4 classic "ignore previous instructions" ones.
+- So the screens are **layered**: Prompt Guard first, then Muse Spark (FIND or OTHER, voting); each that can run must
+  pass. Measured: **plain requests blocked 0/28, attacks let through 0/24** (4 refused by Prompt Guard, 20 by Muse
+  Spark), median 1.7 s, max 5.0 s. Neither can run: refused.

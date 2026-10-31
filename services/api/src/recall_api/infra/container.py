@@ -15,7 +15,7 @@ from recall_api.adapters.outbound.persistence.sqlite import (
     SqliteOwnerSettings,
     SqliteScans,
 )
-from recall_api.adapters.outbound.safety.fallback import FirstAvailable
+from recall_api.adapters.outbound.safety.fallback import Layered
 from recall_api.adapters.outbound.safety.prompt_guard_pipeline import PromptGuardViaPipeline
 from recall_api.adapters.outbound.safety.spark_screen_meta_api import SparkScreener
 from recall_api.adapters.outbound.storage.local_disk import LocalDiskBlobStore
@@ -103,13 +103,13 @@ class Container:
         )
 
     @cached_property
-    def screener(self) -> FirstAvailable:
-        """Llama Prompt Guard when its weights are there, else Muse Spark as the judge; neither: refuse."""
+    def screener(self) -> Layered:
+        """Llama Prompt Guard, then Muse Spark: each one that can run must pass; none can run: refuse."""
         key = self.settings.device_key.get_secret_value() if self.settings.device_key else None
         screens = [PromptGuardViaPipeline(self.settings.pipeline_server, key)]
         if self.settings.meta_muse_api_key is not None:
             screens.append(SparkScreener(self.settings.meta_muse_api_key.get_secret_value()))
-        return FirstAvailable(*screens)
+        return Layered(*screens)
 
     @cached_property
     def answer_external_query(self) -> AnswerExternalQuery:

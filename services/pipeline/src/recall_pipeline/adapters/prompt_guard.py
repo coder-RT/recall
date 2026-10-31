@@ -3,8 +3,9 @@
 Gated on Hugging Face (Llama 4 Community License): the owner accepts the licence there and puts HF_TOKEN in .env.
 Without the weights it is unavailable, and Recall's A2A server refuses messages (it fails closed).
 
-TODO(verify) on the model card once the weights are reachable: the label names in `config.id2label` (this treats a
-label containing MALICIOUS, INJECTION or JAILBREAK, or "LABEL_1", as an attack) and the recommended threshold.
+Checked 2026-10-31 with the 22M model: its config names the classes LABEL_0 / LABEL_1 and LABEL_1 is malicious
+("Ignore your previous instructions." -> 0.998 on index 1; "where are my keys?" -> 0.002); the card's own example
+calls it MALICIOUS. The window is 512 tokens: per the card, longer text is split into segments and each is checked.
 """
 
 from __future__ import annotations
@@ -47,11 +48,17 @@ class PromptGuard:
             return {"available": False, "attack": None, "label": None, "score": None, "error": self.error}
         import torch
 
-        inputs = self._tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
+        # the model reads 512 tokens: longer messages go in overlapping windows; any window that is an attack counts
+        inputs = self._tokenizer(text, return_tensors="pt", truncation=True, max_length=512, padding=True,
+                                 return_overflowing_tokens=True, stride=64)  # fmt: skip
+        inputs.pop("overflow_to_sample_mapping", None)
         with torch.no_grad():
-            probs = torch.softmax(self._model(**inputs).logits[0], dim=-1)
+            all_probs = torch.softmax(self._model(**inputs).logits, dim=-1)
         labels = self._model.config.id2label
-        attack = sum(float(p) for i, p in enumerate(probs) if any(a in str(labels[i]).upper() for a in ATTACK_LABELS))
+        attack_ids = [i for i, name in labels.items() if any(a in str(name).upper() for a in ATTACK_LABELS)]
+        per_window = all_probs[:, attack_ids].sum(dim=-1)
+        w = int(per_window.argmax())
+        attack, probs = float(per_window[w]), all_probs[w]
         top = int(probs.argmax())
         return {
             "available": True,

@@ -2,7 +2,7 @@
 
 import httpx
 
-from recall_api.adapters.outbound.safety.fallback import FirstAvailable
+from recall_api.adapters.outbound.safety.fallback import Layered
 from recall_api.adapters.outbound.safety.spark_screen_meta_api import SparkScreener, verdict
 from recall_api.application.ports import Screening
 
@@ -16,14 +16,29 @@ class Fixed:
         return self.v
 
 
-def test_the_first_screen_that_can_run_decides():
-    guard, spark = Fixed(Screening(False, "unavailable")), Fixed(Screening(True, "ok"))
-    assert FirstAvailable(guard, spark).screen("keys") == Screening(True, "ok", by="Fixed")  # says who decided
-    guard2, spark2 = Fixed(Screening(False, "attack")), Fixed(Screening(True, "ok"))
-    assert FirstAvailable(guard2, spark2).screen("x").reason == "attack" and spark2.calls == 0
-    down = Fixed(Screening(False, "unavailable"))
-    assert FirstAvailable(down, down).screen("keys") == Screening(False, "unavailable")  # fails closed
-    assert FirstAvailable().screen("keys") == Screening(False, "unavailable")
+class Named(Fixed):
+    def __init__(self, name, v):
+        super().__init__(v)
+        self.name = name
+
+
+def test_every_screen_that_can_run_must_pass():
+    ok, attack, down = Screening(True, "ok"), Screening(False, "attack"), Screening(False, "unavailable")
+    guard, spark = Named("prompt-guard", ok), Named("muse-spark", ok)
+    assert Layered(guard, spark).screen("keys") == Screening(True, "ok", by="prompt-guard+muse-spark")
+    # Prompt Guard misses an off-scope request; Muse Spark refuses it
+    assert Layered(Named("prompt-guard", ok), Named("muse-spark", attack)).screen("x") == Screening(
+        False, "attack", by="muse-spark"
+    )
+    # a classic injection is refused by Prompt Guard; Muse Spark isn't asked
+    spark2 = Named("muse-spark", ok)
+    assert Layered(Named("prompt-guard", attack), spark2).screen("x").by == "prompt-guard" and spark2.calls == 0
+    # a screen that can't run is skipped; none running refuses
+    assert Layered(Named("prompt-guard", down), Named("muse-spark", ok)).screen("keys") == Screening(
+        True, "ok", by="muse-spark"
+    )
+    assert Layered(Named("a", down), Named("b", down)).screen("keys") == Screening(False, "unavailable")
+    assert Layered().screen("keys") == Screening(False, "unavailable")
 
 
 def test_only_a_clean_find_passes():

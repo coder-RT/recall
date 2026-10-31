@@ -38,7 +38,9 @@ class OpenAICompatibleLlm:
             if not (retry and attempt < 2):
                 break
         r.raise_for_status()
-        msg = r.json()["choices"][0]["message"]
+        data = r.json()
+        msg = data["choices"][0]["message"]
+        u = data.get("usage") or {}
         calls = []
         for c in msg.get("tool_calls") or []:
             try:
@@ -46,7 +48,8 @@ class OpenAICompatibleLlm:
             except json.JSONDecodeError:
                 args = {}
             calls.append(ToolCall(c.get("id", ""), c["function"]["name"], args))
-        return ChatReply(text=msg.get("content"), tool_calls=calls, model=self.model)
+        usage = {k: u[k] for k in ("prompt_tokens", "completion_tokens") if isinstance(u.get(k), int)} or None
+        return ChatReply(text=msg.get("content"), tool_calls=calls, model=self.model, usage=usage)
 
 
 PROVIDERS = {

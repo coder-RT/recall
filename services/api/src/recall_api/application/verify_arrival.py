@@ -117,8 +117,7 @@ class VerifyArrival:
 
     def _remember(self, obj, last: Observation, home: np.ndarray, score: float, moved: bool) -> None:
         if moved:
-            for o in obj.observations:
-                o.stale = True  # the old place is history now
+            obj.set_aside(self.new_id("sa"), None, "arrival", self.clock.now())  # the old place is history now
             obj.corrections.height_m = None
         obj.observations.append(
             Observation(self.new_id("ob"), obj.id, last.scan_id, self.clock.now(), Position(*map(float, home)), score)

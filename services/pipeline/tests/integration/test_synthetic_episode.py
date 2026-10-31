@@ -189,3 +189,11 @@ def test_the_table_and_the_keys_are_found_where_they_are(run):
     true_table = home(T, (TABLE[0] + TABLE[1]) / 2)
     assert np.linalg.norm(np.array(table["centroid"])[:2] - true_table[:2]) < 0.10
     assert keys["color"] == "yellow"
+
+
+def test_the_result_says_which_models_made_it_and_where_each_thing_was_seen(run):
+    result, *_ = run
+    assert result["provenance"]["reconstructor"] == "arkit-depth" and result["provenance"]["segmenter"] == "sam-3.1"
+    (keys,) = [t for t in result["objects"] if t["label"] == "keys"]
+    x1, y1, x2, y2 = keys["box"]
+    assert 0 <= x1 < x2 <= W and 0 <= y1 < y2 <= H and isinstance(keys["keyframe_index"], int)

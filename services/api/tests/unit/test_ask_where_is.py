@@ -114,3 +114,56 @@ def test_the_fallback_names_the_newest_of_several_matches():
         {"label": "bag", "color": "white", "landmark": "cabinet", "relation": "on", "height_band": "waist"},
     ]})  # fmt: skip
     assert fallback_sentence([out]) == "Your grey bag is near the desk, at knee height, seen today at 10:00."
+
+
+class Answers:
+    def __init__(self):
+        self.recorded = []
+
+    def record(self, a):
+        self.recorded.append(a)
+
+
+def logged_guide(replies, tools=None):
+    homes, objects = memory()
+    n = iter(range(100))
+    log = Answers()
+    guide = AskWhereIs(ScriptedLlm(replies), tools or Tools(homes, objects, FixedClock()), [], homes, log, FixedClock(),
+                       lambda p: f"{p}{next(n)}", "baseten_spark_open")  # fmt: skip
+    return guide, log
+
+
+def test_every_answer_is_logged_with_its_steps_and_the_sightings_behind_it():
+    guide, log = logged_guide([FIND, ChatReply("Your keys are on the desk, seen 12 minutes ago.")])
+    a = guide("flat", "where are my keys?")
+    (rec,) = log.recorded
+    assert a.answer_id == rec.id == "ans0" and rec.observation_ids == ["ob1"] and rec.object_id == "o1"
+    assert [s["kind"] for s in rec.steps] == ["model", "tool", "model"] and rec.steps[1]["tool"] == "find_object"
+    assert rec.steps[1]["output"]["matches"][0]["landmark"] == "desk" and rec.provider == "baseten_spark_open"
+
+
+def test_a_place_with_no_sighting_behind_it_is_never_said():
+    class NoSightings(Tools):
+        def find_object(self, ctx, name):
+            out = super().find_object(ctx, name)
+            ctx.observation_ids.clear()  # a tool that named a place without the sighting behind it
+            return out
+
+    homes, objects = memory()
+    guide, log = logged_guide(
+        [FIND, ChatReply("Your keys are on the desk.")], NoSightings(homes, objects, FixedClock())
+    )
+    a = guide("flat", "where are my keys?")
+    assert "desk" not in a.text and "haven't seen" in a.text and not a.grounded
+    assert log.recorded[0].observation_ids == [] and not log.recorded[0].grounded
+
+
+def test_why_is_answered_from_the_explain_tool():
+    explain = ChatReply(None, [ToolCall("c3", "explain", {"object_id": "o1"})])
+    guide, log = logged_guide([explain, ChatReply("I saw them in 1 scan, 12 minutes ago, and I'm 0.9 sure.")])
+    a = guide("flat", "why do you think so?", about="o1")
+    assert a.grounded and a.text.startswith("I saw them in 1 scan")
+    (rec,) = log.recorded
+    out = rec.steps[1]["output"]
+    assert rec.steps[1]["tool"] == "explain" and out["sightings"] == 1 and out["found_by"] == "sam-3.1"
+    assert rec.observation_ids == ["ob1"]

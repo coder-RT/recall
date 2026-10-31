@@ -50,6 +50,8 @@ class PipelineConfig:
         "passport",
         "bag",
     )
+    segmenter: str = "sam-3.1"  # what the result says made the boxes (provenance)
+    commit: str | None = None  # the pipeline's git commit, set by the wiring (provenance)
     cluster_eps: float = 0.25
     cluster_min: int = 1
     stats: dict = field(default_factory=dict)
@@ -122,7 +124,7 @@ def process_episode(
     debug.points("cloud", home_cloud)
 
     # SAM 3.1 boxes on a subset of views, lifted to 3D with depth + pose
-    sightings: dict[str, list[tuple[np.ndarray, float, int, np.ndarray, str | None]]] = defaultdict(list)
+    sightings: dict[str, list[tuple[np.ndarray, float, int, np.ndarray, str | None, tuple]]] = defaultdict(list)
     sam_views = [v for v in views if v.index in pending] or views[:: cfg.sam_every]
     calls = 0
     for n, v in enumerate(sam_views, 1):
@@ -146,7 +148,7 @@ def process_episode(
                     continue
                 pts = home_frame.apply(T, lifted.points)
                 color = dominant_color(rgb, b.box) if concept in cfg.objects else None
-                sightings[concept].append((np.median(pts, axis=0), b.score, v.index, pts, color))
+                sightings[concept].append((np.median(pts, axis=0), b.score, v.index, pts, color, b.box))
         log.info("SAM view %d/%d done, %d sightings so far", n, len(sam_views), sum(map(len, sightings.values())))
     pool.shutdown()
     t_sam = time.perf_counter() - t1  # wall time from the first SAM call, which overlaps the reconstruction
@@ -176,6 +178,7 @@ def process_episode(
                     "confidence": round(score, 3),
                     "sightings": len(members),
                     "keyframe_index": int(best[2]),
+                    "box": [round(float(v), 1) for v in best[5]],
                     "color": vote([(m[4], m[1]) for m in members]),
                 }
             )
@@ -240,6 +243,11 @@ def process_episode(
         "landmarks": things["landmarks"],
         "objects": things["objects"],
         "transform_to_home": T.reshape(-1).round(6).tolist(),
+        "provenance": {
+            "segmenter": cfg.segmenter,
+            "reconstructor": getattr(recon, "name", type(recon).__name__),
+            "pipeline_commit": cfg.commit,
+        },
         "stats": cfg.stats,
     }
     log.info(

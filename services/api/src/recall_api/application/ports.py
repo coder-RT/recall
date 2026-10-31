@@ -62,6 +62,35 @@ class ChatReply:
     text: str | None
     tool_calls: list[ToolCall] = field(default_factory=list)
     model: str = ""
+    usage: dict[str, int] | None = None  # prompt_tokens, completion_tokens, when the provider reports them
+
+
+@dataclass(frozen=True)
+class AnswerRecord:
+    """One answer as it was given: the question, every model and tool step, and the sightings it rests on."""
+
+    id: str
+    home_id: str
+    created_at: datetime
+    question: str
+    text: str
+    grounded: bool
+    object_id: str | None
+    steps: list[dict[str, Any]]  # {"kind": "model"|"tool", "ms", "tool", "arguments", "output"}
+    observation_ids: list[str]
+    provider: str
+    model: str
+    prompt_tokens: int | None
+    completion_tokens: int | None
+    latency_ms: int
+
+
+class AnswerLog(Protocol):
+    """Append-only: every answer the Guide gives, for "why do you think so?" and the measurements."""
+
+    def record(self, answer: AnswerRecord) -> None: ...
+    def get(self, answer_id: str) -> AnswerRecord | None: ...
+    def recent(self, home_id: str, limit: int = 100) -> list[AnswerRecord]: ...
 
 
 class ModelUnavailable(RuntimeError):

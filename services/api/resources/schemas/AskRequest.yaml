@@ -4,3 +4,4 @@ properties:
   home_id: {type: string}
   question: {type: string, minLength: 1, maxLength: 300}
   session_id: {type: [string, "null"], description: "A guidance session, if the user is already being guided"}
+  about: {type: [string, "null"], description: "The thing the last answer was about, for a follow-up (\"why do you think so?\")"}

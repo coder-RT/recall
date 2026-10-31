@@ -16,6 +16,13 @@ properties:
     items: {type: number}
     minItems: 16
     maxItems: 16
+  provenance:
+    type: object
+    description: Which models and code produced this result, kept with the scan so every answer can name them
+    properties:
+      segmenter: {type: string, description: "e.g. sam-3.1"}
+      reconstructor: {type: string, description: "e.g. map-anything-apache@00f9c24 or arkit-depth"}
+      pipeline_commit: {type: [string, "null"], description: "The pipeline's git commit"}
   stats:
     type: object
     additionalProperties: true

@@ -8,6 +8,7 @@ from datetime import datetime
 
 from sqlalchemy import Engine, text
 
+from recall_api.application.ports import AnswerRecord
 from recall_api.domain.audit import Action, Actor, AuditEvent, Outcome
 from recall_api.domain.memory import (
     BBox,
@@ -20,6 +21,7 @@ from recall_api.domain.memory import (
     Scan,
     ScanChange,
     ScanStatus,
+    SetAside,
     TrackedObject,
 )
 
@@ -108,6 +110,7 @@ class SqliteScans:
             aligned_to=r["aligned_to"],
             fresh=bool(r["fresh"]),
             changes=[ScanChange(**c) for c in json.loads(r["changes"] or "[]")],
+            provenance=json.loads(r["provenance"]) if r["provenance"] else None,
         )
 
     def get(self, scan_id: str) -> Scan | None:
@@ -137,17 +140,19 @@ class SqliteScans:
             "aligned": s.aligned_to,
             "fresh": int(s.fresh),
             "changes": json.dumps([asdict(c) for c in s.changes]),
+            "prov": json.dumps(s.provenance) if s.provenance else None,
         }
         with self.engine.begin() as c:
             c.execute(
                 text("""
                 INSERT INTO scans (id, home_id, room, created_at, status, detail, archive_size, archive_sha256,
-                                   part_size, frame_count, object_count, transform_to_home, aligned_to, fresh, changes)
+                                   part_size, frame_count, object_count, transform_to_home, aligned_to, fresh, changes,
+                                   provenance)
                 VALUES (:id, :home, :room, :created, :status, :detail, :size, :sha, :part, :frames, :objects, :t,
-                        :aligned, :fresh, :changes)
+                        :aligned, :fresh, :changes, :prov)
                 ON CONFLICT(id) DO UPDATE SET status = :status, detail = :detail, frame_count = :frames,
                     object_count = :objects, transform_to_home = :t, aligned_to = :aligned, fresh = :fresh,
-                    changes = :changes"""),
+                    changes = :changes, provenance = :prov"""),
                 p,
             )
 
@@ -189,10 +194,24 @@ class SqliteObjects:
                             position=Position(o["x"], o["y"], o["z"]),
                             confidence=o["confidence"],
                             keyframe_index=o["keyframe_index"],
-                            stale=bool(o["stale"]),
+                            box=tuple(json.loads(o["box"])) if o["box"] else None,
                         )
                         for o in obs.mappings().all()
                     ],
+                    set_asides=[
+                        SetAside(
+                            a["id"],
+                            a["scan_id"],
+                            a["reason"],
+                            datetime.fromisoformat(a["at"]),
+                            tuple(json.loads(a["observation_ids"])),
+                        )
+                        for a in c.execute(
+                            text("SELECT * FROM set_asides WHERE object_id = :id ORDER BY at"), {"id": r["id"]}
+                        )
+                        .mappings()
+                        .all()
+                    ],  # fmt: skip
                 )
             )
         return out
@@ -208,8 +227,14 @@ class SqliteObjects:
             found = self._load(c, rows)
         return found[0] if found else None
 
+    def get_by_observation(self, observation_id: str) -> TrackedObject | None:
+        with self.engine.connect() as c:
+            oid = c.execute(text("SELECT object_id FROM observations WHERE id = :id"), {"id": observation_id}).scalar()
+        return self.get(oid) if oid else None
+
     def delete(self, object_id: str) -> None:
         with self.engine.begin() as c:
+            c.execute(text("DELETE FROM set_asides WHERE object_id = :id"), {"id": object_id})
             c.execute(text("DELETE FROM observations WHERE object_id = :id"), {"id": object_id})
             c.execute(text("DELETE FROM objects WHERE id = :id"), {"id": object_id})
 
@@ -239,9 +264,9 @@ class SqliteObjects:
             for o in obj.observations:
                 c.execute(
                     text("""
-                    INSERT INTO observations (id, object_id, scan_id, keyframe_index, ts, x, y, z, confidence, stale)
-                    VALUES (:id, :obj, :scan, :kf, :ts, :x, :y, :z, :conf, :stale)
-                    ON CONFLICT(id) DO UPDATE SET stale = :stale"""),
+                    INSERT INTO observations (id, object_id, scan_id, keyframe_index, ts, x, y, z, confidence, box)
+                    VALUES (:id, :obj, :scan, :kf, :ts, :x, :y, :z, :conf, :box)
+                    ON CONFLICT(id) DO NOTHING"""),
                     {
                         "id": o.id,
                         "obj": obj.id,
@@ -252,9 +277,23 @@ class SqliteObjects:
                         "y": o.position.y,
                         "z": o.position.z,
                         "conf": o.confidence,
-                        "stale": int(o.stale),
+                        "box": json.dumps([round(v, 1) for v in o.box]) if o.box else None,
                     },
                 )
+            for a in obj.set_asides:
+                c.execute(
+                    text("""INSERT INTO set_asides (id, object_id, scan_id, reason, at, observation_ids)
+                            VALUES (:id, :obj, :scan, :reason, :at, :ids) ON CONFLICT(id) DO NOTHING"""),
+                    {"id": a.id, "obj": obj.id, "scan": a.scan_id, "reason": a.reason, "at": a.at.isoformat(),
+                     "ids": json.dumps(list(a.observation_ids))},
+                )  # fmt: skip
+            # erasing a scan (the privacy exception) is the only way a sighting or set-aside leaves the aggregate
+            keep_a = [a.id for a in obj.set_asides]
+            marks_a = ", ".join(f":a{i}" for i in range(len(keep_a))) or "''"
+            c.execute(
+                text(f"DELETE FROM set_asides WHERE object_id = :id AND id NOT IN ({marks_a})"),
+                {"id": obj.id, **{f"a{i}": k for i, k in enumerate(keep_a)}},
+            )
             # the aggregate is the truth: sightings it no longer holds (an erased scan's) go
             keep = [o.id for o in obj.observations]
             marks = ", ".join(f":k{i}" for i in range(len(keep))) or "''"
@@ -262,6 +301,51 @@ class SqliteObjects:
                 text(f"DELETE FROM observations WHERE object_id = :id AND id NOT IN ({marks})"),
                 {"id": obj.id, **{f"k{i}": k for i, k in enumerate(keep)}},
             )
+
+
+class SqliteAnswerLog:
+    """Append-only (a trigger refuses updates): every answer, its steps and the sightings behind it."""
+
+    def __init__(self, engine: Engine) -> None:
+        self.engine = engine
+
+    def record(self, a: AnswerRecord) -> None:
+        with self.engine.begin() as c:
+            c.execute(
+                text("""INSERT INTO answer_log (id, home_id, created_at, question, text, grounded, object_id, steps,
+                                                observation_ids, provider, model, prompt_tokens, completion_tokens,
+                                                latency_ms)
+                        VALUES (:id, :home, :at, :q, :text, :g, :obj, :steps, :obs, :prov, :model, :pt, :ct, :ms)"""),
+                {"id": a.id, "home": a.home_id, "at": a.created_at.isoformat(), "q": a.question, "text": a.text,
+                 "g": int(a.grounded), "obj": a.object_id, "steps": json.dumps(a.steps, default=str),
+                 "obs": json.dumps(a.observation_ids), "prov": a.provider, "model": a.model, "pt": a.prompt_tokens,
+                 "ct": a.completion_tokens, "ms": a.latency_ms},
+            )  # fmt: skip
+
+    @staticmethod
+    def _row(r) -> AnswerRecord:
+        return AnswerRecord(
+            r["id"], r["home_id"], datetime.fromisoformat(r["created_at"]), r["question"], r["text"],
+            bool(r["grounded"]), r["object_id"], json.loads(r["steps"]), json.loads(r["observation_ids"]),
+            r["provider"], r["model"], r["prompt_tokens"], r["completion_tokens"], r["latency_ms"],
+        )  # fmt: skip
+
+    def get(self, answer_id: str) -> AnswerRecord | None:
+        with self.engine.connect() as c:
+            r = c.execute(text("SELECT * FROM answer_log WHERE id = :id"), {"id": answer_id}).mappings().first()
+        return self._row(r) if r else None
+
+    def recent(self, home_id: str, limit: int = 100) -> list[AnswerRecord]:
+        with self.engine.connect() as c:
+            rows = (
+                c.execute(
+                    text("SELECT * FROM answer_log WHERE home_id = :h ORDER BY created_at DESC LIMIT :n"),
+                    {"h": home_id, "n": limit},
+                )
+                .mappings()
+                .all()
+            )
+        return [self._row(r) for r in rows]
 
 
 class SqliteOwnerSettings:

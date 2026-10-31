@@ -71,7 +71,7 @@ def test_seen_where_remembered_is_confirmed_and_refreshes_memory():
     assert v.outcome == "confirmed" and v.distance_cm == 0
     assert v.say == "Found it. Your keys are at 12 o'clock, 1.5 metres away."
     keys = r.objects.get(oid)
-    assert len([o for o in keys.observations if not o.stale]) == 2  # a fresh sighting, same place
+    assert len([o for o in keys.observations if keys.is_current(o)]) == 2  # a fresh sighting, same place
 
 
 def test_seen_nearby_moves_it_in_memory():

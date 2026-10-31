@@ -52,29 +52,24 @@ class EraseScan:
             s for s in self.scans.list_for_home(scan.home_id) if s.id != scan.id and s.status == ScanStatus.PROCESSED
         ]
         same_room = [s for s in others if s.room == scan.room]
-        newest_of_room = not any(s.created_at > scan.created_at for s in same_room)
-        rooms = {s.id: s.room for s in others}
-        restore = {c.object_id for c in scan.changes if c.kind in ("moved", "gone")} if newest_of_room else set()
 
+        # sightings are never edited: erasing removes this scan's sightings and the set-asides it decided, so what the
+        # room's other scans saw is current again by itself
         forgotten = restored = 0
         for obj in self.objects.list_for_home(scan.home_id):
             kept = [o for o in obj.observations if o.scan_id != scan.id]
-            touched = len(kept) != len(obj.observations)
-            if touched and not kept:
+            asides = [a for a in obj.set_asides if a.scan_id != scan.id]
+            if len(kept) == len(obj.observations) and len(asides) == len(obj.set_asides):
+                continue
+            if not kept:
                 self.objects.delete(obj.id)
                 forgotten += 1
                 continue
-            # an unrecognised rescan set the room's earlier memory aside; the room's earlier scans speak again
-            reset = scan.fresh and newest_of_room and kept and rooms.get(kept[-1].scan_id) == scan.room
-            if obj.id in restore or reset:
-                newest = max(kept, key=lambda o: o.seen_at)
-                if newest.stale:
-                    newest.stale = False
-                    restored += 1
-                    touched = True
-            if touched:
-                obj.observations = kept
-                self.objects.save(obj)
+            undone = len(obj.set_asides) - len(asides)  # set-asides this scan decided (moved, gone, fresh)
+            obj.observations, obj.set_asides = kept, asides
+            if undone and obj.where() is not None:
+                restored += 1
+            self.objects.save(obj)
 
         home = self.homes.get(scan.home_id)
         furniture = 0

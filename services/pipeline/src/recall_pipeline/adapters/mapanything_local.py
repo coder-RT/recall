@@ -18,6 +18,8 @@ REVISION = "00f9c245bbcb60522d1ed7f9e9d88462c6e3f38a"
 
 
 class MapAnythingLocal:
+    name = f"map-anything-apache@{REVISION[:7]}"
+
     def __init__(self) -> None:
         from mapanything.models import MapAnything
         from mapanything.utils.device import get_device

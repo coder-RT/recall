@@ -7,3 +7,4 @@ properties:
   tool_calls: {type: integer}
   model: {type: string, description: The Meta model that phrased it}
   latency_ms: {type: integer}
+  answer_id: {type: [string, "null"], description: "The logged answer; GET /answers/{answer_id}/evidence explains it"}

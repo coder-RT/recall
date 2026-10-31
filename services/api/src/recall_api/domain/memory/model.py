@@ -127,7 +127,19 @@ class Observation:
     position: Position
     confidence: float
     keyframe_index: int | None = None
-    stale: bool = False
+    box: tuple[float, float, float, float] | None = None  # the best box in that keyframe, source-image pixels
+
+
+@dataclass(frozen=True)
+class SetAside:
+    """An append-only record that some sightings are history: the thing moved, is gone, or the room started afresh.
+    Sightings themselves are never edited; "where is it now" is derived from both."""
+
+    id: str
+    scan_id: str | None  # the scan that decided it (None for the arrival check)
+    reason: str  # moved | gone | fresh | arrival | migrated
+    at: datetime
+    observation_ids: tuple[str, ...]
 
 
 @dataclass
@@ -139,12 +151,22 @@ class TrackedObject:
     label: str
     aliases: tuple[str, ...] = ()
     observations: list[Observation] = field(default_factory=list)
+    set_asides: list[SetAside] = field(default_factory=list)
     color: str | None = None  # a basic colour name, from the photo or from the user
     size_m: tuple[float, float, float] | None = None  # bounding box (x, y, z) from the newest sighting
     corrections: Corrections = field(default_factory=lambda: Corrections())
 
+    def is_current(self, o: Observation) -> bool:
+        return not any(o.id in s.observation_ids for s in self.set_asides)
+
+    def set_aside(self, new_id: str, scan_id: str | None, reason: str, at: datetime) -> None:
+        """Every sighting that is current now becomes history (appended, never edited)."""
+        ids = tuple(o.id for o in self.observations if self.is_current(o))
+        if ids:
+            self.set_asides.append(SetAside(new_id, scan_id, reason, at, ids))
+
     def last_seen(self, min_confidence: float = 0.5) -> Observation | None:
-        fresh = [o for o in self.observations if not o.stale and o.confidence >= min_confidence]
+        fresh = [o for o in self.observations if self.is_current(o) and o.confidence >= min_confidence]
         return max(fresh, key=lambda o: o.seen_at, default=None)
 
     def where(self) -> Observation | None:
@@ -236,6 +258,8 @@ class Scan:
     aligned_to: str | None = None  # a rescan recognised in this earlier scan's map (same frame)
     fresh: bool = False  # the room was scanned before but not recognised: its memory started over
     changes: list[ScanChange] = field(default_factory=list)
+    # which models and code made this scan's results: segmenter, reconstructor, pipeline commit
+    provenance: dict | None = None
 
     @property
     def folder(self) -> str:

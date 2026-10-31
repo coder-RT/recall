@@ -4,11 +4,13 @@ The Guide's model and the robot screen are scripted; everything else is the real
 
 import asyncio
 import hashlib
+import io
 
 import numpy as np
 from a2a.helpers import get_data_parts, new_data_part, new_message
 from a2a.types import Role
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from recall_api.application.ports import ChatReply, ToolCall
 from recall_api.config.settings import Settings
@@ -30,11 +32,13 @@ SHELF = box("shelf", [2.7, 1.8, 0.0], [3.3, 2.2, 0.9])
 
 
 def keys_at(x, y, z):
-    return box("keys", [x - 0.03, y - 0.03, z - 0.01], [x + 0.03, y + 0.03, z + 0.01], color="beige")
+    return box("keys", [x - 0.03, y - 0.03, z - 0.01], [x + 0.03, y + 0.03, z + 0.01], color="beige",
+               keyframe_index=0, box=[400.0, 300.0, 480.0, 360.0])  # fmt: skip
 
 
 def result(scan_id, objects):
     return {"scan_id": scan_id, "room": ROOM, "landmarks": [DESK, SHELF], "objects": objects, "stats": {"frames": 1},
+            "provenance": {"segmenter": "sam-3.1", "reconstructor": "arkit-depth", "pipeline_commit": "abc1234"},
             "transform_to_home": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]}  # fmt: skip
 
 
@@ -95,6 +99,9 @@ def pipeline_writes_the_cloud(tmp_path, scan_id):
     desk = np.stack([dx.ravel(), dy.ravel(), dz.ravel()], axis=1)
     folder = next((tmp_path / "blobs" / "scans").glob(f"*_{scan_id}"))
     np.save(folder / "episode" / "home_cloud.npy", np.concatenate([floor, desk]).astype(np.float32))
+    frame = io.BytesIO()
+    Image.new("RGB", (1024, 768), (90, 90, 90)).save(frame, "JPEG")  # the keyframe the keys were seen in
+    (folder / "episode" / "frames" / "000000.jpg").write_bytes(frame.getvalue())
 
 
 S1 = "0b9f2a1e-0000-4000-8000-0000000000a1"
@@ -118,6 +125,20 @@ def test_scan_answer_share_and_erase(tmp_path):
         and answer["grounded"]
         and answer["object_id"] == keys["object_id"]
     )
+
+    # every answer is traceable: answer → tool results → sighting → crop → scan → models
+    ev = http.get(f"/answers/{answer['answer_id']}/evidence", headers=OWNER).json()
+    assert ev["answer"]["question"] == "Where are my keys?" and ev["answer"]["provider"] == "baseten_spark_open"
+    assert [s["kind"] for s in ev["steps"]] == ["model", "tool", "model"]
+    assert ev["steps"][1]["tool"] == "find_object" and ev["steps"][1]["output"]["result"] == "found"
+    (seen,) = ev["sightings"]
+    assert seen["object_id"] == keys["object_id"] and seen["current"] and seen["keyframe_index"] == 0
+    assert seen["scan"]["scan_id"] == S1 and seen["scan"]["room"] == "Office"
+    assert seen["scan"]["provenance"]["reconstructor"] == "arkit-depth"
+    crop = http.get(seen["crop_url"], headers=OWNER)
+    assert crop.status_code == 200 and crop.headers["content-type"] == "image/jpeg"
+    assert Image.open(io.BytesIO(crop.content)).size == (120, 90)  # the box with a quarter's margin round it
+    assert http.get("/answers/nope/evidence", headers=OWNER).status_code == 404
 
     robot = {"Authorization": "Bearer robot"}
     assert http.get("/homes/flat/robot-export", headers=robot).status_code == 403  # off by default

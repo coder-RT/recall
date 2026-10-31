@@ -14,6 +14,7 @@ from .model import (
     Scan,
     ScanChange,
     ScanStatus,
+    SetAside,
     TrackedObject,
     WallSegment,
 )
@@ -26,6 +27,7 @@ __all__ = [
     "Home",
     "Landmark",
     "Observation",
+    "SetAside",
     "Pose",
     "Position",
     "RoomModel",

@@ -86,8 +86,7 @@ class IngestScan:
             # so this room's memory starts over
             scan.fresh = True
             for o in remembered:
-                for ob in o.observations:
-                    ob.stale = True
+                o.set_aside(self.new_id("sa"), scan.id, "fresh", seen_at)
                 self.objects.save(o)
             remembered = []
             home.landmarks = [lm for lm in home.landmarks if lm.room != scan.room]
@@ -133,8 +132,7 @@ class IngestScan:
                     obj = olds[m.existing]
                     was = obj.where().position
                     if m.kind == "moved":
-                        for o in obj.observations:
-                            o.stale = True  # the old place is history now
+                        obj.set_aside(self.new_id("sa"), scan.id, "moved", seen_at)  # the old place is history now
                         obj.corrections.height_m = None  # the user's height was for the old place
                     obj.observations.append(self._observation(obj.id, scan.id, seen_at, news[m.detected]))
                     _appearance(obj, news[m.detected])
@@ -152,8 +150,7 @@ class IngestScan:
                 elif m.kind == "gone":
                     obj = olds[m.existing]
                     was = obj.where().position
-                    for o in obj.observations:
-                        o.stale = True
+                    obj.set_aside(self.new_id("sa"), scan.id, "gone", seen_at)
                     self.objects.save(obj)
                     changes.append(_change("gone", obj, _place(was, before), None))
 
@@ -162,6 +159,7 @@ class IngestScan:
         scan.status = ScanStatus.PROCESSED
         scan.object_count = len(result["objects"])
         scan.transform_to_home = tuple(result.get("transform_to_home") or ())
+        scan.provenance = result.get("provenance")
         scan.detail = ", ".join(f"{v} {k.replace('_', ' ')}" for k, v in report.items() if v)
         self.scans.save(scan)
         self.audit(Action.SCAN_INGESTED, Actor.PIPELINE, target_type="scan", target_id=scan.id, room=scan.room,
@@ -187,6 +185,7 @@ class IngestScan:
             _pos(t["centroid"]),
             float(t["confidence"]),
             keyframe_index=t.get("keyframe_index"),
+            box=tuple(t["box"]) if t.get("box") else None,
         )
 
 

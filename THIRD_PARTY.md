@@ -61,6 +61,7 @@ Direct dependencies only. Licences below are as published by each project.
 | Open3D (classic geometry only: downsample, outlier removal, `segment_plane`, `cluster_dbscan`, FPFH + ICP; never Open3D-ML), trimesh | Point clouds, planes, clustering, registration, meshes | MIT. TODO(verify) before first use: current API names, https://www.open3d.org/docs/ |
 | Shapely | 2D room geometry: floor polygon, wall segments, footprints | BSD-3-Clause. TODO(verify): https://github.com/shapely/shapely |
 | opencv-python-headless | Classic image functions only (Laplacian blur measure); never the DNN module | Apache-2.0 (OpenCV) / MIT (package). TODO(verify): https://github.com/opencv/opencv-python |
+| Pillow | API: cuts the evidence crop from a stored keyframe (`GET /observations/{id}/crop`); pipeline: reads frames | MIT-CMU (HPND). TODO(verify): https://github.com/python-pillow/Pillow/blob/main/LICENSE |
 | rerun-sdk (dev dependency of `services/pipeline` only) | Debug viewer for pipeline runs (`RERUN=1`, `make rerun`) | MIT or Apache-2.0. TODO(verify): https://github.com/rerun-io/rerun |
 | a2a-sdk | Agent-to-agent protocol | Apache-2.0 |
 | httpx | Calls to model APIs | BSD-3-Clause |

@@ -12,7 +12,18 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from recall_api.adapters.inbound.http import ask, audit, guidance, health, homes, privacy, robots, scans, sharing
+from recall_api.adapters.inbound.http import (
+    answers,
+    ask,
+    audit,
+    guidance,
+    health,
+    homes,
+    privacy,
+    robots,
+    scans,
+    sharing,
+)
 from recall_api.config.settings import Settings
 from recall_api.domain.audit import Action, Actor, Outcome
 from recall_api.infra import logging as recall_logging
@@ -39,6 +50,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         sharing.router,
         audit.router,
         privacy.router,
+        answers.router,
     ):
         app.include_router(r)
     _mount_home_memory(app, settings)

@@ -25,6 +25,19 @@ def _env() -> dict[str, str]:
     return env
 
 
+def _commit() -> str | None:
+    """The pipeline's git commit, for the result's provenance (None outside a git checkout)."""
+    import subprocess
+
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True, timeout=5
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return out.stdout.strip() or None
+
+
 def make_reconstructor(env: dict[str, str]):
     """RECONSTRUCTOR=mapanything (default) or arkit_depth (LiDAR depth + ARKit poses, no model)."""
     choice = env.get("RECONSTRUCTOR", "mapanything")
@@ -59,7 +72,7 @@ def process(episode_dir: str, scan_id: str, post: bool = True, out: str | None =
             return 2
         sink = ApiResultSink(env.get("RECALL_API_URL", "http://localhost:8000"), key)
     debug = RerunDebug(f"recall-{scan_id}") if env.get("RERUN") == "1" else NoDebug()
-    cfg = PipelineConfig()
+    cfg = PipelineConfig(commit=_commit())
     sam = CachedSegmenter(Sam31MetaApi(env["META_MUSE_API_KEY"]), Path(episode_dir) / "cache" / "sam")
     result = process_episode(
         DiskEpisodeSource(episode_dir),

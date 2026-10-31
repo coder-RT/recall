@@ -50,5 +50,13 @@
         "additionalProperties": false
       }
     }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "explain",
+      "description": "Why Recall thinks the thing is where it says: how many sightings, how many scans, which room, when, how sure, which models found and placed it, and what the user set. Use it when asked why or how sure.",
+      "parameters": {"type": "object", "properties": {"object_id": {"type": "string"}}, "required": ["object_id"], "additionalProperties": false}
+    }
   }
 ]

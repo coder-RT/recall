@@ -21,7 +21,7 @@ def _unavailable(e: Exception) -> HTTPException:
 @router.post("/ask", response_model=Answer, tags=["ask"])
 def ask(body: AskRequest, c=Depends(container)) -> Answer:
     try:
-        a = c.ask(body.home_id, body.question, body.session_id)
+        a = c.ask(body.home_id, body.question, body.session_id, body.about)
     except (httpx.HTTPError, RuntimeError) as e:
         raise _unavailable(e) from e
     return Answer(
@@ -31,6 +31,7 @@ def ask(body: AskRequest, c=Depends(container)) -> Answer:
         tool_calls=a.tool_calls,
         model=a.model,
         latency_ms=a.latency_ms,
+        answer_id=a.answer_id,
     )
 
 

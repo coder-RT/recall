@@ -8,6 +8,12 @@ properties:
   confidence: {type: number, minimum: 0, maximum: 1}
   sightings: {type: integer, minimum: 1, description: Frames that saw it}
   keyframe_index: {type: integer, description: The best frame}
+  box:
+    type: [array, "null"]
+    items: {type: number}
+    minItems: 4
+    maxItems: 4
+    description: "The best frame's box (x1, y1, x2, y2), source-image pixels: the evidence crop"
   front_dir: {type: [array, "null"], items: {type: number}, description: "Unit vector (x, y) the front faces, landmarks only"}
   color: {type: [string, "null"], description: "Basic colour name measured from the photo pixels inside the box (objects only)"}
   size_m: {type: [array, "null"], items: {type: number}, minItems: 3, maxItems: 3, description: "Bounding box x, y, z in metres"}

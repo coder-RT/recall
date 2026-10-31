@@ -1,0 +1,36 @@
+type: object
+required:
+- answer_id
+- question
+- text
+- grounded
+- model
+- provider
+- created_at
+- latency_ms
+properties:
+  answer_id:
+    type: string
+  question:
+    type: string
+  text:
+    type: string
+  grounded:
+    type: boolean
+  model:
+    type: string
+  provider:
+    type: string
+  created_at:
+    type: string
+    format: date-time
+  latency_ms:
+    type: integer
+  prompt_tokens:
+    type:
+    - integer
+    - 'null'
+  completion_tokens:
+    type:
+    - integer
+    - 'null'

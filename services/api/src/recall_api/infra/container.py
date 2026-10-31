@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 
 from recall_api.adapters.outbound.llm.openai_compatible import from_settings as llm_from_settings
 from recall_api.adapters.outbound.persistence.sqlite import (
+    SqliteAnswerLog,
     SqliteAuditLog,
     SqliteHomes,
     SqliteObjects,
@@ -27,6 +28,7 @@ from recall_api.application.ask_where_is import AskWhereIs
 from recall_api.application.audit import Auditor
 from recall_api.application.correct_object import CorrectObject
 from recall_api.application.erase_scan import EraseScan
+from recall_api.application.explain_answer import ExplainAnswer
 from recall_api.application.export_for_robot import ExportForRobot
 from recall_api.application.ingest_scan import IngestScan
 from recall_api.application.plan_guidance import PlanGuidance
@@ -143,12 +145,22 @@ class Container:
 
     @cached_property
     def tools(self) -> Tools:
-        return Tools(self.homes, self.objects, self.clock, self.guidance, ZoneInfo(self.settings.home_timezone))
+        return Tools(self.homes, self.objects, self.clock, self.guidance, ZoneInfo(self.settings.home_timezone),
+                     scans=self.scans)  # fmt: skip
+
+    @cached_property
+    def answer_log(self) -> SqliteAnswerLog:
+        return SqliteAnswerLog(self.engine)
+
+    @cached_property
+    def explain_answer(self) -> ExplainAnswer:
+        return ExplainAnswer(self.answer_log, self.objects, self.scans, self.blobs)
 
     @cached_property
     def ask(self) -> AskWhereIs:
         schemas = json.loads((API_ROOT / "resources" / "tools.json").read_text())
-        return AskWhereIs(self.llm, self.tools, schemas, self.homes)
+        return AskWhereIs(self.llm, self.tools, schemas, self.homes, self.answer_log, self.clock, new_id,
+                          self.settings.llm_provider)  # fmt: skip
 
     @cached_property
     def llm(self):

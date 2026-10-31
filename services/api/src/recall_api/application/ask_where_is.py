@@ -7,7 +7,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
-from recall_api.application.ports import LlmProvider
+from recall_api.application.ports import AnswerRecord, Clock, LlmProvider
 from recall_api.application.tools import ToolContext, Tools
 from recall_api.domain.assistant import check_grounding, is_plural
 from recall_api.domain.ports import HomeRepository
@@ -23,7 +23,8 @@ Rules:
 5. Say heights as words (floor, knee, waist, chest, head height). No lists, no markdown.
 6. If several things match, tell them apart by the user's name for them or their colour, and ask which one if unsure.
 7. Values in set_by_user come from the user; say them plainly, they are the most reliable.
-8. find_object already says where each match is; call describe_location only for size or the user's note."""
+8. find_object already says where each match is; call describe_location only for size or the user's note.
+9. Asked why, or how sure: call explain and say what it returned (sightings, scans, when, how sure)."""
 
 
 @dataclass
@@ -34,6 +35,7 @@ class AnswerResult:
     tool_calls: int
     model: str
     latency_ms: int
+    answer_id: str | None = None
 
 
 def fallback_sentence(outputs: list[str]) -> str:
@@ -60,21 +62,60 @@ def fallback_sentence(outputs: list[str]) -> str:
     return f"Your {thing} {verb} {where}{shelf}, at {facts['height_band']} height" + (f", {when}." if when else ".")
 
 
-class AskWhereIs:
-    def __init__(self, llm: LlmProvider, tools: Tools, tool_schemas: list[dict], homes: HomeRepository) -> None:
-        self.llm, self.tools, self.schemas, self.homes = llm, tools, tool_schemas, homes
+class NoAnswerLog:
+    def record(self, answer) -> None: ...
+    def get(self, answer_id):
+        return None
 
-    def __call__(self, home_id: str, question: str, session_id: str | None = None) -> AnswerResult:
+    def recent(self, home_id, limit=100):
+        return []
+
+
+class AskWhereIs:
+    def __init__(
+        self, llm: LlmProvider, tools: Tools, tool_schemas: list[dict], homes: HomeRepository, answers=None,
+        clock: Clock | None = None, new_id=None, provider: str = "",
+    ) -> None:  # fmt: skip
+        self.llm, self.tools, self.schemas, self.homes = llm, tools, tool_schemas, homes
+        self.answers, self.clock, self.new_id, self.provider = answers or NoAnswerLog(), clock, new_id, provider
+
+    def __call__(
+        self, home_id: str, question: str, session_id: str | None = None, about: str | None = None
+    ) -> AnswerResult:
         t0 = time.perf_counter()
         ctx = ToolContext(home_id=home_id, session_id=session_id)
         home = self.homes.get(home_id)
         places = {lm.label for lm in home.landmarks} | {lm.room for lm in home.landmarks if lm.room} if home else set()
         user = question if not session_id else f"{question}\n(guidance session_id: {session_id})"
+        if about:
+            user += f"\n(the thing the last answer was about: object_id {about})"
         messages: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM}, {"role": "user", "content": user}]
+        steps: list[dict[str, Any]] = []
+        tokens = {"prompt_tokens": 0, "completion_tokens": 0}
+        result = self._loop(messages, ctx, places, steps, tokens)
+        # an answer that names a thing's place must rest on at least one sighting; otherwise it isn't said
+        if result.object_id and not ctx.observation_ids:
+            result = AnswerResult(fallback_sentence([]), False, None, result.tool_calls, result.model, 0)
+        result.latency_ms = self._ms(t0)
+        if self.new_id and self.clock:
+            result.answer_id = self.new_id("ans")
+            self.answers.record(AnswerRecord(
+                result.answer_id, home_id, self.clock.now(), question, result.text, result.grounded, result.object_id,
+                steps, list(dict.fromkeys(ctx.observation_ids)), self.provider, self.llm.model,
+                tokens["prompt_tokens"] or None, tokens["completion_tokens"] or None, result.latency_ms,
+            ))  # fmt: skip
+        return result
+
+    def _loop(self, messages, ctx: ToolContext, places: set[str], steps: list, tokens: dict) -> AnswerResult:
+        t0 = time.perf_counter()
         calls = 0
         corrected = False
         for _ in range(MAX_STEPS):
+            ts = time.perf_counter()
             reply = self.llm.chat(messages, self.schemas)
+            steps.append({"kind": "model", "ms": self._ms(ts), "tool": None, "arguments": None, "output": None})
+            for k in tokens:
+                tokens[k] += (reply.usage or {}).get(k, 0)
             if reply.tool_calls:
                 messages.append(
                     {
@@ -92,9 +133,11 @@ class AskWhereIs:
                 )
                 for c in reply.tool_calls:
                     calls += 1
-                    messages.append(
-                        {"role": "tool", "tool_call_id": c.id, "content": self.tools.run(ctx, c.name, c.arguments)}
-                    )
+                    ts = time.perf_counter()
+                    out = self.tools.run(ctx, c.name, c.arguments)
+                    steps.append({"kind": "tool", "ms": self._ms(ts), "tool": c.name, "arguments": c.arguments,
+                                  "output": json.loads(out)})  # fmt: skip
+                    messages.append({"role": "tool", "tool_call_id": c.id, "content": out})
                 continue
             text = (reply.text or "").strip()
             report = check_grounding(text, ctx.outputs, places)

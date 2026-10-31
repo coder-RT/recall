@@ -17,6 +17,8 @@ MAX_DEPTH_M = 5.0  # LiDAR is unreliable beyond this
 
 
 class ArkitDepth:
+    name = "arkit-depth"
+
     def reconstruct(self, episode: Episode, source: EpisodeSource, indices: list[int]) -> list[ViewGeometry]:
         w, h = episode.image_size
         s = LONG_EDGE / max(w, h)

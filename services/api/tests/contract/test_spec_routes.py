@@ -28,6 +28,8 @@ def test_spec_and_app_have_the_same_routes(tmp_path):
     assert documented == served
 
 
-def test_tools_json_has_the_four_tools():
+def test_tools_json_has_the_five_tools():
     tools = json.loads((API_ROOT / "resources" / "tools.json").read_text())
-    assert [t["function"]["name"] for t in tools] == ["find_object", "describe_location", "localize", "plan_route"]
+    assert [t["function"]["name"] for t in tools] == [
+        "find_object", "describe_location", "localize", "plan_route", "explain"
+    ]  # fmt: skip

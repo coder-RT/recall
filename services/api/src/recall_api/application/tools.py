@@ -10,10 +10,10 @@ from zoneinfo import ZoneInfo
 from recall_api.application.ports import Clock
 from recall_api.domain.assistant import spoken_when
 from recall_api.domain.memory import Home
-from recall_api.domain.ports import HomeRepository, TrackedObjectRepository
+from recall_api.domain.ports import HomeRepository, ScanRepository, TrackedObjectRepository
 from recall_api.domain.spatial import relate, shelf_level
 
-TOOL_NAMES = ("find_object", "describe_location", "localize", "plan_route")
+TOOL_NAMES = ("find_object", "describe_location", "localize", "plan_route", "explain")
 
 
 @dataclass
@@ -22,6 +22,7 @@ class ToolContext:
     session_id: str | None = None
     outputs: list[str] = field(default_factory=list)  # every tool result, for the grounding check
     found_object: str | None = None
+    observation_ids: list[str] = field(default_factory=list)  # the sightings the tools' answers rest on
 
 
 class Tools:
@@ -32,8 +33,9 @@ class Tools:
         clock: Clock,
         guidance=None,
         tz: ZoneInfo | None = None,
+        scans: ScanRepository | None = None,
     ) -> None:
-        self.homes, self.objects, self.clock, self.guidance = homes, objects, clock, guidance
+        self.homes, self.objects, self.clock, self.guidance, self.scans = homes, objects, clock, guidance, scans
         self.tz = tz or ZoneInfo("Europe/Warsaw")
 
     def run(self, ctx: ToolContext, name: str, args: dict[str, Any]) -> str:
@@ -42,6 +44,7 @@ class Tools:
             "describe_location": self.describe_location,
             "localize": self.localize,
             "plan_route": self.plan_route,
+            "explain": self.explain,
         }.get(name)
         out = fn(ctx, **args) if fn else {"error": f"unknown tool {name}"}
         text = json.dumps(out)
@@ -67,6 +70,7 @@ class Tools:
         found.sort(key=lambda f: f[0], reverse=True)
         matches = []
         for _, o, last in found[:3]:
+            ctx.observation_ids.append(last.id)
             # where it is comes with each match, so a plain question needs no second tool call
             matches.append(
                 {
@@ -102,6 +106,7 @@ class Tools:
             return {"result": "not_found"}
         last = obj.where()
         ctx.found_object = object_id
+        ctx.observation_ids.append(last.id)
         return {
             "label": obj.label,
             "name": obj.corrections.name,
@@ -113,6 +118,29 @@ class Tools:
             "minutes_since_seen": self._minutes(last.seen_at),
             "seen_when": self._when(last.seen_at),
             "confidence": round(last.confidence, 2),
+        }
+
+    def explain(self, ctx: ToolContext, object_id: str) -> dict:
+        """Why Recall thinks it is where it says: the sightings behind it, each with its scan and the models used."""
+        obj = self.objects.get(object_id)
+        if obj is None or obj.home_id != ctx.home_id or obj.where() is None:
+            return {"result": "not_found"}
+        current = [o for o in obj.observations if obj.is_current(o)]
+        newest = obj.where()
+        scan = self.scans.get(newest.scan_id) if self.scans else None
+        prov = (scan.provenance or {}) if scan else {}
+        ctx.found_object = object_id
+        ctx.observation_ids.extend(o.id for o in current)
+        return {
+            "label": obj.label,
+            "sightings": len(current),
+            "scans": len({o.scan_id for o in current}),
+            "room": scan.room if scan else None,
+            "seen_when": self._when(newest.seen_at),
+            "confidence": round(newest.confidence, 2),
+            "found_by": prov.get("segmenter", "sam-3.1"),
+            "placed_by": prov.get("reconstructor"),
+            "set_by_user": sorted(k for k, v in vars(obj.corrections).items() if v not in (None, False)),
         }
 
     def localize(self, ctx: ToolContext, session_id: str) -> dict:

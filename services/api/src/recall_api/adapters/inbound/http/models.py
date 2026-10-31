@@ -247,6 +247,14 @@ class DetectedThing(BaseModel):
     confidence: Annotated[float, Field(ge=0.0, le=1.0)]
     sightings: Annotated[int, Field(description="Frames that saw it", ge=1)]
     keyframe_index: Annotated[int | None, Field(description="The best frame")] = None
+    box: Annotated[
+        list[float] | None,
+        Field(
+            description="The best frame's box (x1, y1, x2, y2), source-image pixels: the evidence crop",
+            max_length=4,
+            min_length=4,
+        ),
+    ] = None
     front_dir: Annotated[
         list[float] | None, Field(description="Unit vector (x, y) the front faces, landmarks only")
     ] = None
@@ -256,6 +264,12 @@ class DetectedThing(BaseModel):
     size_m: Annotated[
         list[float] | None, Field(description="Bounding box x, y, z in metres", max_length=3, min_length=3)
     ] = None
+
+
+class Provenance(BaseModel):
+    segmenter: Annotated[str | None, Field(description="e.g. sam-3.1")] = None
+    reconstructor: Annotated[str | None, Field(description="e.g. map-anything-apache@00f9c24 or arkit-depth")] = None
+    pipeline_commit: Annotated[str | None, Field(description="The pipeline's git commit")] = None
 
 
 class ScanResult(BaseModel):
@@ -269,6 +283,12 @@ class ScanResult(BaseModel):
             description="4x4 row-major transform from this scan's frame to the home frame (identity for the first scan)",
             max_length=16,
             min_length=16,
+        ),
+    ] = None
+    provenance: Annotated[
+        Provenance | None,
+        Field(
+            description="Which models and code produced this result, kept with the scan so every answer can name them"
         ),
     ] = None
     stats: Annotated[dict[str, Any], Field(description="Measured timings and counts for this run")]
@@ -407,6 +427,61 @@ class Privacy(BaseModel):
     audit_days: Annotated[int, Field(description="How long the activity log keeps events")]
 
 
+class EvidenceAnswer(BaseModel):
+    answer_id: str
+    question: str
+    text: str
+    grounded: bool
+    model: str
+    provider: str
+    created_at: AwareDatetime
+    latency_ms: int
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+
+
+class Kind1(StrEnum):
+    model = "model"
+    tool = "tool"
+
+
+class EvidenceStep(BaseModel):
+    kind: Kind1
+    ms: int
+    tool: str | None = None
+    arguments: dict[str, Any] | None = None
+    output: dict[str, Any] | None = None
+
+
+class EvidenceScan(BaseModel):
+    scan_id: str
+    room: str
+    captured_at: AwareDatetime
+    provenance: dict[str, Any] | None = None
+
+
+class EvidenceSighting(BaseModel):
+    observation_id: str
+    object_id: str
+    label: str
+    position: Annotated[list[float], Field(max_length=3, min_length=3)]
+    confidence: float
+    seen_at: AwareDatetime
+    current: Annotated[bool, Field(description="Still where the thing is now (not set aside by a later scan)")]
+    keyframe_index: int | None = None
+    box: list[float] | None = None
+    crop_url: Annotated[str | None, Field(description="GET it with the device key: the camera's view of the thing")] = (
+        None
+    )
+    scan: EvidenceScan
+
+
+class Evidence(BaseModel):
+    answer: EvidenceAnswer
+    steps: Annotated[list[EvidenceStep], Field(description="In order; a model step or a tool step")]
+    sightings: list[EvidenceSighting]
+
+
 class Negate(IntEnum):
     integer_0 = 0
 
@@ -474,6 +549,9 @@ class AskRequest(BaseModel):
     session_id: Annotated[str | None, Field(description="A guidance session, if the user is already being guided")] = (
         None
     )
+    about: Annotated[
+        str | None, Field(description='The thing the last answer was about, for a follow-up ("why do you think so?")')
+    ] = None
 
 
 class Answer(BaseModel):
@@ -483,6 +561,9 @@ class Answer(BaseModel):
     tool_calls: int | None = None
     model: Annotated[str | None, Field(description="The Meta model that phrased it")] = None
     latency_ms: int | None = None
+    answer_id: Annotated[
+        str | None, Field(description="The logged answer; GET /answers/{answer_id}/evidence explains it")
+    ] = None
 
 
 class Pose(BaseModel):

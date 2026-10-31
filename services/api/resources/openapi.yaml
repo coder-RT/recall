@@ -66,6 +66,10 @@ paths:
     $ref: paths/audit.yaml#/audit
   /privacy:
     $ref: paths/privacy.yaml#/privacy
+  /answers/{answer_id}/evidence:
+    $ref: paths/answers.yaml#/evidence
+  /observations/{observation_id}/crop:
+    $ref: paths/answers.yaml#/crop
   /homes/{home_id}/robot-export:
     $ref: paths/homes.yaml#/robot_export
   /a2a/home-memory:

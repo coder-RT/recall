@@ -1,6 +1,7 @@
 """`make demo` and `make record`: a home memory built from a recorded real scan, through the real write path.
 
-demo:   python -m recall_api.infra.demo serve    no keys; the Guide's replies come from samples/replay/ (labelled recorded)
+demo:   python -m recall_api.infra.demo serve
+        no keys; the Guide's replies come from samples/replay/ (labelled recorded)
 record: python -m recall_api.infra.demo record <result.json> --room "Living room" --captured-at <iso>
         real Muse Spark Open calls (keys from .env); writes samples/replay/flat/. Review the files before committing.
 """
@@ -84,8 +85,8 @@ def serve(sample: Path, port: int) -> None:
     print(f"\nRecall demo: {meta['label']}\nThe Guide's replies are replayed; nothing calls a model. Try:\n")
     for q in QUESTIONS[:3]:
         body = json.dumps({"home_id": HOME, "question": q})
-        print(f"  curl -s localhost:{port}/ask -H 'Authorization: Bearer {DEMO_KEY}' -H 'Content-Type: application/json' "
-              f"-d '{body}'")  # fmt: skip
+        auth = f"-H 'Authorization: Bearer {DEMO_KEY}' -H 'Content-Type: application/json'"
+        print(f"  curl -s localhost:{port}/ask {auth} -d '{body}'")
     print(f"\nAPI docs: http://localhost:{port}/docs (device key: {DEMO_KEY})\n")
     uvicorn.run(create_app(settings), host="127.0.0.1", port=port)
 
@@ -96,8 +97,8 @@ def record(result_path: Path, room: str, captured_at: str, sample: Path) -> None
     result = sanitise(json.loads(result_path.read_text()))
     (sample / "scan-result.json").write_text(json.dumps(result, indent=1) + "\n")
     meta = {
-        "label": f"Recorded output of a real run on {recorded_at:%Y-%m-%d}: one living-room scan from an iPhone 16 Pro, "
-        "processed by MapAnything and SAM 3.1, and Muse Spark Open's replies to the questions below.",
+        "label": f"Recorded output of a real run on {recorded_at:%Y-%m-%d}: one living-room scan from an iPhone "
+        "16 Pro, processed by MapAnything and SAM 3.1, and Muse Spark Open's replies to the questions below.",
         "scan_id": "demo-living-room",
         "room": room,
         "captured_at": captured_at,

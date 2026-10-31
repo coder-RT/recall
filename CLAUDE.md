@@ -49,7 +49,7 @@ The full rule list, each with its source and level, is `docs/private/hackathon-r
 | Speech to text | **Muse Voice Transcribe** only, using its turn detection (no Apple on-device speech recognition) | Meta Model API |
 | Speech out | **AVSpeechSynthesizer** (iOS), **Web Speech `speechSynthesis`** (web): OS features, not models | device / browser |
 | Fine-tuning (stretch only, not now) | Glimmer LoRA; the adapter is published if ever used | Modal |
-| 3D reconstruction | **MapAnything**, weights **`facebook/map-anything-apache`** (Apache-2.0, HF revision `00f9c24`); VGGT fallback. Git dependency of `services/pipeline` pinned to commit `3d10cf7` (v1.1.4); torch installed separately for MPS | **Mac GPU (MPS) first**; if too slow, **Modal** (credits available), then a custom deployment on Baseten |
+| 3D reconstruction | **MapAnything**, weights **`facebook/map-anything-apache`** (Apache-2.0, HF revision `00f9c24`); no-model fallback `RECONSTRUCTOR=arkit_depth` (LiDAR depth + ARKit poses back-projected; ADR-033). Git dependency of `services/pipeline` pinned to commit `3d10cf7` (v1.1.4); torch installed separately for MPS | **Mac GPU (MPS) first**; if too slow, **Modal** (credits available), then a custom deployment on Baseten |
 | Backend | Python 3.12, uv, FastAPI, Pydantic v2, SQLite, SQLAlchemy Core, Alembic | Mac, reachable from the phone through **Cloudflare Tunnel** |
 | 3D maths | NumPy, SciPy, Open3D, trimesh | backend / pipeline |
 | Scan storage | **Cloudflare R2** (S3-compatible multipart); local disk adapter for development | Cloudflare |

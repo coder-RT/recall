@@ -42,3 +42,22 @@ def similarity_matrix(s: float, R: np.ndarray, t: np.ndarray) -> np.ndarray:
     M[:3, :3] = s * R
     M[:3, 3] = t
     return M
+
+
+def scale_intrinsics(K: np.ndarray, sx: float, sy: float) -> np.ndarray:
+    """Intrinsics for an image resized by (sx, sy)."""
+    out = K.astype(np.float64).copy()
+    out[0, :] *= sx
+    out[1, :] *= sy
+    out[2, :] = [0.0, 0.0, 1.0]
+    return out
+
+
+def backproject(depth: np.ndarray, K: np.ndarray, cam2world: np.ndarray) -> np.ndarray:
+    """Depth (H, W) in metres along the OpenCV camera's +Z → (H, W, 3) world points; pixel centres at +0.5."""
+    h, w = depth.shape
+    u, v = np.meshgrid(np.arange(w) + 0.5, np.arange(h) + 0.5)
+    x = (u - K[0, 2]) / K[0, 0] * depth
+    y = (v - K[1, 2]) / K[1, 1] * depth
+    cam = np.stack([x, y, depth], axis=-1)
+    return cam @ cam2world[:3, :3].T + cam2world[:3, 3]

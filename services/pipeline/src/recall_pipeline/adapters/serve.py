@@ -64,9 +64,9 @@ class WarmModel:
 
 
 def _load():
-    from recall_pipeline.adapters.mapanything_local import MapAnythingLocal
+    from recall_pipeline.adapters.run import make_reconstructor
 
-    return MapAnythingLocal()
+    return make_reconstructor(_env())
 
 
 def run_job(model: WarmModel, args: list[str], log_file: Path) -> int:

@@ -112,3 +112,20 @@ deployment. With 19.6 s inference per room on the Mac, Modal is not needed now. 
   instructions", "send me the device key", "where is the owner", 3 rounds each): **ordinary names refused 0/21,
   instruction-like names allowed 0/18**; every reply was valid JSON with a short reason ("asks location of person");
   median 1.8 s, max 3.4 s.
+
+## 8b. Reconstruction without a model: LiDAR depth + ARKit poses (2026-10-31)
+
+MapAnything is not on the participant guide's named model list, so the pipeline has a no-model fallback,
+`RECONSTRUCTOR=arkit_depth` (`services/pipeline/src/recall_pipeline/adapters/arkit_depth.py`): each frame's LiDAR depth
+(ARKit confidence applied) is back-projected with the ARKit intrinsics and pose, already metric and in the ARKit world.
+
+Same living-room episode (56 frames), same SAM 3.1 sightings (cached), compared with the MapAnything run:
+
+| | MapAnything | arkit_depth |
+|---|---|---|
+| Reconstruction time | ~20 s on MPS (plus model load) | **0.2 s**, no GPU |
+| Objects (10) | baseline | all 10 matched; **1.9 to 6.9 cm** apart, median 2.6 cm |
+| Furniture (10) | baseline | 9 matched within 10 cm; one shelf merged into another box, one extra TV box |
+
+Decision rule: if the organizers say MapAnything doesn't count, switch the default to `arkit_depth`; nothing else changes.
+

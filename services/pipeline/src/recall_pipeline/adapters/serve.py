@@ -156,10 +156,11 @@ def serve(port: int, idle: float, load=_load) -> int:
     from recall_pipeline.adapters.prompt_guard import PromptGuard
 
     env = _env()
-    if env.get("HF_TOKEN"):
-        import os
+    import os
 
-        os.environ.setdefault("HF_TOKEN", env["HF_TOKEN"])  # from .env, for the gated Prompt Guard weights
+    for name in ("HF_TOKEN", "PROMPT_GUARD_MODEL"):  # from .env: the gated Prompt Guard weights, and which ones
+        if env.get(name):
+            os.environ.setdefault(name, env[name])
     server = make_server(port, model, env.get("RECALL_DEVICE_KEY", ""), guard=PromptGuard())
 
     def reaper() -> None:

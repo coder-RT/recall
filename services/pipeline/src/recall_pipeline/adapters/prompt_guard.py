@@ -12,13 +12,15 @@ from __future__ import annotations
 import os
 import threading
 
-MODEL = "meta-llama/Llama-Prompt-Guard-2-86M"
+# the 22M model is the one granted to this project (2026-10-31); PROMPT_GUARD_MODEL picks another
+MODEL = "meta-llama/Llama-Prompt-Guard-2-22M"
 ATTACK_LABELS = ("MALICIOUS", "INJECTION", "JAILBREAK", "LABEL_1")
 
 
 class PromptGuard:
-    def __init__(self, model: str = MODEL, threshold: float = 0.5) -> None:
-        self.model_id, self.threshold = model, threshold
+    def __init__(self, model: str | None = None, threshold: float = 0.5) -> None:
+        self.model_id = model or os.environ.get("PROMPT_GUARD_MODEL") or MODEL  # read when the server starts
+        self.threshold = threshold
         self._model = self._tokenizer = None
         self._lock = threading.Lock()
         self.error: str | None = None

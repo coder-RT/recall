@@ -20,6 +20,7 @@ struct RobotAccessView: View {
                     if let p = model.package { MapPreview(package: p) }
                     SharedList()
                     ExportCard(model: model)
+                    ActivityCard(entries: model.activity)
                     if let s = model.status { DeveloperCard(status: s) }
                     if let e = model.error { ErrorBox(text: e) }
                 } else {
@@ -179,6 +180,37 @@ private struct ExportCard: View {
             }
         }
         .card()
+    }
+}
+
+/// What robots did lately, from the Mac's audit log, newest first.
+private struct ActivityCard: View {
+    let entries: [AuditEntry]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Recent robot activity").font(.headline).foregroundStyle(Tokens.ink)
+                .accessibilityAddTraits(.isHeader)
+            if entries.isEmpty {
+                Text("No robot has used your home's memory yet.").font(.subheadline).foregroundStyle(Tokens.muted)
+            }
+            ForEach(entries) { e in
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Image(systemName: e.refused ? "hand.raised.fill" : "checkmark.circle.fill")
+                        .foregroundStyle(e.refused ? Tokens.danger : Tokens.goText)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(e.summary).foregroundStyle(Tokens.ink).fixedSize(horizontal: false, vertical: true)
+                        Text(e.at, format: .relative(presentation: .named)).font(.footnote).foregroundStyle(Tokens.muted)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+            }
+            Text("Kept on your Mac for 90 days. Keys are never recorded.")
+                .font(.footnote).foregroundStyle(Tokens.muted).fixedSize(horizontal: false, vertical: true)
+        }
+        .card()
+        .accessibilityIdentifier("robot-activity")
     }
 }
 

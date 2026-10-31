@@ -302,6 +302,31 @@ extension RecallAPI: RobotSharing {
         return Self.status(try await send(request("sharing", method: "PUT", contentType: "application/json", body: body)))
     }
 
+    public func activity(limit: Int) async throws -> [AuditEntry] {
+        var req = request("audit", method: "GET", contentType: "application/json", body: Data())
+        req.url = req.url.flatMap { URL(string: $0.absoluteString + "?limit=\(limit)") }
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw RecallError.status((response as? HTTPURLResponse)?.statusCode ?? 0) }
+        return Self.entries(data)
+    }
+
+    static func entries(_ data: Data) -> [AuditEntry] {
+        let rows = (try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]) ?? []
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let plain = ISO8601DateFormatter()
+        return rows.compactMap { r in
+            guard let id = r["id"] as? String, let at = r["at"] as? String,
+                  let date = iso.date(from: at) ?? plain.date(from: at) else { return nil }
+            let detail = (r["detail"] as? [String: Any] ?? [:]).mapValues { v -> String in
+                if let b = v as? Bool { return b ? "true" : "false" }
+                return "\(v)"
+            }
+            return AuditEntry(id: id, at: date, actor: r["actor"] as? String ?? "unknown", action: r["action"] as? String ?? "",
+                              outcome: r["outcome"] as? String ?? "ok", detail: detail)
+        }
+    }
+
     static func status(_ j: [String: Any]) -> RobotAccessStatus {
         RobotAccessStatus(on: j["robot_access"] as? Bool ?? false, a2aURL: j["a2a_url"] as? String ?? "",
                           agentCardURL: j["agent_card_url"] as? String ?? "", exportURL: j["export_url"] as? String ?? "")

@@ -8,6 +8,8 @@ import RecallUpload
 final class RobotAccessModel {
     private(set) var status: RobotAccessStatus?
     private(set) var package: RobotMapPackage?
+    /// The newest audit entries about robots (map reads, questions, refusals, the switch).
+    private(set) var activity: [AuditEntry] = []
     private(set) var zip: URL?
     private(set) var busy = false
     private(set) var error: String?
@@ -24,6 +26,7 @@ final class RobotAccessModel {
         await run {
             status = try await sharing.robotAccess()
             package = try? await sharing.robotMap(home: settings.connection.homeId)
+            await refreshActivity()
             zip = nil
         }
     }
@@ -31,6 +34,7 @@ final class RobotAccessModel {
     func turn(_ on: Bool) async {
         await run {
             status = try await sharing.setRobotAccess(on)
+            await refreshActivity()
             speech.say(on ? "Robot access is on. Robots with your robot key can find things in your home."
                           : "Robot access is off. Robots can't read your home's memory.", interrupt: true)
         }
@@ -43,6 +47,10 @@ final class RobotAccessModel {
             package = p
             zip = try FolderZip.make(name: p.name, files: p.files, in: FileManager.default.temporaryDirectory)
         }
+    }
+
+    private func refreshActivity() async {
+        activity = Array(((try? await sharing.activity(limit: 50)) ?? []).filter(\.isAboutRobots).prefix(10))
     }
 
     private func run(_ work: () async throws -> Void) async {

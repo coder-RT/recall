@@ -253,6 +253,8 @@ public final class FakeRobotSharing: RobotSharing, @unchecked Sendable {
         self.on = on
         return status
     }
+    public var entries: [AuditEntry] = []
+    public func activity(limit: Int) async throws -> [AuditEntry] { Array(entries.prefix(limit)) }
     public func robotMap(home: String) async throws -> RobotMapPackage {
         if let error { throw error }
         let map = RobotMap(width: 4, height: 3, resolution: 0.1, origin: (0, 0), shades: [254, 254, 0, 128, 254, 254, 0, 128, 254, 254, 254, 128])

@@ -42,6 +42,16 @@ enum UITestSamples {
         private var on = false
         func robotAccess() async throws -> RobotAccessStatus { status }
         func setRobotAccess(_ on: Bool) async throws -> RobotAccessStatus { self.on = on; return status }
+        func activity(limit: Int) async throws -> [AuditEntry] {
+            let now = Date()
+            var out = [AuditEntry(id: "a1", at: now.addingTimeInterval(-120), actor: "robot", action: "home_memory.query",
+                                  outcome: "ok", detail: ["asked": "keys", "found": "true"]),
+                       AuditEntry(id: "a2", at: now.addingTimeInterval(-3600), actor: "unknown", action: "auth.refused",
+                                  outcome: "refused", detail: ["why": "wrong key", "path": "/a2a/home-memory"])]
+            if on { out.insert(AuditEntry(id: "a0", at: now, actor: "owner", action: "robot_access.changed", outcome: "ok",
+                                          detail: ["on": "true"]), at: 0) }
+            return out
+        }
         func robotMap(home: String) async throws -> RobotMapPackage {
             let free = [UInt8](repeating: 254, count: 40)
             var shades = [UInt8](repeating: 0, count: 10) + free + [UInt8](repeating: 128, count: 10)

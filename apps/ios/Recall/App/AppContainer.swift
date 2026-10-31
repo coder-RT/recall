@@ -133,6 +133,7 @@ final class LiveServer: HomeMemory, GuideService, Transcriber, ScanProcessing, C
     func robotAccess() async throws -> RobotAccessStatus { try await current().robotAccess() }
     func setRobotAccess(_ on: Bool) async throws -> RobotAccessStatus { try await current().setRobotAccess(on) }
     func robotMap(home: String) async throws -> RobotMapPackage { try await current().robotMap(home: home) }
+    func activity(limit: Int) async throws -> [AuditEntry] { try await current().activity(limit: limit) }
     func transcribe(wav: Data) async throws -> String { try await current().transcribe(wav: wav) }
     func status(scan: String) async throws -> ScanReport { try await current().status(scan: scan) }
     func check() async throws -> String { try await current().check() }

@@ -259,11 +259,16 @@ final class AccessibilityTests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["Never: Photos or camera frames"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["Map of Living room for robots, with 1 things marked."].exists
             || app.otherElements.containing(NSPredicate(format: "label BEGINSWITH 'Map of Living room'")).firstMatch.exists)
+        let activity = app.descendants(matching: .any)["robot-activity"]
+        XCTAssertTrue(activity.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["A robot asked for keys: answered"].exists)
+        XCTAssertTrue(app.staticTexts["Refused: wrong key (/a2a/home-memory)"].exists)
         shot("ios-robot-access")
         try auditBothEnds(app)
         toggle.switches.firstMatch.tap()
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'On. A robot'"))
             .firstMatch.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["You turned robot access on"].waitForExistence(timeout: 3))  // the log, too
     }
 
     func testHomePassesTheAudit() throws {

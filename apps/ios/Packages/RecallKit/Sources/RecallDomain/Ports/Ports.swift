@@ -139,4 +139,6 @@ public protocol RobotSharing: Sendable {
     func robotAccess() async throws -> RobotAccessStatus
     func setRobotAccess(_ on: Bool) async throws -> RobotAccessStatus
     func robotMap(home: String) async throws -> RobotMapPackage
+    /// The newest entries of the Mac's audit log (the owner's key only).
+    func activity(limit: Int) async throws -> [AuditEntry]
 }

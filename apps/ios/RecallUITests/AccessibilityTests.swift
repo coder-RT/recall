@@ -9,7 +9,7 @@ final class AccessibilityTests: XCTestCase {
     private func audit(_ app: XCUIApplication, edgesRechecked: Bool = false) throws {
         Thread.sleep(forTimeInterval: 1)  // let push and tab animations settle, or the audit measures a frame mid-way
         let bar = app.navigationBars.firstMatch
-        print("AUDIT screen: \(bar.exists ? bar.identifier : "(no bar)")")
+        print("AUDIT screen: \(bar.exists ? bar.identifier : app.tabBars.buttons.allElementsBoundByIndex.first { $0.isSelected }?.label ?? "(no bar)")")
         let screen = app.windows.firstMatch.frame
         try app.performAccessibilityAudit { issue in
             let el = issue.element.map { "\($0.elementType.rawValue) '\($0.label)' frame \($0.frame)" } ?? "no element"
@@ -155,7 +155,8 @@ final class AccessibilityTests: XCTestCase {
         try audit(app)
         app.buttons["Cancel"].tap()
         app.tabBars.buttons["Found"].tap()
-        XCTAssertTrue(app.navigationBars["Found"].waitForExistence(timeout: 5))
+        // paired: the list; not paired: the reason and a way to Settings
+        XCTAssertTrue(app.staticTexts["Everything"].waitForExistence(timeout: 10) || app.buttons["Open Settings"].exists)
         shot("ios-found-unpaired")
         try audit(app)
         app.tabBars.buttons["Settings"].tap()

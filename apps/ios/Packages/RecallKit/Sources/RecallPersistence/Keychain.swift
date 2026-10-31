@@ -2,10 +2,12 @@ import Foundation
 import Security
 
 /// The device key lives in the Keychain, never in UserDefaults or the app bundle.
-public enum Keychain {
-    static let service = "com.rachitthariani.recall"
+public struct Keychain: SecretStore {
+    let service: String
 
-    public static func read(_ account: String) -> String? {
+    public init(service: String = "com.rachitthariani.recall") { self.service = service }
+
+    public func read(_ account: String) -> String? {
         let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
                                 kSecAttrAccount as String: account, kSecReturnData as String: true]
         var out: AnyObject?
@@ -13,7 +15,7 @@ public enum Keychain {
         return String(data: data, encoding: .utf8)
     }
 
-    public static func write(_ value: String, account: String) {
+    public func write(_ value: String, account: String) {
         let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
                                 kSecAttrAccount as String: account]
         SecItemDelete(q as CFDictionary)

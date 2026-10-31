@@ -6,12 +6,11 @@ import SwiftUI
 /// Spoken directions to an object. Everything is said aloud and the phone ticks when facing the right way; the
 /// screen (an arrow and the words) is for a sighted helper.
 struct GuideView: View {
-    @Environment(AppModel.self) private var app
     @State private var model: GuideModel
     let close: () -> Void
 
-    init(target: GuideTarget, close: @escaping () -> Void) {
-        _model = State(initialValue: GuideModel(target: target))
+    init(model: GuideModel, close: @escaping () -> Void) {
+        _model = State(initialValue: model)
         self.close = close
     }
 
@@ -19,17 +18,17 @@ struct GuideView: View {
         ZStack {
             GuideCamera(session: model.session).ignoresSafeArea().accessibilityHidden(true)
             VStack(spacing: 12) {
-                if model.weakTracking, case .guiding = model.phase { CueBanner("Slow down, tracking is weak") }
+                if case .guiding(_, weakTracking: true) = model.phase { CueBanner("Slow down, tracking is weak") }
                 Spacer()
                 GlassEffectContainer(spacing: 12) {
                     VStack(spacing: 14) {
                         panel
                         HStack(spacing: 12) {
                             BigButton("Repeat", systemImage: "speaker.wave.2.fill", hint: "Says the direction again.",
-                                      style: .secondary) { model.repeatLast(app: app) }
+                                      style: .secondary) { model.repeatLast() }
                             BigButton(finished ? "Done" : "Stop", systemImage: finished ? "checkmark" : "stop.fill",
                                       hint: "Ends the directions.", style: finished ? .primary : .stop) {
-                                model.stop(app: app)
+                                model.stop()
                                 close()
                             }
                         }
@@ -38,9 +37,9 @@ struct GuideView: View {
             }
             .padding(16)
         }
-        .onAppear { model.start(app: app) }
-        .onDisappear { model.stop(app: app) }
-        .accessibilityAction(.magicTap) { model.repeatLast(app: app) }
+        .onAppear { model.start() }
+        .onDisappear { model.stop() }
+        .accessibilityAction(.magicTap) { model.repeatLast() }
     }
 
     private var finished: Bool {
@@ -55,7 +54,7 @@ struct GuideView: View {
         HStack(spacing: 16) {
             DirectionDial(clock: clock, state: dialState)
             VStack(alignment: .leading, spacing: 4) {
-                Text(model.target.title.capitalizedFirst).font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+                Text(model.thing.title.capitalizedFirst).font(.subheadline.weight(.semibold)).foregroundStyle(.white)
                 Text(headline).font(.title3.weight(.bold)).foregroundStyle(.white)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -65,12 +64,12 @@ struct GuideView: View {
         .background(Tokens.blueDeep.opacity(0.88), in: .rect(cornerRadius: 24))
         .glassRim(.rect(cornerRadius: 24))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(model.target.title). \(headline)")
+        .accessibilityLabel("\(model.thing.title). \(headline)")
         .accessibilityAddTraits(.updatesFrequently)
     }
 
     private var clock: Int? {
-        if case .guiding(let cue) = model.phase { return cue.clock }
+        if case .guiding(let cue, _) = model.phase { return cue.clock }
         return nil
     }
 
@@ -87,7 +86,7 @@ struct GuideView: View {
         switch model.phase {
         case .locating: "Finding where you are. Turn slowly."
         case .planning: "Planning the way…"
-        case .guiding(let cue): Directions.say(cue)
+        case .guiding(let cue, _): Directions.say(cue)
         case .landmarks(let text), .arrived(let text), .failed(let text): text
         }
     }
@@ -109,7 +108,7 @@ private struct DirectionDial: View {
             case .pointing:
                 Image(systemName: "arrow.up").font(.system(size: 40, weight: .bold)).foregroundStyle(Tokens.amber)
                     .rotationEffect(.degrees(Double(clock ?? 12) * 30))
-                    .animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: clock)
+                    .animation(MotionTokens.animation(MotionTokens.turn, reduceMotion: reduceMotion), value: clock)
             case .arrived: Image(systemName: "checkmark").font(.system(size: 40, weight: .bold)).foregroundStyle(.white)
             case .info: Image(systemName: "signpost.right.fill").font(.system(size: 34, weight: .bold)).foregroundStyle(.white)
             }

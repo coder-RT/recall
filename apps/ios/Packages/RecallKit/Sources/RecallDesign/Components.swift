@@ -72,6 +72,7 @@ public struct CueBanner: View {
 /// A capsule button with its words on a solid fill (glass would tint them and cost contrast); the glass is the rim
 /// and the touch response.
 public struct SolidPillStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let fill: Color
     let text: Color
     let edge: Color?
@@ -91,6 +92,8 @@ public struct SolidPillStyle: ButtonStyle {
             .background(fill, in: Capsule())
             .overlay(Capsule().stroke(edge ?? .clear, lineWidth: 1.5))
             .opacity(configuration.isPressed ? 0.75 : 1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
+            .animation(MotionTokens.animation(MotionTokens.press, reduceMotion: reduceMotion), value: configuration.isPressed)
             .glassRim(.capsule, .regular.interactive())
     }
 }

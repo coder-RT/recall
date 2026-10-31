@@ -5,12 +5,11 @@ import SwiftUI
 
 /// The capture screen. Built for use without looking: everything important is spoken; the screen is for a helper.
 struct ScanView: View {
-    @Environment(AppModel.self) private var app
     @State private var model: ScanModel
     let close: () -> Void
 
-    init(room: String, close: @escaping () -> Void) {
-        _model = State(initialValue: ScanModel(room: room))
+    init(model: ScanModel, close: @escaping () -> Void) {
+        _model = State(initialValue: model)
         self.close = close
     }
 
@@ -21,13 +20,13 @@ struct ScanView: View {
                 Unsupported(close: close)
             case .running, .finishing:
                 capture
-            case .done(let record):
-                ReportView(record: record, close: close)
+            case .done(let scan, let metrics):
+                ReportView(scan: scan, metrics: metrics, close: close)
             case .failed(let message):
                 Failed(message: message, close: close)
             }
         }
-        .onAppear { model.start(model: app) }
+        .onAppear { model.start() }
     }
 
     private var capture: some View {
@@ -54,7 +53,7 @@ struct ScanView: View {
                             ProgressView("Saving the scan…").foregroundStyle(Tokens.ink).card()
                         } else {
                             BigButton("Stop", systemImage: "stop.fill", hint: "Finish the scan and hear the report.", style: .stop) {
-                                Task { await model.stop(model: app) }
+                                Task { await model.stop() }
                             }
                         }
                     }
@@ -62,7 +61,7 @@ struct ScanView: View {
             }
             .padding(16)
         }
-        .accessibilityAction(.magicTap) { app.announcer.say(model.spokenProgress, interrupt: true) }
+        .accessibilityAction(.magicTap) { model.repeatProgress() }
     }
 
     private var time: String {

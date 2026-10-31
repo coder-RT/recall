@@ -1,10 +1,11 @@
 import AVFoundation
+import RecallDomain
 import UIKit
 
 /// Speaks short lines. With VoiceOver on, lines go through VoiceOver (the user's own voice and rate); otherwise through
 /// AVSpeechSynthesizer, an OS feature, not a speech model (CLAUDE.md rule 8).
 @MainActor
-public final class Announcer {
+public final class Announcer: SpeechOutput {
     private let synth = AVSpeechSynthesizer()
     public var rate: Float = AVSpeechUtteranceDefaultSpeechRate
 
@@ -30,8 +31,9 @@ public final class Announcer {
 
 /// One haptic vocabulary for the whole app (and the Watch later): never colour or sound alone.
 @MainActor
-public enum Haptics {
-    public static func warning() { UINotificationFeedbackGenerator().notificationOccurred(.warning) }
-    public static func success() { UINotificationFeedbackGenerator().notificationOccurred(.success) }
-    public static func tap() { UIImpactFeedbackGenerator(style: .medium).impactOccurred() }
+public final class Haptics: HapticsOutput {
+    public init() {}
+    public func warning() { UINotificationFeedbackGenerator().notificationOccurred(.warning) }
+    public func success() { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+    public func tap() { UIImpactFeedbackGenerator(style: .medium).impactOccurred() }
 }

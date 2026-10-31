@@ -9,6 +9,13 @@ public struct RouteFollower: Sendable {
         public let metres: Double
         public let arrived: Bool
         public let waypoint: Int
+        /// How far the phone is from the leg it is walking (from the previous waypoint to the next).
+        public var offRouteMetres: Double = 0
+
+        public init(clock: Int, metres: Double, arrived: Bool, waypoint: Int, offRouteMetres: Double = 0) {
+            self.clock = clock; self.metres = metres; self.arrived = arrived; self.waypoint = waypoint
+            self.offRouteMetres = offRouteMetres
+        }
     }
 
     public let waypoints: [SIMD2<Double>]
@@ -31,8 +38,10 @@ public struct RouteFollower: Sendable {
         let target = waypoints[next]
         let metres = distance(position, target)
         let last = next == waypoints.count - 1
+        let legStart = waypoints[max(next - 1, 0)]
         return Cue(clock: Self.clock(forward: forward, to: target - position), metres: metres,
-                   arrived: last && metres < arrivalRadius, waypoint: next)
+                   arrived: last && metres < arrivalRadius, waypoint: next,
+                   offRouteMetres: Self.distance(from: position, toSegment: legStart, target))
     }
 
     /// The direction of `to` seen from `forward`, as an hour on a clock face. ARKit's world is x right, y up and z
@@ -43,6 +52,15 @@ public struct RouteFollower: Sendable {
         let degrees = atan2(-cross, dot) * 180 / .pi  // clockwise from straight ahead
         let hour = (Int((degrees / 30).rounded()) % 12 + 12) % 12
         return hour == 0 ? 12 : hour
+    }
+
+    /// Distance from `p` to the segment a–b.
+    static func distance(from p: SIMD2<Double>, toSegment a: SIMD2<Double>, _ b: SIMD2<Double>) -> Double {
+        let ab = b - a
+        let len2 = ab.x * ab.x + ab.y * ab.y
+        let t = len2 == 0 ? 0 : max(0, min(1, ((p - a).x * ab.x + (p - a).y * ab.y) / len2))
+        let d = p - (a + t * ab)
+        return (d.x * d.x + d.y * d.y).squareRoot()
     }
 
     private func distance(_ a: SIMD2<Double>, _ b: SIMD2<Double>) -> Double {

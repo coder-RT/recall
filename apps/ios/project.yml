@@ -36,6 +36,10 @@ targets:
         product: RecallVoice
       - package: RecallKit
         product: RecallDesign
+      - package: RecallKit
+        product: RecallApplication
+      - package: RecallKit
+        product: RecallPersistence
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.rachitthariani.recall

@@ -1,4 +1,5 @@
 import RecallDesign
+import RecallDomain
 import RecallUpload
 import SwiftUI
 import UIKit
@@ -6,43 +7,58 @@ import UIKit
 @main
 struct RecallApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @State private var model = AppModel()
+    @State private var container = AppContainer()
 
     var body: some Scene {
         WindowGroup {
-            ThemedRoot().environment(model)
+            ThemedRoot()
+                .environment(container.router)
+                .environment(container.settings)
+                .environment(container.things)
+                .environment(container.scans)
+                .environment(\.container, container)
         }
     }
+}
+
+extension EnvironmentValues {
+    /// The composition root, for screens that build their own feature model (Find, Guide, Scan).
+    @Entry var container: AppContainer? = nil
 }
 
 /// The tabs, with the user's theme applied: light, dark or automatic, and high contrast (the Settings switch or
 /// iOS's Increase Contrast).
 private struct ThemedRoot: View {
-    @Environment(AppModel.self) private var model
+    @Environment(Router.self) private var router
+    @Environment(SettingsModel.self) private var settings
+    @Environment(ScansModel.self) private var scans
+    @Environment(\.container) private var container
     @Environment(\.colorSchemeContrast) private var systemContrast
     @AppStorage(Theme.appearanceKey) private var appearance = Appearance.system
     @AppStorage(Theme.highContrastKey) private var highContrast = false
 
     var body: some View {
-        @Bindable var model = model
-        TabView(selection: $model.tab) {
+        @Bindable var router = router
+        TabView(selection: $router.tab) {
             Tab("Find", systemImage: "location.magnifyingglass", value: AppTab.find) { FindView() }
             Tab("Scans", systemImage: "viewfinder", value: AppTab.scans) { HomeView() }
-            Tab("Found", systemImage: "checklist", value: AppTab.found) { ReviewView() }
+            Tab("Found", systemImage: "checklist", value: AppTab.found) { FoundView() }
             Tab("Settings", systemImage: "gearshape", value: AppTab.settings) { SettingsView() }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
         .tint(Tokens.accent)
-        .fullScreenCover(item: $model.guiding) { target in
-            GuideView(target: target) { model.guiding = nil }
+        .fullScreenCover(item: $router.guiding) { thing in
+            if let container {
+                GuideView(model: container.guideModel(for: thing)) { router.guiding = nil }
+            }
         }
         .environment(\.highContrast, highContrast || systemContrast == .increased)
         .preferredColorScheme(appearance.scheme)
         // dynamic colours read the switch when they resolve; a new identity redraws them all
         .id(highContrast)
         .onChange(of: highContrast, initial: true) { Theme.highContrast = highContrast }
-        .task { await model.start() }
-        .onOpenURL { model.pair(with: $0) }
+        .task { await scans.start() }
+        .onOpenURL { settings.pair(with: $0) }
     }
 }
 
@@ -52,6 +68,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
                      completionHandler: @escaping () -> Void) {
         guard identifier == Uploader.sessionIdentifier else { return completionHandler() }
         nonisolated(unsafe) let done = completionHandler
-        AppModel.sharedUploader.setBackgroundCompletion { done() }
+        AppContainer.uploader.setBackgroundCompletion { done() }
     }
 }

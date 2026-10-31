@@ -5,7 +5,10 @@ import UIKit
 
 /// Home: one big action (scan a room) and the scans this phone has made, with their upload state.
 struct HomeView: View {
-    @Environment(AppModel.self) private var model
+    @Environment(ScansModel.self) private var scans
+    @Environment(SettingsModel.self) private var settings
+    @Environment(Router.self) private var router
+    @Environment(\.container) private var container
     @State private var askingRoom = false
     @State private var scanningRoom: String?
 
@@ -13,28 +16,27 @@ struct HomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    Header()
+                    BrandHeader("Scans", subtitle: "Where are your things?")
                     ScanHero { askingRoom = true }
-                        .padding(.top, 8)
+                        .padding(.top, 4)
 
-                    if let problem = model.setupProblem {
-                        SetupNotice(problem: problem) { model.tab = .settings }
+                    if let issue = settings.issue {
+                        SetupNotice(problem: issue.message) { router.tab = .settings }
                     }
 
                     SectionTitle("Your scans", count: count)
                         .padding(.top, 12)
-                    if model.scans.isEmpty {
+                    if scans.scans.isEmpty {
                         EmptyState("viewfinder", "No scans yet. Scan a room to start.")
                     }
-                    ForEach(model.scans) { scan in
-                        ScanRow(scan: scan) { model.tab = .found }
+                    ForEach(scans.scans) { scan in
+                        ScanRow(scan: scan) { router.tab = .found }
                     }
                 }
                 .padding(.horizontal, Tokens.gutter)
                 .padding(.bottom, 24)
             }
-            .recallScreen()
-            .toolbar(.hidden, for: .navigationBar)
+            .tabScreen()
             .sheet(isPresented: $askingRoom) {
                 RoomNameView { room in
                     askingRoom = false
@@ -42,29 +44,13 @@ struct HomeView: View {
                 }
             }
             .fullScreenCover(item: Binding(get: { scanningRoom.map(RoomName.init) }, set: { scanningRoom = $0?.id })) { room in
-                ScanView(room: room.id) { scanningRoom = nil }
+                if let container { ScanView(model: container.scanModel(room: room.id)) { scanningRoom = nil } }
             }
         }
     }
 
     private var count: String? {
-        model.scans.isEmpty ? nil : model.scans.count == 1 ? "1 scan" : "\(model.scans.count) scans"
-    }
-}
-
-/// The app's mark, name and promise at the top of Home.
-private struct Header: View {
-    var body: some View {
-        HStack(spacing: 14) {
-            BrailleMark()
-            VStack(alignment: .leading, spacing: 2) {
-                Wordmark().accessibilityAddTraits(.isHeader)
-                Text("Where are your things?").font(.subheadline).foregroundStyle(Tokens.muted)
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.top, 12)
-        .accessibilityElement(children: .combine)
+        scans.scans.isEmpty ? nil : scans.scans.count == 1 ? "1 scan" : "\(scans.scans.count) scans"
     }
 }
 
@@ -145,8 +131,8 @@ private struct SetupNotice: View {
 struct RoomName: Identifiable { let id: String }
 
 private struct ScanRow: View {
-    @Environment(AppModel.self) private var model
-    let scan: ScanRecord
+    @Environment(ScansModel.self) private var scans
+    let scan: Scan
     let review: () -> Void
     @State private var shareURL: URL?
 
@@ -164,45 +150,35 @@ private struct ScanRow: View {
             }
             Text("\(scan.frames) frames · \(scan.directions) of 12 directions")
                 .font(.footnote).foregroundStyle(Tokens.muted)
-            if let phase = scan.uploadPhase {
-                UploadStatus(phase: phase, fraction: scan.uploadFraction ?? 0, detail: scan.uploadDetail)
-            }
+            if scan.state != .notUploaded { UploadStatus(state: scan.state) }
             HStack(spacing: 10) {
-                if scan.uploadPhase == nil || scan.uploadPhase == "failed" {
-                    Button { model.upload(scan) } label: {
-                        Label(scan.uploadPhase == "failed" ? "Retry upload" : "Upload to the Mac", systemImage: "arrow.up.circle")
-                            .foregroundStyle(Tokens.onGo)
+                if scan.canUpload {
+                    let retry = if case .failed = scan.state { true } else { false }
+                    Button { scans.upload(scan) } label: {
+                        Label(retry ? "Retry upload" : "Upload to the Mac", systemImage: "arrow.up.circle")
                     }
-                    .buttonStyle(.glassProminent).tint(Tokens.go)
+                    .buttonStyle(SolidPillStyle(fill: Tokens.go, text: Tokens.onGo, compact: true))
                 }
-                if scan.uploadPhase == "processed" {
-                    Button(action: review) {
-                        Label("Check what was found", systemImage: "checklist").foregroundStyle(Tokens.onAccent)
-                    }
-                    .buttonStyle(.glassProminent).tint(Tokens.accentFill)
+                if scan.isProcessed {
+                    Button(action: review) { Label("Check what was found", systemImage: "checklist") }
+                        .buttonStyle(SolidPillStyle(fill: Tokens.accentFill, text: Tokens.onAccent, compact: true))
                 }
                 Spacer(minLength: 0)
                 if let url = shareURL {
                     ShareLink(item: url) { Image(systemName: "square.and.arrow.up").foregroundStyle(Tokens.accent) }
-                        .buttonStyle(.glass).buttonBorderShape(.circle)
+                        .buttonStyle(.glass).buttonBorderShape(.circle).controlSize(.large)
                         .accessibilityLabel("Share the scan")
                         .accessibilityHint("Send this scan with AirDrop or save it to Files.")
                 }
             }
-            .font(.subheadline.weight(.semibold))
-            .controlSize(.large)
         }
         .card()
-        .task(id: scan.id) {
-            // the zip for AirDrop or Files is built off the main thread, once
-            let dir = model.episodeDir(scan.id)
-            shareURL = await Task.detached { AppModel.archive(dir) }.value
-        }
+        .task(id: scan.id) { shareURL = await scans.archive(scan) }  // built once, off the main thread
         .accessibilityElement(children: .contain)
         .contextMenu {
-            Button("Delete scan", systemImage: "trash", role: .destructive) { model.delete(scan) }
+            Button("Delete scan", systemImage: "trash", role: .destructive) { scans.delete(scan) }
         }
-        .accessibilityAction(named: "Delete scan") { model.delete(scan) }
+        .accessibilityAction(named: "Delete scan") { scans.delete(scan) }
     }
 }
 
@@ -234,23 +210,21 @@ struct GradeBadge: View {
 }
 
 private struct UploadStatus: View {
-    let phase: String
-    let fraction: Double
-    let detail: String?
+    let state: UploadState
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if phase == "uploading" {
+            if case .uploading(let fraction) = state {
                 ProgressView(value: fraction).tint(Tokens.blue)
                     .accessibilityLabel("Uploading")
                     .accessibilityValue("\(Int(fraction * 100)) percent")
             }
-            Label(text, systemImage: icon)
-                .font(.subheadline).foregroundStyle(phase == "failed" ? Tokens.danger : Tokens.ink)
+            Label(state.description, systemImage: icon)
+                .font(.subheadline).foregroundStyle(failed ? Tokens.danger : Tokens.ink)
                 .fixedSize(horizontal: false, vertical: true)
                 .textSelection(.enabled)
-            if phase == "failed" {
-                Button { UIPasteboard.general.string = text } label: {
+            if failed {
+                Button { UIPasteboard.general.string = state.description } label: {
                     Label("Copy error", systemImage: "doc.on.doc").font(.subheadline.weight(.semibold))
                         .foregroundStyle(Tokens.accent).frame(minHeight: 44)
                 }
@@ -262,23 +236,14 @@ private struct UploadStatus: View {
         .background(Tokens.canvas, in: .rect(cornerRadius: 12))
     }
 
-    private var icon: String {
-        switch phase {
-        case "processed": "checkmark.seal.fill"
-        case "processing": "gearshape.2"
-        case "failed": "exclamationmark.triangle"
-        default: "arrow.up.circle"
-        }
-    }
+    private var failed: Bool { if case .failed = state { true } else { false } }
 
-    private var text: String {
-        switch phase {
-        case "preparing": "Preparing the upload…"
-        case "uploading": "Uploading, \(Int(fraction * 100)) percent"
-        case "finishing": "Checking the upload…"
-        case "processing": "Uploaded. The Mac is processing it."
-        case "processed": "Processed. Ready to ask about."
-        default: "Upload failed. \(detail ?? "")"
+    private var icon: String {
+        switch state {
+        case .processed: "checkmark.seal.fill"
+        case .processing: "gearshape.2"
+        case .failed: "exclamationmark.triangle"
+        default: "arrow.up.circle"
         }
     }
 }

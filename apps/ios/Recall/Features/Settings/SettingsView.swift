@@ -1,12 +1,12 @@
 import RecallDesign
-import RecallNetworking
+import RecallDomain
 import SwiftUI
 import UIKit
 
 /// Where the Mac is and the shared device key (pairing, not a login). The key is kept in the Keychain.
 /// A native grouped Form: the system draws its rows and bars, and every text scales with Dynamic Type.
 struct SettingsView: View {
-    @Environment(AppModel.self) private var model
+    @Environment(SettingsModel.self) private var model
     @State private var testResult: String?
     @State private var testOK = false
     @State private var testing = false
@@ -20,6 +20,12 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Group {
+                    Section {
+                        BrandHeader("Settings", subtitle: "Your Mac, your key, your theme")
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets())
+                    }
+
                     Section {
                         NavigationLink {
                             AppearanceView()
@@ -35,28 +41,28 @@ struct SettingsView: View {
                     }
 
                     Section {
-                        TextField("Mac address", text: $model.serverURL,
+                        TextField("Mac address", text: $model.connection.address,
                                   prompt: Text("https://your-mac.ts.net:8445").foregroundStyle(Tokens.muted), axis: .vertical)
                             .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
                             .accessibilityIdentifier("macAddress")
-                    } header: { Header("Mac address") } footer: {
-                        Note("The address the Mac's API prints when it starts, a Tailscale or a Cloudflare Tunnel URL.")
+                    } header: { FormHeader("Mac address") } footer: {
+                        FormNote("The address the Mac's API prints when it starts, a Tailscale or a Cloudflare Tunnel URL.")
                     }
 
                     Section {
                         Group {
-                            if !showKey && !model.cleanKey.isEmpty {
+                            if !showKey && !model.connection.cleanKey.isEmpty {
                                 // a secure field draws its dots too small to see in a form row; this shows the key is there
-                                Text("•••• •••• \(String(model.cleanKey.suffix(4)))")
+                                Text("•••• •••• \(String(model.connection.cleanKey.suffix(4)))")
                                     .font(.body.monospaced()).foregroundStyle(Tokens.ink)
                                     .fixedSize(horizontal: false, vertical: true)
-                                    .accessibilityLabel("Device key, \(keySummary)")
+                                    .accessibilityLabel("Device key, \(model.connection.keySummary)")
                             } else if showKey {
-                                TextField("Device key", text: $model.deviceKey,
+                                TextField("Device key", text: $model.connection.key,
                                           prompt: Text("Paste the key").foregroundStyle(Tokens.muted), axis: .vertical)
                                     .font(.body.monospaced())
                             } else {
-                                SecureField("Device key", text: $model.deviceKey,
+                                SecureField("Device key", text: $model.connection.key,
                                             prompt: Text("Paste the key").foregroundStyle(Tokens.muted))
                             }
                         }
@@ -71,32 +77,32 @@ struct SettingsView: View {
                             if canPaste {
                                 Button("Paste", systemImage: "doc.on.clipboard") {
                                     guard let text = UIPasteboard.general.string else { return }
-                                    model.deviceKey = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                                    model.announcer.say("Key pasted. \(keySummary)")
+                                    model.connection.key = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    model.say("Key pasted. \(model.connection.keySummary)")
                                 }
                                 .accessibilityLabel("Paste the key")
                             }
                             Button("Copy", systemImage: "doc.on.doc") {
-                                UIPasteboard.general.string = model.cleanKey
-                                model.announcer.say("Key copied.")
+                                UIPasteboard.general.string = model.connection.cleanKey
+                                model.say("Key copied.")
                             }
                             .accessibilityLabel("Copy the key")
-                            .disabled(model.cleanKey.isEmpty)
+                            .disabled(model.connection.cleanKey.isEmpty)
                         }
                         // solid fills: glass would tint the words (and did fail contrast)
                         .buttonStyle(SolidPillStyle(fill: Tokens.card, text: Tokens.accent, edge: Tokens.line, compact: true))
                         .labelStyle(.titleAndIcon)
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
-                    } header: { Header("Device key") } footer: {
-                        Note("\(keySummary) RECALL_DEVICE_KEY from the Mac's .env, kept in this iPhone's Keychain.")
+                    } header: { FormHeader("Device key") } footer: {
+                        FormNote("\(model.connection.keySummary) RECALL_DEVICE_KEY from the Mac's .env, kept in this iPhone's Keychain.")
                     }
 
                     Section {
-                        TextField("Home name", text: $model.homeId, axis: .vertical)
+                        TextField("Home name", text: $model.connection.home, axis: .vertical)
                             .textInputAutocapitalization(.never).autocorrectionDisabled()
                             .accessibilityIdentifier("homeName")
-                    } header: { Header("Home name") } footer: { Note("One name per home; every scan joins it.") }
+                    } header: { FormHeader("Home name") } footer: { FormNote("One name per home; every scan joins it.") }
 
                     Section {
                         Button { Task { await test() } } label: {
@@ -126,7 +132,8 @@ struct SettingsView: View {
                 .listRowBackground(Tokens.card)
             }
             .recallScreen()
-            .navigationTitle("Settings")
+            .toolbar(.hidden, for: .navigationBar)
+            .scrollEdgeEffectStyle(.soft, for: .top)
             .onReceive(NotificationCenter.default.publisher(for: UIPasteboard.changedNotification)) { _ in
                 canPaste = UIPasteboard.general.hasStrings
             }
@@ -139,32 +146,7 @@ struct SettingsView: View {
     private func test() async {
         testing = true
         defer { testing = false }
-        guard let api = model.api else {
-            testResult = model.setupProblem ?? "Check the address and the device key."
-            testOK = false
-            return
-        }
-        // errors stay on screen to read or copy; only success is spoken
-        do {
-            let provider = try await api.health()
-            // a status call for a scan that doesn't exist checks the key: "not found" means the key was accepted
-            do { _ = try await api.scanStatus(scanId: "00000000-0000-4000-8000-000000000000") } catch APIError.server {}
-            testResult = "Connected. The Mac's Guide runs on \(provider)."
-            testOK = true
-            model.announcer.say("Connected.")
-        } catch {
-            testResult = APIError.explain(error)
-            testOK = false
-        }
-    }
-}
-
-/// A short summary of the key, so it can be compared with the Mac's without showing it.
-extension SettingsView {
-    var keySummary: String {
-        let key = model.cleanKey
-        guard !key.isEmpty else { return "No key yet." }
-        return "\(key.count) characters, ending in \(key.suffix(4).map(String.init).joined(separator: " "))."
+        (testResult, testOK) = await model.testConnection()
     }
 }
 
@@ -189,11 +171,11 @@ private struct AppearanceView: View {
                         }
                         .accessibilityAddTraits(appearance == a ? .isSelected : [])
                     }
-                } header: { Header("Theme") } footer: { Note("Automatic follows the iPhone's light or dark setting.") }
+                } header: { FormHeader("Theme") } footer: { FormNote("Automatic follows the iPhone's light or dark setting.") }
                 Section {
                     Toggle("High contrast", isOn: $highContrast).tint(Tokens.go)
                 } footer: {
-                    Note("Black, white and yellow, like the website's high contrast. It also turns on with iOS's Increase Contrast.")
+                    FormNote("Black, white and yellow, like the website's high contrast. It also turns on with iOS's Increase Contrast.")
                 }
             }
             .listRowBackground(Tokens.card)
@@ -202,20 +184,4 @@ private struct AppearanceView: View {
         .navigationTitle("Appearance")
         .navigationBarTitleDisplayMode(.inline)
     }
-}
-
-/// Form section text in contrast-safe colours (the system's secondary grey is under 4.5:1 on the grouped background).
-private struct Header: View {
-    let text: String
-    init(_ text: String) { self.text = text }
-    var body: some View {
-        Text(text).font(.subheadline.weight(.semibold)).foregroundStyle(Tokens.muted).textCase(nil)
-            .fixedSize(horizontal: false, vertical: true)
-    }
-}
-
-private struct Note: View {
-    let text: String
-    init(_ text: String) { self.text = text }
-    var body: some View { Text(text).font(.footnote).foregroundStyle(Tokens.muted).fixedSize(horizontal: false, vertical: true) }
 }

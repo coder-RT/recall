@@ -1,6 +1,7 @@
 import Foundation
 import HTTPTypes
 import OpenAPIRuntime
+import RecallDomain
 import Testing
 @testable import RecallNetworking
 
@@ -30,7 +31,7 @@ let objectsJSON = """
 @Test func objectListFromTheMacDecodes() async throws {
     let api = RecallAPI(baseURL: URL(string: "http://mac.local:8000")!, deviceKey: "k",
                         transport: FixedTransport(body: objectsJSON))
-    let objects = try await api.objects(homeId: "flat")
+    let objects = try await api.things(home: "flat")
     #expect(objects.count == 2)
     #expect(objects[0].title == "grey bag" && objects[0].needsReview && objects[0].place == "near the desk, knee height")
     #expect(objects[1].title == "spare keys" && objects[1].confirmed && objects[1].userHeightM == 0.75)

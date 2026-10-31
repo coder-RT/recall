@@ -4,6 +4,9 @@ Input: an episode folder the pipeline has processed (home_cloud.npy, home_colors
 manifest.json). Output, in the home frame (floor z = 0, z up, metres) shifted so the room is centred on x/y:
 points.bin (float32 xyz), colors.bin (uint8 rgb), conf.bin (uint8, rank within the room), and meta.json with
 bounds, horizontal surfaces, the room model (floor outline, walls, furniture), the objects and the run's stats.
+With --mesh (default on) it also writes the room as a coloured surface: Poisson reconstruction over the measured
+points (Open3D, classic geometry; nothing is generated), trimmed to where the scan had points: mesh_pos.bin
+(float32 xyz), mesh_col.bin (uint8 rgb), mesh_idx.bin (uint32 triangles).
 
     uv run --project services/pipeline python services/pipeline/scripts/export_viewer_scan.py EPISODE OUT_DIR
 """
@@ -26,11 +29,42 @@ def _xyz(p, shift):
     return [round(p[0] - shift[0], 3), round(p[1] - shift[1], 3), round(p[2], 3)]
 
 
+def surface_mesh(points: np.ndarray, colors: np.ndarray, triangles: int):
+    """The measured points as a coloured surface: normals oriented towards where the camera stood (above the
+    floor, inside the room), screened Poisson, then every vertex Poisson invented far from a real point is cut
+    (low support density), so holes stay holes instead of being filled with guesses."""
+    import open3d as o3d
+
+    pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(points))
+    pcd.colors = o3d.utility.Vector3dVector(colors.astype(np.float64) / 255)
+    pcd = pcd.voxel_down_sample(0.02)
+    if len(pcd.points) < 1000:
+        return None
+    pcd.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=0.08, max_nn=30))
+    centre = np.asarray(pcd.points).mean(0)
+    pcd.orient_normals_towards_camera_location(np.array([centre[0], centre[1], 1.4]))
+    # one thread: the multithreaded solver aborts ("Failed to close loop") on real scans with Open3D 0.19
+    mesh, density = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=9, n_threads=1)
+    density = np.asarray(density)
+    mesh.remove_vertices_by_mask(density < np.quantile(density, 0.08))
+    # nothing beyond the measured points' extent (Poisson closes the volume)
+    lo, hi = np.asarray(pcd.points).min(0) - 0.02, np.asarray(pcd.points).max(0) + 0.02
+    mesh = mesh.crop(o3d.geometry.AxisAlignedBoundingBox(lo, hi))
+    if len(mesh.triangles) > triangles:
+        mesh = mesh.simplify_quadric_decimation(triangles)
+    mesh.remove_unreferenced_vertices()
+    pos = np.asarray(mesh.vertices)
+    col = (np.clip(np.asarray(mesh.vertex_colors), 0, 1) * 255).round()
+    return pos, col, np.asarray(mesh.triangles)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("episode", type=Path)
     ap.add_argument("out_dir", type=Path)
     ap.add_argument("--target", type=int, default=150_000, help="approximate number of points to keep")
+    ap.add_argument("--no-mesh", dest="mesh", action="store_false", help="skip the surface mesh")
+    ap.add_argument("--triangles", type=int, default=120_000, help="triangle budget for the surface mesh")
     args = ap.parse_args()
 
     ep = args.episode
@@ -85,6 +119,7 @@ def main() -> None:
                 "label": t["label"],
                 "color": t.get("color"),
                 "at": _xyz(t["centroid"], shift),
+                "size": [round(v, 3) for v in t["size_m"]] if t.get("size_m") else None,
                 "confidence": t["confidence"],
             }
             for t in sorted(result["objects"], key=lambda t: -t["confidence"])
@@ -101,6 +136,14 @@ def main() -> None:
         },
     }
     args.out_dir.mkdir(parents=True, exist_ok=True)
+    if args.mesh:
+        mesh = surface_mesh(points, colors, args.triangles)
+        if mesh is not None:
+            pos, col, tri = mesh
+            pos.astype("<f4").tofile(args.out_dir / "mesh_pos.bin")
+            col.astype(np.uint8).tofile(args.out_dir / "mesh_col.bin")
+            tri.astype("<u4").tofile(args.out_dir / "mesh_idx.bin")
+            meta["mesh"] = {"vertices": int(len(pos)), "triangles": int(len(tri))}
     kept.astype("<f4").tofile(args.out_dir / "points.bin")
     colors[idx].astype(np.uint8).tofile(args.out_dir / "colors.bin")
     conf_u8.tofile(args.out_dir / "conf.bin")

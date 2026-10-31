@@ -368,6 +368,17 @@ export const en = {
         label: "Scanned {date} with your iPhone’s own motion and depth data, rebuilt on your Mac, then searched for furniture and everyday things. Sizes are in metres.",
         hint: "Drag sideways to turn the room.",
         loading: "Loading the scan…",
+        view: "View",
+        views: {
+          dots: "Dots",
+          model: "Room model",
+          surface: "Surface",
+        },
+        viewNotes: {
+          dots: "Every measured point, as your iPhone and the Mac saw it.",
+          model: "The room as a plan: floor, walls and furniture as boxes, coloured by kind, and each thing at its measured size and colour.",
+          surface: "The measured points joined into one coloured surface, with the photo colours. Holes are where the scan saw nothing; nothing is invented.",
+        },
         colour: "Colour",
         modes: { height: "Height", photo: "Photo", confidence: "Confidence" },
         layers: "Layers",

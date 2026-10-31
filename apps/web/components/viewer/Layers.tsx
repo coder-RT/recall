@@ -101,6 +101,8 @@ export interface Thing {
   label: string;
   color: string | null;
   at: number[];
+  /** measured size in metres (x, y, z), when the pipeline has one */
+  size?: number[] | null;
   confidence: number;
 }
 

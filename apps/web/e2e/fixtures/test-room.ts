@@ -60,11 +60,20 @@ export const testMeta = {
     { label: "book", color: "blue", at: [1.2, -1.25, 1.27], confidence: 0.55 },
   ],
   stats: { frames: 48, total_s: 120.4, sam_calls: 384, captured: "2026-10-30" },
+  mesh: { vertices: 4, triangles: 2 },
 };
+
+/** The made-up room's surface: the floor as one quad (two triangles), warm grey. */
+const meshPos = new Float32Array([-W / 2, -D / 2, 0, W / 2, -D / 2, 0, W / 2, D / 2, 0, -W / 2, D / 2, 0]);
+const meshCol = new Uint8Array([190, 170, 150, 190, 170, 150, 190, 170, 150, 190, 170, 150]);
+const meshIdx = new Uint32Array([0, 1, 2, 0, 2, 3]);
 
 export const testFiles: Record<string, Buffer> = {
   "points.bin": Buffer.from(room.positions.buffer),
   "colors.bin": Buffer.from(room.colors.buffer),
   "conf.bin": Buffer.from(room.conf.buffer),
   "meta.json": Buffer.from(JSON.stringify(testMeta)),
+  "mesh_pos.bin": Buffer.from(meshPos.buffer),
+  "mesh_col.bin": Buffer.from(meshCol.buffer),
+  "mesh_idx.bin": Buffer.from(meshIdx.buffer),
 };

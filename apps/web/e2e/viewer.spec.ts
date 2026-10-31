@@ -185,6 +185,27 @@ test.describe("3D viewer: your scan", () => {
     await expect(page.getByRole("checkbox", { name: s.surfaces })).not.toBeChecked();
   });
 
+  test("three views: dots, the room model with a legend of kinds, and the measured surface", async ({ page }) => {
+    await prepare(page);
+    await open(page, PAGE);
+    await formed(page);
+    const viewer = page.locator("[data-viewer]");
+    await expect(page.getByRole("radio", { name: s.views.dots })).toBeChecked();
+    await expect(page.getByText(s.viewNotes.dots)).toBeVisible();
+
+    await page.getByRole("radio", { name: s.views.model }).check();
+    await expect(viewer).toHaveAttribute("data-view", "model");
+    await expect(page.getByText(s.viewNotes.model)).toBeVisible();
+    await expect(page.getByRole("list", { name: s.room }).getByRole("listitem")).toHaveText(["desk", "shelf"]);
+    await expect(page.getByRole("radio", { name: s.modes.height })).toHaveCount(0); // point colours only apply to dots
+    await expect.poll(async () => (await tint(page)).drawn).toBeGreaterThan(1000);
+
+    await page.getByRole("radio", { name: s.views.surface }).check();
+    await expect(viewer).toHaveAttribute("data-view", "surface");
+    await expect(page.getByText(s.viewNotes.surface)).toBeVisible();
+    await expect.poll(async () => (await tint(page)).drawn).toBeGreaterThan(1000);
+  });
+
   test("lists everything Recall found; choosing one highlights its pin", async ({ page }) => {
     await prepare(page);
     await page.emulateMedia({ reducedMotion: "reduce" });

@@ -9,12 +9,19 @@ import { gsap, MOTION_OK } from "@/lib/gsap";
 import { useMotionPrefs } from "@/lib/motion-prefs";
 import { FloorGrid, Furniture, HeightBands, Room, Surfaces, Things, type Bounds, type FurnitureBox, type RoomShape, type Surface, type Thing, type Tokens } from "./Layers";
 import { makeUniforms, MODES, RoomCloud, type CloudData, type CloudUniforms, type ColourMode } from "./RoomCloud";
+import { kindColour, loadMesh, RoomModel, SurfaceMesh, type MeshData } from "./RoomViews";
+
+/** The ways to see the room: every measured point, the room as a plan, or the measured surface. */
+export type View = "dots" | "model" | "surface";
 
 const TARGET = new Vector3(0, 0, 0.9);
 
 export interface ViewerStrings {
   label: string;
   loading: string;
+  view: string;
+  views: Record<View, string>;
+  viewNotes: Record<View, string>;
   colour: string;
   modes: Record<ColourMode, string>;
   layers: string;
@@ -35,6 +42,8 @@ export interface ViewerProps {
   things: Thing[];
   /** index into `things` of the one chosen in the list, or null */
   selected: number | null;
+  /** the export has a surface mesh (mesh_pos.bin, mesh_col.bin, mesh_idx.bin) */
+  hasMesh?: boolean;
   t: ViewerStrings;
 }
 
@@ -110,9 +119,9 @@ function useTokens(): Tokens {
   return tokens;
 }
 
-function Scene({ data, uniforms, spin, layers, bounds, surfaces, model, tokens }: { data: CloudData; uniforms: CloudUniforms; spin: boolean; layers: Layers; bounds: Bounds; surfaces: Surface[]; model: Model; tokens: Tokens }) {
+function Scene({ view, mesh, data, uniforms, spin, layers, bounds, surfaces, model, tokens }: { view: View; mesh: MeshData | null; data: CloudData; uniforms: CloudUniforms; spin: boolean; layers: Layers; bounds: Bounds; surfaces: Surface[]; model: Model; tokens: Tokens }) {
   const { invalidate } = useThree();
-  useEffect(() => invalidate(), [model.selected, layers, invalidate]);
+  useEffect(() => invalidate(), [model.selected, layers, view, mesh, invalidate]);
   useEffect(() => {
     uniforms.uLow.value = new Color(tokens.line);
     uniforms.uHigh.value = new Color(tokens.blue);
@@ -122,6 +131,23 @@ function Scene({ data, uniforms, spin, layers, bounds, surfaces, model, tokens }
     uniforms.uMode.value = MODES.indexOf(layers.mode);
     invalidate();
   }, [uniforms, tokens, layers.mode, invalidate]);
+  if (view === "model") {
+    return (
+      <>
+        <RoomModel room={model.room} furniture={model.furniture} things={model.things} selected={model.selected} tokens={tokens} />
+        <Controls spin={spin} />
+      </>
+    );
+  }
+  if (view === "surface" && mesh) {
+    return (
+      <>
+        <SurfaceMesh mesh={mesh} />
+        <Things items={model.things} selected={model.selected} tokens={tokens} />
+        <Controls spin={spin} />
+      </>
+    );
+  }
   return (
     <>
       <RoomCloud data={data} uniforms={uniforms} />
@@ -148,12 +174,14 @@ async function load(src: string): Promise<CloudData> {
   return { positions: new Float32Array(positions!), colors: colors ? new Uint8Array(colors) : null, conf: new Uint8Array(conf!) };
 }
 
-export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, things, selected, t }: ViewerProps) {
+export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, things, selected, hasMesh = false, t }: ViewerProps) {
   const root = useRef<HTMLDivElement>(null);
   const id = useId();
   const { reduced } = useMotionPrefs();
   const [data, setData] = useState<CloudData | null>(null);
   const [layers, setLayers] = useState<Layers>({ mode: "height", grid: true, bands: false, surfaces: false, room: true, things: true });
+  const [view, setView] = useState<View>("dots");
+  const [mesh, setMesh] = useState<MeshData | null>(null);
   const [animate] = useState(() => !reduced && window.matchMedia(MOTION_OK).matches);
   // the same clamp as the Canvas dpr below, so the first frame already has the final point size
   const uniforms = useMemo(() => makeUniforms(animate ? 0 : 1, Math.min(Math.max(window.devicePixelRatio, 1), 2) * 1.15), [animate]);
@@ -179,6 +207,16 @@ export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, t
       seen.disconnect();
     };
   }, [src]);
+
+  // the surface is fetched only when someone asks to see it
+  useEffect(() => {
+    if (view !== "surface" || mesh || !hasMesh) return;
+    let cancelled = false;
+    loadMesh(src).then((m) => !cancelled && setMesh(m));
+    return () => {
+      cancelled = true;
+    };
+  }, [view, mesh, hasMesh, src]);
 
   // the gather: GSAP owns this one uniform; nothing else animates the canvas
   useEffect(() => {
@@ -212,12 +250,14 @@ export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, t
 
   const toggle = (key: "grid" | "bands" | "surfaces" | "room" | "things") => setLayers((l) => ({ ...l, [key]: !l[key] }));
   const modes = data?.colors ? MODES : MODES.filter((mode) => mode !== "photo");
+  const views: View[] = hasMesh ? ["dots", "model", "surface"] : ["dots", "model"];
+  const kinds = [...new Set(furniture.map((f) => f.label))];
   const check = "size-4 accent-fb-blue";
   const chip = "flex cursor-pointer items-center gap-2 rounded-full border border-fb-line bg-white px-3 py-1.5 text-sm text-ink has-checked:border-fb-blue has-checked:bg-fb-blue-pale";
 
   return (
     <div className="flex size-full flex-col">
-      <div ref={root} role="img" aria-label={t.label} data-viewer data-mode={layers.mode} className="relative min-h-0 flex-1">
+      <div ref={root} role="img" aria-label={`${t.label} ${t.viewNotes[view]}`} data-viewer data-mode={layers.mode} data-view={view} className="relative min-h-0 flex-1">
         {data ? (
           <Canvas
             frameloop={still ? "demand" : "always"}
@@ -225,13 +265,37 @@ export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, t
             camera={{ position: [4.6, -5.8, 5.6], fov: 34, near: 0.1, far: 60 }}
             gl={{ antialias: true, alpha: true, preserveDrawingBuffer: true }}
           >
-            <Scene data={data} uniforms={uniforms} spin={!still} layers={layers} bounds={bounds} surfaces={surfaces} model={{ room, furniture, things, selected }} tokens={tokens} />
+            <Scene view={view} mesh={mesh} data={data} uniforms={uniforms} spin={!still} layers={layers} bounds={bounds} surfaces={surfaces} model={{ room, furniture, things, selected }} tokens={tokens} />
           </Canvas>
         ) : (
           <p className="grid size-full place-items-center text-sm text-muted">{t.loading}</p>
         )}
       </div>
       <div data-viewer-controls className="flex flex-wrap gap-x-6 gap-y-3 border-t border-fb-line px-4 py-3">
+        <fieldset className="flex w-full flex-wrap items-center gap-2">
+          <legend className="float-left mr-1 text-sm font-semibold text-muted">{t.view}</legend>
+          {views.map((v) => (
+            <label key={v} className={chip}>
+              <input type="radio" name={`${id}-view`} value={v} checked={view === v} onChange={() => setView(v)} className={check} />
+              {t.views[v]}
+            </label>
+          ))}
+          <p className="w-full text-sm text-muted" aria-live="polite">
+            {view === "surface" && !mesh ? t.loading : t.viewNotes[view]}
+          </p>
+        </fieldset>
+        {view === "model" && kinds.length > 0 && (
+          <ul aria-label={t.room} className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink">
+            {kinds.map((k) => (
+              <li key={k} className="flex items-center gap-1.5">
+                <span aria-hidden className="inline-block size-3 rounded-sm border border-fb-line" style={{ background: kindColour(k) }} />
+                {k}
+              </li>
+            ))}
+          </ul>
+        )}
+        {view === "dots" && (
+          <>
         <fieldset className="flex flex-wrap items-center gap-2">
           <legend className="float-left mr-1 text-sm font-semibold text-muted">{t.colour}</legend>
           {modes.map((mode) => (
@@ -250,6 +314,8 @@ export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, t
             </label>
           ))}
         </fieldset>
+          </>
+        )}
       </div>
     </div>
   );

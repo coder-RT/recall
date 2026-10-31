@@ -20,6 +20,8 @@ export interface ScanMeta {
   furniture: FurnitureBox[];
   objects: Thing[];
   stats: { frames: number; total_s: number; sam_calls: number; captured: string };
+  /** present when the export built a surface mesh */
+  mesh?: { vertices: number; triangles: number };
 }
 
 function bandRange(i: number) {
@@ -56,6 +58,9 @@ export function LocalScan({ steps }: { steps: ReactNode }) {
   const viewer = {
     label: s.alt,
     loading: s.loading,
+    view: s.view,
+    views: s.views,
+    viewNotes: s.viewNotes,
     colour: s.colour,
     modes: s.modes,
     layers: s.layers,
@@ -74,6 +79,7 @@ export function LocalScan({ steps }: { steps: ReactNode }) {
         room={meta.room}
         furniture={meta.furniture}
         things={meta.objects}
+        hasMesh={Boolean(meta.mesh)}
         viewer={viewer}
         found={{ ...s.found, bandNames: s.bandNames }}
         caption={

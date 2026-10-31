@@ -14,8 +14,13 @@ log = logging.getLogger("recall_api.safety")
 
 
 class Layered:
-    def __init__(self, *screeners) -> None:
-        self.screeners = screeners
+    """`required`: screens that must be able to run; if one can't, the message is refused (PROMPT_GUARD_REQUIRED)."""
+
+    def __init__(self, *screeners, required: tuple[str, ...] = ()) -> None:
+        self.screeners, self.required = screeners, required
+        names = [getattr(s, "name", type(s).__name__) for s in screeners]
+        log.info("A2A screens: %s%s", " then ".join(names) or "none (every message refused)",
+                 f"; required: {', '.join(required)}" if required else "")  # fmt: skip
 
     def screen(self, text: str) -> Screening:
         ran: list[str] = []
@@ -23,6 +28,10 @@ class Layered:
             v = s.screen(text)
             name = getattr(s, "name", type(s).__name__)
             if v.reason == "unavailable":
+                if name in self.required:
+                    log.warning("%s can't run and is required: refusing the message", name)
+                    return Screening(False, "unavailable", by=name)
+                log.warning("%s can't run: skipped, the other screens decide", name)
                 continue
             ran.append(name)
             if not v.safe:

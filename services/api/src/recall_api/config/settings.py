@@ -48,10 +48,13 @@ class Settings(BaseSettings):
     home_memory_a2a_enabled: bool = Field(False, alias="HOME_MEMORY_A2A_ENABLED")
     # how other agents reach this Mac (written into the Agent Card); a robot in Docker uses host.docker.internal
     public_url: str = Field("http://localhost:8000", alias="RECALL_PUBLIC_URL")
+    # the home the Home Memory agent answers about
     home_id: str = Field("flat", alias="RECALL_HOME_ID")
-    audit_retention_days: int = Field(
-        90, alias="RECALL_AUDIT_RETENTION_DAYS"
-    )  # older audit events are dropped  # the home the Home Memory agent answers about
+    # older audit events are dropped
+    audit_retention_days: int = Field(90, alias="RECALL_AUDIT_RETENTION_DAYS")
+    # true: the Home Memory agent refuses every message while Llama Prompt Guard can't run (no weights or HF_TOKEN);
+    # false (default): Muse Spark still screens alone, and the log says Prompt Guard was skipped
+    prompt_guard_required: bool = Field(False, alias="PROMPT_GUARD_REQUIRED")
 
     # the home's clock, for "seen yesterday at 04:21" (sightings are stored in UTC)
     home_timezone: str = Field("Europe/Warsaw", alias="HOME_TIMEZONE")

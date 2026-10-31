@@ -228,8 +228,9 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
 ### 3. Backend and pipeline (planned, phases 0 to 2)
 
 - `make setup`: Python 3.12 with uv, both services, the web app.
-- `make demo`: replays a recorded sample scan and recorded model responses from `samples/replay/`, no keys, labelled as recorded output.
+- `make demo`: will replay a recorded sample scan and recorded model responses from `samples/replay/`, no keys, labelled as recorded output. Not built yet: until recordings of real runs exist it says so and exits. It never uses the Home Memory agent or its screens, so it never needs a Hugging Face token.
 - `make live`: real Meta model calls with the keys from `.env`. The minimum is one Meta Model API key from [dev.meta.ai](https://dev.meta.ai) with `LLM_PROVIDER=meta`; the demo video uses Muse Spark Open on Baseten (`LLM_PROVIDER=baseten_spark_open`); the local privacy mode uses Muse Glimmer in LM Studio (`LLM_PROVIDER=lmstudio`).
+- **Home Memory agent (A2A) with `make live`:** its first screen, Llama Prompt Guard 2, is gated. Request access on the [model card](https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-22M) (Llama 4 Community License) and put a Hugging Face read token in `.env` as `HF_TOKEN`; the weights download to your Mac on first use. Without it, Muse Spark still screens every message and the log says Prompt Guard was skipped; set `PROMPT_GUARD_REQUIRED=true` to refuse every message instead.
 - `make test`, `make lint`, `make lint-imports`: tests, ruff and ESLint, and the architecture rule (domain ← application ← adapters).
 
 ### 4. iPhone app (Watch planned, phase 3)
@@ -251,7 +252,7 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
 ### 6. Environment variables
 
 - Keys live in `.env` at the repo root, which is never committed: `META_MUSE_API_KEY` (Meta Model API), `BASETEN_API_KEY` (Muse Spark Open on Baseten) and `RECALL_DEVICE_KEY` (any long random string; the phone pairs with it).
-- `make demo` needs none. `make live` needs the Meta Model API key and, for the demo setup, the Baseten key; the Glimmer, LM Studio, A2A and R2 settings are optional.
+- `make demo` needs none. `make live` needs the Meta Model API key and, for the demo setup, the Baseten key; the Glimmer, LM Studio, A2A and R2 settings are optional. `HF_TOKEN` (with the Llama 4 Community License accepted for Prompt Guard) is needed only for the Home Memory agent's first screen.
 
 ## Not in this submission
 

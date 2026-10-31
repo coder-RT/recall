@@ -109,7 +109,7 @@ class Container:
         screens = [PromptGuardViaPipeline(self.settings.pipeline_server, key)]
         if self.settings.meta_muse_api_key is not None:
             screens.append(SparkScreener(self.settings.meta_muse_api_key.get_secret_value()))
-        return Layered(*screens)
+        return Layered(*screens, required=("prompt-guard",) if self.settings.prompt_guard_required else ())
 
     @cached_property
     def answer_external_query(self) -> AnswerExternalQuery:

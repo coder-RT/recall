@@ -495,9 +495,21 @@ class GuidanceSession(BaseModel):
 
 
 class VerificationRequest(BaseModel):
-    image: Annotated[bytes, Field(description="JPEG arrival frame")]
-    depth: Annotated[bytes, Field(description="16-bit PNG depth in mm")]
-    pose: Annotated[str, Field(description="JSON PoseRecord with the frame's intrinsics")]
+    image: Annotated[
+        bytes, Field(description="JPEG of the camera at arrival (any size; intrinsics are for this image)")
+    ]
+    depth: Annotated[
+        bytes,
+        Field(
+            description="LiDAR depth at arrival: unsigned 16-bit little-endian millimetres, row by row, depth_size in `pose` (0 = none)"
+        ),
+    ]
+    pose: Annotated[
+        str,
+        Field(
+            description='JSON: {"pose": [16 numbers, ARKit camera-to-world, column-major, in the saved room map\'s world], "intrinsics": {"fx", "fy", "cx", "cy"} for the JPEG, "image_size": [w, h], "depth_size": [w, h]}\n'
+        ),
+    ]
 
 
 class Outcome(StrEnum):

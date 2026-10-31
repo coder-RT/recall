@@ -12,6 +12,8 @@ from recall_api.adapters.outbound.persistence.sqlite import SqliteHomes, SqliteO
 from recall_api.adapters.outbound.safety.prompt_guard_pipeline import PromptGuardViaPipeline
 from recall_api.adapters.outbound.storage.local_disk import LocalDiskBlobStore
 from recall_api.adapters.outbound.storage.zip_unpacker import ZipEpisodeUnpacker
+from recall_api.adapters.outbound.vision.sam31_meta_api import Sam31MetaApi
+from recall_api.adapters.outbound.vision.spark_vision_meta_api import SparkVisionMetaApi
 from recall_api.adapters.outbound.voice.muse_transcribe import MuseTranscriber
 from recall_api.application.answer_external_query import AnswerExternalQuery
 from recall_api.application.ask_where_is import AskWhereIs
@@ -21,6 +23,7 @@ from recall_api.application.ingest_scan import IngestScan
 from recall_api.application.plan_guidance import PlanGuidance
 from recall_api.application.tools import Tools
 from recall_api.application.upload_scan import UploadScan
+from recall_api.application.verify_arrival import VerifyArrival
 from recall_api.config.settings import REPO_ROOT, Settings
 from recall_api.infra.clock import SystemClock
 from recall_api.infra.db import API_ROOT, make_engine, migrate
@@ -103,6 +106,14 @@ class Container:
     def ask(self) -> AskWhereIs:
         schemas = json.loads((API_ROOT / "resources" / "tools.json").read_text())
         return AskWhereIs(llm_from_settings(self.settings), self.tools, schemas, self.homes)
+
+    @cached_property
+    def verify_arrival(self) -> VerifyArrival:
+        key = self.settings.meta_muse_api_key
+        if key is None:
+            raise RuntimeError("META_MUSE_API_KEY is not set: the arrival check uses SAM 3.1 on the Meta Model API")
+        k = key.get_secret_value()
+        return VerifyArrival(self.guidance, self.objects, Sam31MetaApi(k), SparkVisionMetaApi(k), self.clock, new_id)
 
     @cached_property
     def transcriber(self) -> MuseTranscriber:

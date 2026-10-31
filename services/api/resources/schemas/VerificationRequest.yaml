@@ -1,6 +1,13 @@
 type: object
 required: [image, depth, pose]
 properties:
-  image: {type: string, format: binary, description: JPEG arrival frame}
-  depth: {type: string, format: binary, description: 16-bit PNG depth in mm}
-  pose: {type: string, description: JSON PoseRecord with the frame's intrinsics}
+  image: {type: string, format: binary, description: "JPEG of the camera at arrival (any size; intrinsics are for this image)"}
+  depth:
+    type: string
+    format: binary
+    description: "LiDAR depth at arrival: unsigned 16-bit little-endian millimetres, row by row, depth_size in `pose` (0 = none)"
+  pose:
+    type: string
+    description: >
+      JSON: {"pose": [16 numbers, ARKit camera-to-world, column-major, in the saved room map's world],
+      "intrinsics": {"fx", "fy", "cx", "cy"} for the JPEG, "image_size": [w, h], "depth_size": [w, h]}

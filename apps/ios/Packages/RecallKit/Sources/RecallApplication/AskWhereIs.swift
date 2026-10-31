@@ -14,10 +14,10 @@ public struct AskWhereIs: Sendable {
     public init(guide: any GuideService) { self.guide = guide }
 
     /// `known`: the things already listed, to name the one the answer is about.
-    public func callAsFunction(_ question: String, home: String, known: [Thing]) async throws -> Result {
+    public func callAsFunction(_ question: String, home: String, known: [Thing], about: String? = nil) async throws -> Result {
         let q = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { throw RecallError.server("Type or say what you're looking for first.") }
-        let answer = try await guide.ask(home: home, question: q)
+        let answer = try await guide.ask(home: home, question: q, about: about)
         return Result(answer: answer, thing: answer.thingId.flatMap { id in known.first { $0.id == id } })
     }
 }

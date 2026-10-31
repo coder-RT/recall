@@ -71,6 +71,23 @@ final class UsabilityTests: XCTestCase {
         XCTAssertLessThanOrEqual(steps.count, 3)
     }
 
+    /// Ask why: the sighting behind the answer, said as a sentence; ≤ 5 actions from the start.
+    private func askWhy(largestText: Bool) {
+        let app = launch(largestText: largestText)
+        let steps = Steps()
+        let field = app.textViews["question"].exists ? app.textViews["question"] : app.textFields["question"]
+        steps.tap(field)
+        steps.type(field, "Where are my keys?")
+        steps.tap(app.buttons["Ask"])
+        steps.tap(app.buttons["Why?"])
+        let sighting = app.descendants(matching: .any)["sighting-ob1"]
+        XCTAssertTrue(sighting.waitForExistence(timeout: 5))
+        XCTAssertTrue(sighting.label.hasPrefix("Seen in the Living room scan on "), sighting.label)
+        XCTAssertTrue(sighting.label.contains("92% sure. Found by SAM 3.1; placed by MapAnything."), sighting.label)
+        XCTAssertTrue(app.staticTexts["evidence-summary"].label.hasPrefix("Phrased by Muse Spark Open from 1 sighting"))
+        XCTAssertLessThanOrEqual(steps.count, 5)
+    }
+
     /// Something never seen: says so and how to fix it, without a dead end; ≤ 3 actions.
     private func askForSomethingNeverSeen(largestText: Bool) {
         let app = launch(largestText: largestText)
@@ -157,6 +174,8 @@ final class UsabilityTests: XCTestCase {
     func testAskWhereTheKeysAre() { askWhereTheKeysAre(largestText: false) }
     func testAskWhereTheKeysAreLargestText() { askWhereTheKeysAre(largestText: true) }
     func testAskForSomethingNeverSeen() { askForSomethingNeverSeen(largestText: false) }
+    func testAskWhy() { askWhy(largestText: false) }
+    func testAskWhyLargestText() { askWhy(largestText: true) }
     func testFindTheBagInFound() { findTheBagInFound(largestText: false) }
     func testFindTheBagInFoundLargestText() { findTheBagInFound(largestText: true) }
     func testDeleteAScan() { deleteAScan(largestText: false) }

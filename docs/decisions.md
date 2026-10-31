@@ -440,15 +440,20 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-28"></a>
 ## D-28 Sightings are an append-only log
-- **Status:** In progress (this hardening pass) · **Deciders:** Rachit · **Door:** one-way
+- **Status:** Accepted (migration 0007) · **Deciders:** Rachit · **Door:** one-way
 - **Context:** every answer should be traceable to what the camera saw.
 - **Decision:**
   - A sighting is never edited.
   - "Set aside" (moved, gone, a fresh start) is its own append-only record, and "where is it now" is derived.
-  - Each sighting names its scan and keyframe; each scan records the model versions that produced it.
-  - Erasing a scan for privacy is the one deletion, and it's in the audit trail.
+  - Each sighting names its scan, keyframe and box; each scan records the model versions that produced it.
+  - Every answer is logged with its model and tool steps and the sightings it rests on (`answer_log`).
+  - Database triggers refuse updates to sightings, set-asides and logged answers.
+  - Erasing a scan for privacy is the one deletion, and it's in the audit trail. It also deletes the set-asides that
+    scan decided, so the earlier memory comes back by itself.
 - **Alternatives:**
   - A `stale` flag updated in place: history is lost and answers can't be explained.
 - **Consequences:**
-  - \+ "Why do you think so?" has an answer.
-  - − One more table.
+  - \+ "Why do you think so?" has an answer: `GET /answers/{id}/evidence`, the phone's "Why?" sheet, and the Guide's
+    `explain` tool.
+  - \+ An answer that names a place with no sighting behind it is never said (tested).
+  - − Two more tables (`set_asides`, `answer_log`).

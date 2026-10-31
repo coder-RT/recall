@@ -14,7 +14,8 @@ public protocol HomeMemory: Sendable {
 
 /// The Guide agent and the route planner.
 public protocol GuideService: Sendable {
-    func ask(home: String, question: String) async throws -> Answer
+    /// `about`: the thing the last answer was about, so "why do you think so?" knows what "so" is.
+    func ask(home: String, question: String, about: String?) async throws -> Answer
     func route(home: String, to thing: String, from pose: Pose, tracking: TrackingState) async throws -> Route
     /// The arrival check: is the thing really there? (SAM 3.1 + depth + geometry on the Mac)
     func verify(session: String, frame: ArrivalFrame) async throws -> ArrivalCheck
@@ -30,6 +31,12 @@ public protocol ScanProcessing: Sendable {
     func status(scan: String) async throws -> ScanReport
     /// Erases the scan from the Mac: its photos and files, and what memory learnt only from it.
     func erase(scan: String) async throws
+}
+
+/// Why an answer said what it said: the sightings behind it, and the camera's view of each.
+public protocol EvidenceSource: Sendable {
+    func evidence(answer: String) async throws -> Evidence
+    func crop(path: String) async throws -> Data
 }
 
 /// What the Mac keeps and sends where, under its current settings.
@@ -148,4 +155,8 @@ public protocol RobotSharing: Sendable {
     func robotMap(home: String) async throws -> RobotMapPackage
     /// The newest entries of the Mac's audit log (the owner's key only).
     func activity(limit: Int) async throws -> [AuditEntry]
+}
+
+public extension GuideService {
+    func ask(home: String, question: String) async throws -> Answer { try await ask(home: home, question: question, about: nil) }
 }

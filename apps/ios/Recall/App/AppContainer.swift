@@ -50,6 +50,10 @@ final class AppContainer {
         }
     }
 
+    func evidenceSource() -> any EvidenceSource {
+        UITestSamples.enabled ? UITestSamples.EvidenceSample() : server
+    }
+
     func privacySource() -> any PrivacySource {
         UITestSamples.enabled ? UITestSamples.Privacy() : server
     }
@@ -104,7 +108,7 @@ struct SystemClock: Clock {
 /// The Mac, as every Mac-facing port, reached with the current connection settings. Changing Settings swaps the
 /// client underneath; a call made before setup throws the setup issue, in words.
 final class LiveServer: HomeMemory, GuideService, Transcriber, ScanProcessing, ConnectionCheck, ScanServer, RobotSharing,
-    PrivacySource, @unchecked Sendable {
+    PrivacySource, EvidenceSource, @unchecked Sendable {
     private let lock = NSLock()
     private var api: RecallAPI?
     private var issue: SetupIssue = .nothingSet
@@ -130,7 +134,11 @@ final class LiveServer: HomeMemory, GuideService, Transcriber, ScanProcessing, C
     func things(home: String) async throws -> [Thing] { try await current().things(home: home) }
     func correct(home: String, thing: String, _ c: Correction) async throws { try await current().correct(home: home, thing: thing, c) }
     func forget(home: String, thing: String) async throws { try await current().forget(home: home, thing: thing) }
-    func ask(home: String, question: String) async throws -> Answer { try await current().ask(home: home, question: question) }
+    func ask(home: String, question: String, about: String?) async throws -> Answer {
+        try await current().ask(home: home, question: question, about: about)
+    }
+    func evidence(answer: String) async throws -> Evidence { try await current().evidence(answer: answer) }
+    func crop(path: String) async throws -> Data { try await current().crop(path: path) }
     func route(home: String, to thing: String, from pose: Pose, tracking: TrackingState) async throws -> Route {
         try await current().route(home: home, to: thing, from: pose, tracking: tracking)
     }

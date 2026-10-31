@@ -48,7 +48,7 @@ public final class FakeGuide: GuideService, @unchecked Sendable {
         self.answer = answer; self.routes = routes; self.error = error
     }
 
-    public func ask(home: String, question: String) async throws -> Answer {
+    public func ask(home: String, question: String, about: String?) async throws -> Answer {
         if let error { throw error }
         return answer
     }

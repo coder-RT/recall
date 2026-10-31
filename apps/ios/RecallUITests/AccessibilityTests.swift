@@ -297,6 +297,23 @@ final class AccessibilityTests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Privacy"].waitForExistence(timeout: 5))
     }
 
+    /// "Why?" on an answer: the evidence sheet passes the audit, and says its sighting as one sentence.
+    func testEvidencePassesTheAudit() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-UITestSampleThings"]
+        app.launch()
+        let q = field(app, "question")
+        XCTAssertTrue(q.waitForExistence(timeout: 5))
+        q.tap()
+        q.typeText("Where are my keys?")
+        app.buttons["Ask"].tap()
+        XCTAssertTrue(app.buttons["Why?"].waitForExistence(timeout: 5))
+        app.buttons["Why?"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["sighting-ob1"].waitForExistence(timeout: 5))
+        shot("ios-evidence")
+        try audit(app)
+    }
+
     func testHomePassesTheAudit() throws {
         let app = XCUIApplication()
         app.launch()

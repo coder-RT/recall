@@ -549,6 +549,75 @@
         }
       }
     },
+    "/answers/{answer_id}/evidence": {
+      "get": {
+        "tags": [
+          "ask"
+        ],
+        "operationId": "getEvidence",
+        "summary": "Why an answer said what it said (answer → tool results → sightings → crop → scan → models)",
+        "parameters": [
+          {
+            "name": "answer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The evidence chain",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Evidence"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/observations/{observation_id}/crop": {
+      "get": {
+        "tags": [
+          "ask"
+        ],
+        "operationId": "getSightingCrop",
+        "summary": "The part of the keyframe where a sighting was made (cut on request; no extra file is stored)",
+        "parameters": [
+          {
+            "name": "observation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JPEG",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
     "/homes/{home_id}/robot-export": {
       "get": {
         "tags": [
@@ -1594,6 +1663,18 @@
             "type": "integer",
             "description": "The best frame"
           },
+          "box": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            },
+            "minItems": 4,
+            "maxItems": 4,
+            "description": "The best frame's box (x1, y1, x2, y2), source-image pixels: the evidence crop"
+          },
           "front_dir": {
             "type": [
               "array",
@@ -1663,6 +1744,27 @@
             },
             "minItems": 16,
             "maxItems": 16
+          },
+          "provenance": {
+            "type": "object",
+            "description": "Which models and code produced this result, kept with the scan so every answer can name them",
+            "properties": {
+              "segmenter": {
+                "type": "string",
+                "description": "e.g. sam-3.1"
+              },
+              "reconstructor": {
+                "type": "string",
+                "description": "e.g. map-anything-apache@00f9c24 or arkit-depth"
+              },
+              "pipeline_commit": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The pipeline's git commit"
+              }
+            }
           },
           "stats": {
             "type": "object",
@@ -1993,6 +2095,219 @@
           }
         }
       },
+      "EvidenceAnswer": {
+        "type": "object",
+        "required": [
+          "answer_id",
+          "question",
+          "text",
+          "grounded",
+          "model",
+          "provider",
+          "created_at",
+          "latency_ms"
+        ],
+        "properties": {
+          "answer_id": {
+            "type": "string"
+          },
+          "question": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "grounded": {
+            "type": "boolean"
+          },
+          "model": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "latency_ms": {
+            "type": "integer"
+          },
+          "prompt_tokens": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "completion_tokens": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        }
+      },
+      "EvidenceStep": {
+        "type": "object",
+        "required": [
+          "kind",
+          "ms"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "model",
+              "tool"
+            ]
+          },
+          "ms": {
+            "type": "integer"
+          },
+          "tool": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "arguments": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
+          },
+          "output": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
+          }
+        }
+      },
+      "EvidenceScan": {
+        "type": "object",
+        "required": [
+          "scan_id",
+          "room",
+          "captured_at"
+        ],
+        "properties": {
+          "scan_id": {
+            "type": "string"
+          },
+          "room": {
+            "type": "string"
+          },
+          "captured_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "provenance": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
+          }
+        }
+      },
+      "EvidenceSighting": {
+        "type": "object",
+        "required": [
+          "observation_id",
+          "object_id",
+          "label",
+          "position",
+          "confidence",
+          "seen_at",
+          "current",
+          "scan"
+        ],
+        "properties": {
+          "observation_id": {
+            "type": "string"
+          },
+          "object_id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "position": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "confidence": {
+            "type": "number"
+          },
+          "seen_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "current": {
+            "type": "boolean",
+            "description": "Still where the thing is now (not set aside by a later scan)"
+          },
+          "keyframe_index": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "box": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            }
+          },
+          "crop_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "GET it with the device key: the camera's view of the thing"
+          },
+          "scan": {
+            "$ref": "#/components/schemas/EvidenceScan"
+          }
+        }
+      },
+      "Evidence": {
+        "type": "object",
+        "description": "Why Recall said what it said: the logged answer, every tool call with its result, and the sightings behind it, each with its scan, keyframe crop and the models that produced it.\n",
+        "required": [
+          "answer",
+          "steps",
+          "sightings"
+        ],
+        "properties": {
+          "answer": {
+            "$ref": "#/components/schemas/EvidenceAnswer"
+          },
+          "steps": {
+            "type": "array",
+            "description": "In order; a model step or a tool step",
+            "items": {
+              "$ref": "#/components/schemas/EvidenceStep"
+            }
+          },
+          "sightings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EvidenceSighting"
+            }
+          }
+        }
+      },
       "RobotExport": {
         "type": "object",
         "description": "One room's memory for a robot's navigation stack (ROS 2 / Nav2): the occupancy map, where things and furniture are, and the room's outline. Geometry and labels only: never photos, frames, the user's own names or notes, or anyone's live position. Frame \"map\" is the home frame: metres, z up, floor at z = 0. Each room is its own frame.\n",
@@ -2254,6 +2569,13 @@
               "null"
             ],
             "description": "A guidance session, if the user is already being guided"
+          },
+          "about": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The thing the last answer was about, for a follow-up (\"why do you think so?\")"
           }
         }
       },
@@ -2287,6 +2609,13 @@
           },
           "latency_ms": {
             "type": "integer"
+          },
+          "answer_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The logged answer; GET /answers/{answer_id}/evidence explains it"
           }
         }
       },

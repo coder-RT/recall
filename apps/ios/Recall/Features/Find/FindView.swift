@@ -115,6 +115,7 @@ private struct AskCard: View {
 private struct AnswerCard: View {
     let result: AskWhereIs.Result
     let go: (Thing) -> Void
+    @State private var showingWhy = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -124,10 +125,18 @@ private struct AnswerCard: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
             }
-            if let thing = result.thing {
-                Button { go(thing) } label: { Label("Take me there", systemImage: "figure.walk") }
-                    .buttonStyle(SolidPillStyle(fill: Tokens.accentFill, text: Tokens.onAccent))
-                    .accessibilityHint("Spoken directions to your \(thing.title).")
+            HStack(spacing: 10) {
+                if let thing = result.thing {
+                    Button { go(thing) } label: { Label("Take me there", systemImage: "figure.walk") }
+                        .buttonStyle(SolidPillStyle(fill: Tokens.accentFill, text: Tokens.onAccent))
+                        .accessibilityHint("Spoken directions to your \(thing.title).")
+                }
+                if let id = result.answer.answerId, result.thing != nil {
+                    Button { showingWhy = true } label: { Label("Why?", systemImage: "questionmark.circle") }
+                        .buttonStyle(SolidPillStyle(fill: Tokens.card, text: Tokens.accent, edge: Tokens.line))
+                        .accessibilityHint("What the camera saw, when, and which models found it.")
+                        .sheet(isPresented: $showingWhy) { NavigationStack { EvidenceView(answerId: id) } }
+                }
             }
         }
         .card()

@@ -63,7 +63,8 @@ flowchart LR
 **Across every layer:**
 - **Privacy and home scoping:** the memory stays on the owner's Mac. Every request needs the device key, and robots
   have their own read-only key. Deleting a scan erases it from the Mac too.
-- **Lineage:** each sighting keeps its scan, keyframe and confidence.
+- **Lineage:** every answer leads back through its tool results to the sightings, keyframe crops, scans and model
+  versions behind it (see below).
 - **Quality checks:** blur is checked on the phone and again in the pipeline. Contract tests check the spec, a
   synthetic room runs through the pipeline, and a nightly job re-runs every scan.
 - **Spend limits:** the website's voice route is rate-limited.
@@ -120,6 +121,33 @@ sequenceDiagram
 
 The pipeline never touches the database; it posts its result and `ingest_scan` writes. One writer means one place for
 the invariants (what moved, what is gone, what the user corrected), and torch never enters the API.
+
+## Every answer is traceable
+
+```mermaid
+flowchart LR
+  A["Answer<br/>answer_log"] --> T["Tool results<br/>find_object, explain"] --> O["Sightings<br/>append-only"]
+  O --> K["Keyframe crop<br/>cut on request"] --> S["Scan<br/>room, time"] --> P["Models<br/>SAM 3.1, MapAnything,<br/>pipeline commit"]
+```
+
+Each answer is logged with:
+- every model step and tool step, with timings and outputs;
+- the sightings it rests on;
+- the model and the tokens used.
+
+Sightings are never edited. When a thing moves or is gone, an append-only "set aside" record says so, and "where it
+is now" is derived from the two (`domain/memory/model.py`). Database triggers refuse updates to sightings, set-asides
+and the answer log (`db/migrations/versions/0007_sighting_log.py`).
+
+There are three ways to follow the chain:
+- `GET /answers/{id}/evidence` returns all of it.
+- The phone's **Why?** button reads it aloud.
+- Asked "why do you think so?", the Guide answers from the same chain with its `explain` tool.
+
+Two rules hold it together:
+- An answer that names a place with no sighting behind it is never said.
+- Erasing a scan for privacy is the one deletion. It removes the scan's sightings and the set-asides that scan
+  decided, so the earlier memory comes back by itself.
 
 ## Latency tiers
 

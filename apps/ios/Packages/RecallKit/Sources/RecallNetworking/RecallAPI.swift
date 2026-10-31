@@ -82,12 +82,12 @@ extension RecallAPI: HomeMemory {
 // MARK: GuideService, Transcriber
 
 extension RecallAPI: GuideService, Transcriber {
-    public func ask(home: String, question: String) async throws -> Answer {
-        let r = try await call { try await client.ask(body: .json(.init(homeId: home, question: question))) }
+    public func ask(home: String, question: String, about: String?) async throws -> Answer {
+        let r = try await call { try await client.ask(body: .json(.init(homeId: home, question: question, about: about))) }
         switch r {
         case .ok(let ok):
             let a = try ok.body.json
-            return Answer(text: a.text, thingId: a.objectId, grounded: a.grounded)
+            return Answer(text: a.text, thingId: a.objectId, grounded: a.grounded, answerId: a.answerId)
         case .serviceUnavailable: throw RecallError.server("The Guide isn't available right now. Try again in a moment.")
         case .undocumented(let code, _): throw RecallError.status(code)
         }
@@ -311,6 +311,38 @@ struct RFC3339Dates: DateTranscoder {
         let f = ISO8601DateFormatter()
         f.formatOptions = fractions ? [.withInternetDateTime, .withFractionalSeconds] : [.withInternetDateTime]
         return f
+    }
+}
+
+// MARK: Evidence
+
+extension RecallAPI: EvidenceSource {
+    public func evidence(answer: String) async throws -> Evidence {
+        let r = try await call { try await client.getEvidence(path: .init(answerId: answer)) }
+        switch r {
+        case .ok(let ok):
+            let e = try ok.body.json
+            let sightings = e.sightings.map { s in
+                let prov = s.scan.provenance?.additionalProperties.value ?? [:]
+                return Sighting(observationId: s.observationId, label: s.label, room: s.scan.room, seenAt: s.seenAt,
+                                confidence: s.confidence, current: s.current, cropPath: s.cropUrl,
+                                segmenter: prov["segmenter"] as? String, reconstructor: prov["reconstructor"] as? String)
+            }
+            return Evidence(question: e.answer.question, text: e.answer.text, model: e.answer.model,
+                            latencyMs: e.answer.latencyMs, tools: e.steps.compactMap(\.tool), sightings: sightings)
+        case .notFound: throw RecallError.server("The Mac no longer has this answer's evidence.")
+        case .undocumented(let code, _): throw RecallError.status(code)
+        }
+    }
+
+    public func crop(path: String) async throws -> Data {
+        guard let id = path.split(separator: "/").dropLast().last.map(String.init) else { throw RecallError.status(404) }
+        let r = try await call { try await client.getSightingCrop(path: .init(observationId: id)) }
+        switch r {
+        case .ok(let ok): return try await Data(collecting: ok.body.jpeg, upTo: 5 * 1024 * 1024)
+        case .notFound: throw RecallError.server("No camera view is kept for this sighting.")
+        case .undocumented(let code, _): throw RecallError.status(code)
+        }
     }
 }
 

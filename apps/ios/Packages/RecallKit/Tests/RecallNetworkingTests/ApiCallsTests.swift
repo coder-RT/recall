@@ -63,3 +63,27 @@ struct ApiCallsTests {
         }
     }
 }
+
+@Suite("Evidence from the Mac")
+struct EvidenceDecodingTests {
+    @Test func theChainDecodes() async throws {
+        let json = """
+        {"answer": {"answer_id": "ans1", "question": "Where are my keys?", "text": "On the desk.", "grounded": true,
+          "model": "meta-models/muse-spark-open-1026", "provider": "baseten_spark_open",
+          "created_at": "2026-10-31T18:21:07+00:00", "latency_ms": 2300, "prompt_tokens": 2460, "completion_tokens": 261},
+         "steps": [{"kind": "model", "ms": 900}, {"kind": "tool", "ms": 3, "tool": "find_object",
+                    "arguments": {"name": "keys"}, "output": {"result": "found"}}, {"kind": "model", "ms": 1300}],
+         "sightings": [{"observation_id": "ob1", "object_id": "o1", "label": "keys", "position": [1, 1, 0.8],
+          "confidence": 0.92, "seen_at": "2026-10-30T03:21:01.123632+00:00", "current": true, "keyframe_index": 6,
+          "box": [400, 300, 480, 360], "crop_url": "/observations/ob1/crop",
+          "scan": {"scan_id": "s1", "room": "Living room", "captured_at": "2026-10-30T03:21:01+00:00",
+                   "provenance": {"segmenter": "sam-3.1", "reconstructor": "arkit-depth", "pipeline_commit": "abc"}}}]}
+        """
+        let e = try await RecallAPI(baseURL: URL(string: "http://mac.local:8000")!, deviceKey: "k",
+                                    transport: StubTransport(.ok, json)).evidence(answer: "ans1")
+        #expect(e.tools == ["find_object"] && e.latencyMs == 2300)
+        let s = try #require(e.sightings.first)
+        #expect(s.room == "Living room" && s.cropPath == "/observations/ob1/crop" && s.current)
+        #expect(s.segmenter == "sam-3.1" && s.reconstructor == "arkit-depth")
+    }
+}

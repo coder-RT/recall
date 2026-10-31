@@ -17,12 +17,12 @@ enum UITestSamples {
 
     /// The Guide for the UI tests: answers like the recorded Muse Spark Open replies, about the sample things.
     struct Guide: GuideService {
-        func ask(home: String, question: String) async throws -> Answer {
+        func ask(home: String, question: String, about: String?) async throws -> Answer {
             try await Task.sleep(for: .milliseconds(300))  // the acknowledgement is spoken first, as on the Mac
             let q = question.lowercased()
             if q.contains("key") {
                 return Answer(text: "Your keys are near the desk in the Living room, at waist height.", thingId: "s1",
-                              grounded: true)
+                              grounded: true, answerId: "ans-sample")
             }
             if q.contains("wallet") {
                 return Answer(text: "Your brown wallet is on the counter in the Kitchen, at waist height.", thingId: "s6",
@@ -69,6 +69,19 @@ enum UITestSamples {
         ]
         return [again, first]
     }()
+
+    /// An answer's evidence for the UI tests (as the Mac returns it for the sample keys; no camera view).
+    struct EvidenceSample: EvidenceSource {
+        func evidence(answer: String) async throws -> Evidence {
+            Evidence(question: "Where are my keys?", text: "Your keys are near the desk in the Living room, at waist height.",
+                     model: "meta-models/muse-spark-open-1026", latencyMs: 2300, tools: ["find_object"], sightings: [
+                        Sighting(observationId: "ob1", label: "keys", room: "Living room",
+                                 seenAt: Date(timeIntervalSince1970: 1_800_000_000), confidence: 0.92, current: true,
+                                 segmenter: "sam-3.1", reconstructor: "map-anything-apache@00f9c24"),
+                     ])
+        }
+        func crop(path: String) async throws -> Data { throw RecallError.status(404) }
+    }
 
     /// The Mac's privacy facts for the UI tests (as a Mac with the default settings reports them).
     struct Privacy: PrivacySource {

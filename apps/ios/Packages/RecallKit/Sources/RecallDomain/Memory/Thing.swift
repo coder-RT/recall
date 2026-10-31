@@ -91,8 +91,10 @@ public struct Answer: Sendable, Equatable {
     public let text: String
     public let thingId: String?
     public let grounded: Bool
+    /// The Mac's log entry for this answer: its evidence explains why ("Why?").
+    public let answerId: String?
 
-    public init(text: String, thingId: String?, grounded: Bool) {
-        self.text = text; self.thingId = thingId; self.grounded = grounded
+    public init(text: String, thingId: String?, grounded: Bool, answerId: String? = nil) {
+        self.text = text; self.thingId = thingId; self.grounded = grounded; self.answerId = answerId
     }
 }

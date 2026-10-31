@@ -16,6 +16,7 @@ final class FindModel {
     private(set) var state = State.idle
 
     private let ask: AskWhereIs
+    private(set) var lastAnswer: AskWhereIs.Result?
     private let transcriber: any Transcriber
     private let voice: any VoiceInput
     private let things: ThingsModel
@@ -66,7 +67,10 @@ final class FindModel {
             // say something at once (system voice); the answer interrupts it when it arrives
             speech.say(Acknowledgement.line(for: question, known: things.things), interrupt: true)
             if !things.loaded { await things.refresh() }
-            let result = try await ask(question, home: settings.connection.homeId, known: things.things)
+            // the thing the last answer was about, so "why do you think so?" knows what it refers to
+            let result = try await ask(question, home: settings.connection.homeId, known: things.things,
+                                       about: lastAnswer?.answer.thingId)
+            lastAnswer = result
             state = .answered(result)
             if result.thing != nil { prepareGuide() }
             speech.say(result.answer.text + (result.thing == nil ? "" : " Tap Take me there for directions."), interrupt: true)

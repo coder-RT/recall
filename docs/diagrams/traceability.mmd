@@ -1,0 +1,3 @@
+flowchart LR
+  A["Answer<br/>answer_log"] --> T["Tool results<br/>find_object, explain"] --> O["Sightings<br/>append-only"]
+  O --> K["Keyframe crop<br/>cut on request"] --> S["Scan<br/>room, time"] --> P["Models<br/>SAM 3.1, MapAnything,<br/>pipeline commit"]

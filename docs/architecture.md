@@ -15,41 +15,9 @@ Two rules shape everything:
 
 ## The six layers
 
-```mermaid
-flowchart LR
-  subgraph Source["1 · Source (iPhone)"]
-    cam[Camera frames]
-    lidar[LiDAR depth + confidence]
-    pose[ARKit poses + tracking state]
-    mic[Voice question]
-  end
-  subgraph Ingest["2 · Ingest"]
-    up["Resumable multipart upload<br/>sha256 per part, manifest last<br/>upload_scan.py"]
-  end
-  subgraph Store["3 · Store (your Mac)"]
-    raw["Raw episodes, never edited<br/>data/blobs/scans/…/episode"]
-    stage["Stage outputs<br/>result.json, home_cloud.npy"]
-    mem["Memory: SQLite<br/>homes, scans, objects, sightings, audit"]
-  end
-  subgraph Transform["4 · Transform"]
-    q["Huey queue on SQLite<br/>one job at a time"]
-    pipe["Pipeline: MapAnything or LiDAR depth → planes →<br/>SAM 3.1 boxes → lift → cluster → room model"]
-  end
-  subgraph Serve["5 · Serve"]
-    api["API (FastAPI): ask, guidance, verify,<br/>objects, room, privacy, audit"]
-    a2a["Home Memory agent (A2A 1.0)"]
-    robot["Robot export (Nav2 map)"]
-  end
-  subgraph Consume["6 · Consume"]
-    phone[iPhone app]
-    watch["Apple Watch (next)"]
-    web[Website + viewer]
-    bots[Robots and agents]
-  end
-  Source --> Ingest --> Store --> Transform --> Store
-  Store --> Serve --> Consume
-  Cross["Across every layer: privacy and home scoping · lineage · quality checks · spend limits"]
-```
+![Recall's six layers, top to bottom: the iPhone's camera, LiDAR, ARKit poses and voice; a resumable upload; storage on your Mac; the pipeline on a queue; the API, the A2A agent and the robot export; and the iPhone, Watch, website and robots. Privacy, lineage, quality checks and spend limits run across all of them.](diagrams/six-layers.svg)
+
+<sub>Diagram source: [six-layers.mmd](diagrams/six-layers.mmd) (`make diagrams` redraws it).</sub>
 
 | Layer | What it is | Why this, not something bigger | Code |
 |---|---|---|---|
@@ -71,21 +39,9 @@ flowchart LR
 
 ## Hexagonal inside each service
 
-```mermaid
-flowchart TB
-  subgraph adapters["Adapters (FastAPI, SQLite, httpx, Open3D, torch)"]
-    http[HTTP routers] --- a2aa[A2A server]
-    llm[Muse Spark Open / Glimmer / Spark] --- sam[SAM 3.1] --- voice[Muse Voice Transcribe]
-    sqlite[(SQLite)] --- disk[(Disk / R2)]
-  end
-  subgraph application["Application: one file per use case"]
-    ask[ask_where_is] --- ingest[ingest_scan] --- verify[verify_arrival] --- erase[erase_scan]
-  end
-  subgraph domain["Domain: plain dataclasses, NumPy maths"]
-    spatial[spatial relations] --- nav[navigation A*] --- ground[grounding rules] --- mem[Home · Scan · TrackedObject]
-  end
-  adapters --> application --> domain
-```
+![Inside each service: adapters (FastAPI, SQLite, model clients, Open3D, torch) depend on the application's use cases, which depend on the domain's plain dataclasses and maths; never the other way round.](diagrams/hexagon.svg)
+
+<sub>Diagram source: [hexagon.mmd](diagrams/hexagon.mmd) (`make diagrams` redraws it).</sub>
 
 import-linter enforces the arrows in CI: the domain and application never import FastAPI, SQLAlchemy, httpx,
 OpenAI, torch or boto3 (`services/api/pyproject.toml`). Swapping Baseten for LM Studio or the disk for R2 is a
@@ -93,42 +49,18 @@ change in `infra/container.py`, driven by config.
 
 ## The two paths
 
-```mermaid
-sequenceDiagram
-  autonumber
-  participant P as iPhone
-  participant A as API (only writer)
-  participant Q as Huey worker
-  participant S as Pipeline
-  participant M as Meta models
-  Note over P,S: Scan path: batch, about a minute
-  P->>A: upload parts, manifest last, complete
-  A->>Q: queue process_scan
-  Q->>S: run on the warm server
-  S->>M: SAM 3.1 boxes per frame (456 calls per room)
-  S->>A: POST /scans/{id}/results
-  A->>A: ingest_scan: compare with the room's last scan, write memory
-  Note over P,M: Question path: live, about 2 seconds
-  P->>P: says "Looking for your keys." at once
-  P->>M: audio → Muse Voice Transcribe
-  P->>A: POST /ask
-  A->>M: Muse Spark Open picks find_object
-  A->>A: find_object: geometry says where
-  A->>M: Muse Spark Open phrases it
-  A->>A: grounding check: every place and number came from a tool
-  A->>P: answer, spoken by the OS voice
-```
+![The scan path: the iPhone uploads, the API queues the job, the pipeline asks SAM 3.1 for boxes and posts results, and the API writes memory. The question path: the iPhone speaks at once, Muse Voice Transcribe turns speech into text, Muse Spark Open picks find_object, geometry says where, Muse Spark Open phrases it, a grounding check runs, and the OS voice speaks the answer.](diagrams/two-paths.svg)
+
+<sub>Diagram source: [two-paths.mmd](diagrams/two-paths.mmd) (`make diagrams` redraws it).</sub>
 
 The pipeline never touches the database; it posts its result and `ingest_scan` writes. One writer means one place for
 the invariants (what moved, what is gone, what the user corrected), and torch never enters the API.
 
 ## Every answer is traceable
 
-```mermaid
-flowchart LR
-  A["Answer<br/>answer_log"] --> T["Tool results<br/>find_object, explain"] --> O["Sightings<br/>append-only"]
-  O --> K["Keyframe crop<br/>cut on request"] --> S["Scan<br/>room, time"] --> P["Models<br/>SAM 3.1, MapAnything,<br/>pipeline commit"]
-```
+![Every answer is traceable: answer, then tool results, then append-only sightings, then the keyframe crop, then the scan, then the models that made it.](diagrams/traceability.svg)
+
+<sub>Diagram source: [traceability.mmd](diagrams/traceability.mmd) (`make diagrams` redraws it).</sub>
 
 Each answer is logged with:
 - every model step and tool step, with timings and outputs;
@@ -189,7 +121,9 @@ asked once per question.
 | Premature mesh | One API process, one SQLite file, A2A mounted inside the app, not a service per aggregate | `services/api/src/recall_api/infra/app.py` |
 | Feedback loops | No model output is written back as a fact: memory comes only from geometry; the Verifier's vision model may only downgrade; the nightly regression compares with the previous geometric run | `application/verify_arrival.py`, `domain/assistant/grounding.py` |
 
-## Questions judges ask
+## Facts at a glance
+
+Answers to what people ask most about Recall, measured on the real system.
 
 **What does a scan cost?** Measured on the living room (56 frames): **456 SAM 3.1 calls** (19 views × 24 concepts),
 119 s of SAM time cold and cached afterwards, MapAnything on the Mac's own GPU, and **48 MB** on disk. Price per SAM

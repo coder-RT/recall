@@ -263,7 +263,7 @@ Planned next, not built or not working yet (updated before submission; removed i
 
 ## Contributing
 
-- Until Nov 4, 2026 this is a solo hackathon entry (Indie track), so pull requests will wait until judging ends.
+- Recall is a solo entry in the Meta Global AI Developer Hackathon (Indie track); pull requests open after the results on Nov 9, 2026.
 - After that, issues and pull requests are welcome. Please:
   1. read `CLAUDE.md` (rules, architecture, conventions);
   2. keep the dependency rule: domain code imports nothing from adapters or frameworks;

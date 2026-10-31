@@ -1,0 +1,34 @@
+flowchart TB
+  subgraph Source["1 · Source: the iPhone"]
+    direction LR
+    cam["Camera frames"] ~~~ lidar["LiDAR depth<br/>+ confidence"] ~~~ pose["ARKit poses<br/>+ tracking state"] ~~~ mic["Voice question"]
+  end
+  subgraph Ingest["2 · Ingest"]
+    direction LR
+    up["Resumable multipart upload<br/>sha256 per part, manifest last"]
+  end
+  subgraph Store["3 · Store: your Mac"]
+    direction LR
+    raw["Raw episodes<br/>never edited"] ~~~ stage["Stage outputs<br/>result.json, home_cloud.npy"] ~~~ mem["Memory: SQLite<br/>append-only sightings, answers, audit"]
+  end
+  subgraph Transform["4 · Transform"]
+    direction LR
+    q["Huey queue on SQLite<br/>one job at a time"] ~~~ pipe["Pipeline: MapAnything or LiDAR depth,<br/>planes, SAM 3.1 boxes, room model"]
+  end
+  subgraph Serve["5 · Serve"]
+    direction LR
+    api["API: ask, guidance, verify,<br/>evidence, privacy, audit"] ~~~ a2a["Home Memory agent<br/>A2A 1.0, off by default"] ~~~ robot["Robot export<br/>Nav2 map"]
+  end
+  subgraph Consume["6 · Consume"]
+    direction LR
+    phone["iPhone app"] ~~~ watch["Apple Watch<br/>next"] ~~~ web["Website<br/>+ 3D viewer"] ~~~ bots["Robots<br/>and agents"]
+  end
+  subgraph Across["Across every layer"]
+    direction LR
+    priv["Privacy and<br/>home scoping"] ~~~ lin["Lineage:<br/>every answer traceable"] ~~~ qual["Quality checks"] ~~~ spend["Spend limits"]
+  end
+  Source --> Ingest --> Store
+  Store -- "episodes" --> Transform
+  Transform -- "results (the API writes)" --> Store
+  Store --> Serve --> Consume
+  Consume ~~~ Across

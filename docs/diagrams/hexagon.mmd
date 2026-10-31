@@ -1,0 +1,13 @@
+flowchart TB
+  subgraph adapters["Adapters (FastAPI, SQLite, httpx, Open3D, torch)"]
+    http[HTTP routers] --- a2aa[A2A server]
+    llm[Muse Spark Open / Glimmer / Spark] --- sam[SAM 3.1] --- voice[Muse Voice Transcribe]
+    sqlite[(SQLite)] --- disk[(Disk / R2)]
+  end
+  subgraph application["Application: one file per use case"]
+    ask[ask_where_is] --- ingest[ingest_scan] --- verify[verify_arrival] --- erase[erase_scan]
+  end
+  subgraph domain["Domain: plain dataclasses, NumPy maths"]
+    spatial[spatial relations] --- nav[navigation A*] --- ground[grounding rules] --- mem[Home · Scan · TrackedObject]
+  end
+  adapters --> application --> domain

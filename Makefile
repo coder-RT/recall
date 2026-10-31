@@ -5,7 +5,7 @@ PIPE := services/pipeline
 WEB := apps/web
 REDOCLY := npx -y @redocly/cli@2.72.1
 
-.PHONY: help setup dev worker robot-export regression viewer live demo record probes pair rerun test lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
+.PHONY: help setup dev worker robot-export regression viewer live demo record probes diagrams pair rerun test lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -48,6 +48,11 @@ demo: ## No keys: the API on a memory built from a recorded real scan; the Guide
 
 record: ## Re-record samples/replay/ with real Muse Spark Open calls: make record RESULT=<result.json> ROOM="Living room" AT=<iso>
 	cd $(API) && uv run python -m recall_api.infra.demo record "$(abspath $(RESULT))" --room "$(ROOM)" --captured-at "$(AT)"
+
+diagrams: ## Redraw docs/diagrams/*.svg from the Mermaid sources (mermaid-cli; set PUPPETEER_EXECUTABLE_PATH to use a local Chrome)
+	@for f in docs/diagrams/*.mmd; do \
+		npx -y @mermaid-js/mermaid-cli@11.4.2 -i $$f -o $${f%.mmd}.svg -c docs/diagrams/mermaid.config.json -b white -q || exit 1; \
+	done; echo "Redrew $$(ls docs/diagrams/*.mmd | wc -l | tr -d ' ') diagrams"
 
 probes: ## One real call per Meta model or service; appends results to docs/verification.md (never in CI)
 	cd $(API) && uv run python ../../scripts/probes/run.py

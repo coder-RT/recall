@@ -1,16 +1,14 @@
 # Decisions
 
-Why Recall is built the way it is, and what was rejected. Each decision has:
-- **Status:** Accepted, Superseded, or In progress.
-- **Deciders.**
-- **Context**, **Decision** and **Alternatives** (what was rejected, and why).
-- **Consequences:** + better, − worse, ~ neutral.
-- **Door:**
+Why Recall is built the way it is, and what I rejected along the way. I'm Rachit Thariani; I built Recall during the
+Meta Global AI Developer Hackathon (Oct 27 to Nov 4, 2026) and made each of these decisions myself. Each one records:
+- **When I decided it**, and whether it is a **one-way or two-way door**:
   - **one-way:** hard to reverse later; changing it means migrating data or breaking clients.
   - **two-way:** a config or adapter swap.
+- **Context**, **Decision** and **Alternatives** (what I rejected, and why).
+- **Consequences:** + better, − worse, ~ neutral.
 
-The architecture these add up to is in [architecture.md](architecture.md). All decisions were made by Rachit
-Thariani during the hackathon (Oct 27 to Nov 4, 2026).
+The architecture these add up to is in [architecture.md](architecture.md).
 
 **One-way doors:** D-03 single writer, D-06 episode format, D-07 home coordinate frame, D-11 Meta-only runtime,
 D-28 sighting log. **Two-way doors:** everything else, notably D-10 the LLM provider, D-26 the storage adapter,
@@ -20,7 +18,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-01"></a>
 ## D-01 Hexagonal architecture (ports and adapters) with DDD aggregates
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** two-way (the layering can be relaxed; nothing outside depends on it)
+- **Decided by Rachit, Oct 29, 2026** · **Door:** two-way (the layering can be relaxed; nothing outside depends on it)
 - **Context:** two services, four interchangeable model providers, two stores, a nine-day build.
 - **Decision:** ports and adapters in the API and the pipeline; aggregates `Home`, `Scan`, `TrackedObject`, one
   repository each; import-linter enforces domain ← application ← adapters in CI.
@@ -35,7 +33,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-02"></a>
 ## D-02 Geometry decides facts; the language model only phrases them
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** two-way in code, one-way in what Recall promises
+- **Decided by Rachit, Oct 29, 2026** · **Door:** two-way in code, one-way in what Recall promises
 - **Context:** a wrong place sends a blind person the wrong way, and "basic RAG" is a known weak pattern.
 - **Decision:** spatial relations, heights, distances and times come from the 3D map through four tools. A grounding
   check in code rejects any place or number no tool returned. After one correction, the code answers from the tool
@@ -51,7 +49,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-03"></a>
 ## D-03 One writer: the pipeline posts results, the API writes memory
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** one-way
+- **Decided by Rachit, Oct 29, 2026** · **Door:** one-way
 - **Context:** both the scan path and the question path touch memory.
 - **Decision:** `services/pipeline` never opens the database; it posts `POST /scans/{id}/results` (a spec'd
   `ScanResult`) and `ingest_scan` writes.
@@ -64,7 +62,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-04"></a>
 ## D-04 SQLite, one file per home; no vector database
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** two-way (SQLAlchemy Core and Alembic; Postgres is an adapter swap)
+- **Decided by Rachit, Oct 30, 2026** · **Door:** two-way (SQLAlchemy Core and Alembic; Postgres is an adapter swap)
 - **Context:** one household, one writer, a memory of tens of things (140 KB after a room).
 - **Decision:** SQLite with Alembic migrations; things are found by label, colour, aliases and the user's own names.
 - **Alternatives:**
@@ -78,7 +76,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-05"></a>
 ## D-05 Scan jobs on a Huey queue backed by SQLite
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** two-way
+- **Decided by Rachit, Oct 30, 2026** · **Door:** two-way
 - **Context:**
   - Each upload started its own pipeline process.
   - Two jobs at once would exhaust the GPU.
@@ -98,7 +96,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-06"></a>
 ## D-06 A scan is an episode, not a video
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** one-way (format `recall-episode/1`)
+- **Decided by Rachit, Oct 29, 2026** · **Door:** one-way (format `recall-episode/1`)
 - **Context:** reconstruction needs metric inputs per frame, and uploads must survive a dropped connection.
 - **Decision:**
   - A folder per scan: `manifest.json` (device, intrinsics, sizes, sha256 per file, capture metrics), keyframes,
@@ -115,7 +113,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-07"></a>
 ## D-07 One home coordinate frame: metres, floor at z = 0, z up
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** one-way
+- **Decided by Rachit, Oct 31, 2026** · **Door:** one-way
 - **Context:** sightings from different scans must be comparable, and robots need a map frame.
 - **Decision:**
   - Each scan is moved into the home frame.
@@ -131,7 +129,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-08"></a>
 ## D-08 MapAnything with the phone's metric inputs
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** two-way (see D-09)
+- **Decided by Rachit, Oct 29, 2026** · **Door:** two-way (see D-09)
 - **Context:**
   - Images-only reconstruction came out about 23 % too large.
   - The non-commercial weights would block an open licence.
@@ -151,7 +149,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-09"></a>
 ## D-09 A model-free reconstruction fallback
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** two-way (`RECONSTRUCTOR=mapanything|arkit_depth`)
+- **Decided by Rachit, Oct 31, 2026** · **Door:** two-way (`RECONSTRUCTOR=mapanything|arkit_depth`)
 - **Context:** a backup if MapAnything were ruled out or the GPU were busy.
 - **Decision:** back-project the LiDAR depth with ARKit intrinsics and poses, behind the same `Reconstructor` port.
 - **Alternatives:**
@@ -164,7 +162,8 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-10"></a>
 ## D-10 The Guide runs on Muse Spark Open (Baseten), at low reasoning effort
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** two-way (`LLM_PROVIDER`, `GUIDE_REASONING_EFFORT`)
+- **Decided by Rachit, Oct 29, 2026** (reasoning effort and the one-call answer added Oct 31) · **Door:** two-way
+  (`LLM_PROVIDER`, `GUIDE_REASONING_EFFORT`)
 - **Context:**
   - The Guide should run on Meta's open weights.
   - The first measurement took 4.2 s per question.
@@ -184,7 +183,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-11"></a>
 ## D-11 Meta models only at runtime
-- **Status:** Accepted · **Deciders:** Rachit, following the organizers' rulings · **Door:** one-way
+- **Decided by Rachit, Oct 29, 2026**, following the organizers' rules (updated Oct 31) · **Door:** one-way
 - **Context:** the hackathon rules.
 - **Decision:**
   - At runtime: Muse Spark Open and Glimmer (Guide), Muse Spark 1.1 (arrival tie-break), SAM 3.1, MapAnything, Muse
@@ -197,7 +196,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-12"></a>
 ## D-12 Classic geometry for the room: Open3D and Shapely, no ML modules
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** two-way
+- **Decided by Rachit, Oct 30, 2026** · **Door:** two-way
 - **Context:** the room model needs cleaned points, a floor, walls and outlines.
 - **Decision:**
   - Open3D: voxel downsampling, outlier removal, seeded RANSAC planes (floor first, then walls), FPFH + ICP
@@ -214,7 +213,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-13"></a>
 ## D-13 One object per label by clustering; one landmark per piece of furniture
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** two-way
+- **Decided by Rachit, Oct 30, 2026** · **Door:** two-way
 - **Context:**
   - SAM sees one mug in many frames.
   - One desk came back as both "table" and "desk", and from several sides (22 boxes for 10 pieces).
@@ -231,7 +230,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-14"></a>
 ## D-14 Moved, new and gone by optimal assignment
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** two-way
+- **Decided by Rachit, Oct 30, 2026** · **Door:** two-way
 - **Context:** a rescan must tell moved from new from gone without a model guess.
 - **Decision:**
   - Same-label things are matched to the room's last scan with `linear_sum_assignment` on 3D distance.
@@ -246,7 +245,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-15"></a>
 ## D-15 Routes keep to the middle of free space
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** two-way
+- **Decided by Rachit, Oct 30, 2026** · **Door:** two-way
 - **Context:** a shortest path hugs furniture; a blind walker needs room.
 - **Decision:**
   - Occupancy grid (10 cm), clearance from a distance transform, obstacles inflated by a 0.3 m body radius.
@@ -261,7 +260,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-16"></a>
 ## D-16 Look-alikes: colour from pixels, the user's corrections win
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** two-way
+- **Decided by Rachit, Oct 30, 2026** · **Door:** two-way
 - **Context:** a home has several bags and books.
 - **Decision:**
   - The pipeline names each thing's colour from the pixels in its box, with 12 basic names and a vote across
@@ -276,7 +275,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-17"></a>
 ## D-17 Warm starts on both ends
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** two-way
+- **Decided by Rachit, Oct 31, 2026** · **Door:** two-way
 - **Context:** cold starts made the first scan and the first guide slow.
 - **Decision:**
   - The Mac keeps MapAnything loaded in a warm server (freed after 10 minutes idle) and starts SAM calls before
@@ -291,7 +290,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-18"></a>
 ## D-18 Speech: Muse Voice Transcribe in, the OS voice out
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** two-way for the voice, one-way for "no TTS model" (rules)
+- **Decided by Rachit, Oct 29, 2026** · **Door:** two-way for the voice, one-way for "no TTS model" (rules)
 - **Context:** the rules forbid other speech models and any TTS model.
 - **Decision:**
   - Speech to text through Muse Voice Transcribe.
@@ -308,22 +307,22 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-19"></a>
 ## D-19 `make demo` replays a recorded real run
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** two-way
-- **Context:** the repo must run from the README, and judges have no keys.
+- **Decided by Rachit, Oct 29, 2026** (built Oct 31) · **Door:** two-way
+- **Context:** the repo must run from the README for anyone who clones it, with no keys.
 - **Decision:**
   - The demo builds memory from a recorded scan result through the real ingest code.
   - It replays Muse Spark Open's recorded replies by question and step, at the recording's time.
   - Every answer is labelled `replay:muse-spark-open (recorded)`.
 - **Alternatives:**
   - Mock data: not allowed to present as real.
-  - Requiring keys: judges couldn't run it.
+  - Requiring keys: nobody without accounts could run it.
 - **Consequences:**
   - \+ Runs anywhere in seconds.
   - − Only recorded questions are answered, and it says so.
 
 <a id="d-20"></a>
 ## D-20 Robots and agents: A2A 1.0 and a Nav2 export, off by default
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** two-way
+- **Decided by Rachit, Oct 31, 2026** · **Door:** two-way
 - **Context:** robots and other agents could use the same memory; a home must stay private.
 - **Decision:**
   - The Home Memory agent over A2A 1.0 (JSON-RPC), mounted in the API.
@@ -340,7 +339,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-21"></a>
 ## D-21 Inbound screening: structure first, then a Meta-model check, fail closed
-- **Status:** Accepted (replaced an earlier screening model that the organizers ruled out) · **Deciders:** Rachit ·
+- **Decided by Rachit, Oct 31, 2026**, replacing an earlier screening choice that the organizers ruled out of the event ·
   **Door:** two-way
 - **Context:** unknown agents send requests to a home's memory.
 - **Decision:**
@@ -357,7 +356,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-22"></a>
 ## D-22 Arrival check: SAM 3.1 and geometry decide; a vision model may only downgrade
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** two-way
+- **Decided by Rachit, Oct 29, 2026** (built Oct 31) · **Door:** two-way
 - **Context:** "You've arrived" must be true.
 - **Decision:**
   - One camera frame goes to SAM 3.1; the box is lifted with LiDAR depth into the home frame; the 30 cm rule decides.
@@ -372,8 +371,8 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-23"></a>
 ## D-23 No login, no account
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** two-way
-- **Context:** judges must never need an account; the owner is one household.
+- **Decided by Rachit, Oct 30, 2026** · **Door:** two-way
+- **Context:** visitors and owners should never need an account; the owner is one household.
 - **Decision:**
   - A pairing key between the phone and the Mac, and a separate robot key.
   - No user accounts, no auth server.
@@ -385,7 +384,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-24"></a>
 ## D-24 Logs, traces and the audit trail stay on the Mac
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** two-way
+- **Decided by Rachit, Oct 30, 2026** · **Door:** two-way
 - **Context:** failures must leave a trace without sending data anywhere.
 - **Decision:**
   - JSON-lines request logs (no headers or bodies) and OpenTelemetry traces in `data/logs/`, sent to a collector only
@@ -399,7 +398,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-25"></a>
 ## D-25 Erasing a scan reaches the Mac
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** two-way
+- **Decided by Rachit, Oct 31, 2026** · **Door:** two-way
 - **Context:** deleting a scan on the phone used to leave its photos and things on the Mac.
 - **Decision:**
   - `DELETE /scans/{id}` (owner only; not while processing) removes the scan's files, log and regression copy, and
@@ -415,7 +414,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-26"></a>
 ## D-26 Storage behind a port: the Mac's disk, R2 optional
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** two-way (`STORAGE=local|r2`)
+- **Decided by Rachit, Oct 29, 2026** · **Door:** two-way (`STORAGE=local|r2`)
 - **Context:** episodes are tens of MB; the default must work with no account.
 - **Decision:** a `BlobStore` port; local disk by default; an S3-compatible R2 adapter for multipart uploads.
 - **Alternatives:**
@@ -426,7 +425,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-27"></a>
 ## D-27 Web: Next.js, GSAP for scroll, Motion for UI, react-three-fiber for the viewer
-- **Status:** Accepted · **Deciders:** Rachit · **Door:** two-way
+- **Decided by Rachit, Oct 30, 2026** · **Door:** two-way
 - **Context:** a landing page that tells the story, and a 3D viewer of a real scan.
 - **Decision:**
   - GSAP owns scroll scenes and Motion owns UI state, never both on one element.
@@ -440,7 +439,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 
 <a id="d-28"></a>
 ## D-28 Sightings are an append-only log
-- **Status:** Accepted (migration 0007) · **Deciders:** Rachit · **Door:** one-way
+- **Decided by Rachit, Oct 31, 2026** · **Door:** one-way
 - **Context:** every answer should be traceable to what the camera saw.
 - **Decision:**
   - A sighting is never edited.

@@ -12,13 +12,23 @@ from recall_api.application.ports import ChatReply, ToolCall
 
 
 class OpenAICompatibleLlm:
-    def __init__(self, base_url: str, api_key: str | None, model: str, timeout: float = 60) -> None:
-        self.model = model
+    # Muse Spark Open on Baseten reasons before it answers (reasoning_content): about 200 to 800 tokens before the
+    # first visible word, so a tight cap returns an empty reply (finish_reason "length"). Measured 2026-10-31.
+    def __init__(
+        self, base_url: str, api_key: str | None, model: str, timeout: float = 60, max_tokens: int = 1500
+    ) -> None:
+        self.model, self.max_tokens = model, max_tokens
         headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
         self.client = httpx.Client(base_url=base_url.rstrip("/"), headers=headers, timeout=timeout)
 
     def chat(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]) -> ChatReply:
-        body = {"model": self.model, "messages": messages, "tools": tools, "tool_choice": "auto", "max_tokens": 400}
+        body = {
+            "model": self.model,
+            "messages": messages,
+            "tools": tools,
+            "tool_choice": "auto",
+            "max_tokens": self.max_tokens,
+        }
         for attempt in range(3):
             r = self.client.post("/chat/completions", json=body)
             retry = r.status_code in (429, 529) or r.status_code >= 500
@@ -41,7 +51,7 @@ PROVIDERS = {
     "baseten_spark_open": (
         "baseten_base_url",
         "baseten_api_key",
-        "baseten_spark_open_model",
+        "baseten_model",
         "https://inference.baseten.co/v1",
     ),
     "glimmer_hosted": ("glimmer_base_url", "glimmer_api_key", "glimmer_model", None),

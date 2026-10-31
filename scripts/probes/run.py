@@ -154,24 +154,39 @@ def probe_transcribe() -> dict:
     return {"ok": all("transcript" in v for v in out.values()), **out}
 
 
+def _baseten(messages: list[dict], tools: list[dict] | None, max_tokens: int = 1000) -> dict:
+    """One chat completion on Muse Spark Open via Baseten (BASETEN_BASE_URL, BASETEN_MODEL; Bearer key)."""
+    base = (key("BASETEN_BASE_URL") or BASETEN).rstrip("/")
+    model = key("BASETEN_MODEL") or "meta-models/muse-spark-open-1026"
+    body = {"model": model, "messages": messages, "max_tokens": max_tokens}
+    if tools:
+        body |= {"tools": tools, "tool_choice": "auto"}
+    r = httpx.post(f"{base}/chat/completions", headers={"Authorization": f"Bearer {key('BASETEN_API_KEY')}"}, json=body,
+                   timeout=120)  # fmt: skip
+    if r.status_code != 200:
+        return http_error(r)
+    choice = r.json()["choices"][0]
+    return {"ok": True, "model": model, "finish_reason": choice.get("finish_reason"), "message": choice["message"]}
+
+
+def probe_spark_open_plain() -> dict:
+    out = _baseten([{"role": "user", "content": "Say hello in five words."}], None)
+    if out.get("ok"):
+        msg = out.pop("message")
+        out["text"] = (msg.get("content") or "")[:120]
+        out["reasoning_chars"] = len(msg.get("reasoning_content") or "")  # it reasons before answering
+        out["ok"] = bool(out["text"]) and out["finish_reason"] == "stop"
+    return out
+
+
 def probe_spark_open() -> dict:
-    headers = {"Authorization": f"Bearer {key('BASETEN_API_KEY')}"}
-    tried = []
-    for slug in (key("BASETEN_SPARK_OPEN_MODEL"), "meta-models/muse-spark-open", "meta-models/muse-spark-open-1026"):
-        if not slug or slug in tried:
-            continue
-        tried.append(slug)
-        body = {"model": slug, "messages": [
-            {"role": "system", "content": "You find objects in the user's home. Always use the tools."},
-            {"role": "user", "content": "Where are my keys?"}], "tools": TOOLS[:1], "tool_choice": "auto",
-            "max_tokens": 200}
-        r = httpx.post(f"{BASETEN}/chat/completions", headers=headers, json=body, timeout=120)
-        if r.status_code == 200:
-            msg = r.json()["choices"][0]["message"]
-            return {"ok": True, "slug": slug, "tool_calls": [c["function"] for c in msg.get("tool_calls") or []],
-                    "finish_reason": r.json()["choices"][0].get("finish_reason"), "tried": tried}
-        last = http_error(r)
-    return {**last, "tried": tried}
+    out = _baseten([{"role": "system", "content": "You find objects in the user's home. Always use the tools."},
+                    {"role": "user", "content": "Where are my keys?"}], TOOLS[:1])  # fmt: skip
+    if out.get("ok"):
+        msg = out.pop("message")
+        out["tool_calls"] = [c["function"] for c in msg.get("tool_calls") or []]
+        out["ok"] = bool(out["tool_calls"]) and out["finish_reason"] == "tool_calls"
+    return out
 
 
 def probe_lmstudio() -> dict:
@@ -199,7 +214,8 @@ PROBES = [
     ("Muse Spark 1.1: image input", "META_MUSE_API_KEY", probe_spark_vision, DOCS["vision"]),
     ("SAM 3.1: one frame, prompt 'laptop'", "META_MUSE_API_KEY", probe_sam, DOCS["sam"]),
     ("Muse Voice Transcribe: 2 s WAV, both modes", "META_MUSE_API_KEY", probe_transcribe, DOCS["asr"]),
-    ("Muse Spark Open on Baseten: find_object tool", "BASETEN_API_KEY", probe_spark_open, DOCS["baseten"]),
+    ("spark_open_baseten: plain reply", "BASETEN_API_KEY", probe_spark_open_plain, DOCS["baseten"]),
+    ("spark_open_baseten: find_object tool call", "BASETEN_API_KEY", probe_spark_open, DOCS["baseten"]),
     ("Muse Glimmer on LM Studio: find_object tool", None, probe_lmstudio, DOCS["lmstudio"]),
 ]
 

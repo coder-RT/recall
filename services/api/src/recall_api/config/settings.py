@@ -23,7 +23,9 @@ class Settings(BaseSettings):
     llm_provider: Literal["baseten_spark_open", "glimmer_hosted", "lmstudio", "meta"] = "baseten_spark_open"
     baseten_base_url: str | None = None
     baseten_api_key: SecretStr | None = None
-    baseten_spark_open_model: str = "meta-models/muse-spark-open-1026"
+    baseten_model: str = Field(
+        "meta-models/muse-spark-open-1026", validation_alias=AliasChoices("BASETEN_MODEL", "BASETEN_SPARK_OPEN_MODEL")
+    )
     glimmer_base_url: str | None = None
     glimmer_api_key: SecretStr | None = None
     glimmer_model: str | None = None

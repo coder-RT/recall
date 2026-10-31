@@ -68,3 +68,32 @@ deployment. With 19.6 s inference per room on the Mac, Modal is not needed now. 
   be mono 16-bit PCM at 16 or 24 kHz. **`mode: ENDPOINTING` gives turn detection** (`turns` filled) and answered in 2.1 s for a
   2 s clip. Realtime alternative: `wss://api.meta.ai/v1/asr/realtime`. https://dev.meta.ai/docs/speech-to-text
 - **Glimmer on LM Studio** (item 7): not run; LM Studio's server was off and no Glimmer model is loaded.
+
+## Probes, 2026-10-31 14:51 UTC (`make probes`, real calls)
+
+> Superseded by the 14:52 run below: this run capped the plain reply at 200 tokens and counted an empty reply
+> (finish_reason "length") as a pass. The model had spent the budget on reasoning; see the note after the next run.
+
+| Probe | Result | Time | What came back | Docs |
+|---|---|---|---|---|
+| spark_open_baseten: plain reply | PASS | 1570 ms | `{"model": "meta-models/muse-spark-open-1026", "finish_reason": "length", "text": ""}` | https://docs.baseten.co/inference/function-calling.md |
+| spark_open_baseten: find_object tool call | PASS | 921 ms | `{"model": "meta-models/muse-spark-open-1026", "finish_reason": "tool_calls", "tool_calls": [{"name": "find_object", "arguments": "{\"name\": \"keys\"}"}]}` | https://docs.baseten.co/inference/function-calling.md |
+
+## Probes, 2026-10-31 14:52 UTC (`make probes`, real calls)
+
+| Probe | Result | Time | What came back | Docs |
+|---|---|---|---|---|
+| spark_open_baseten: plain reply | PASS | 1003 ms | `{"model": "meta-models/muse-spark-open-1026", "finish_reason": "stop", "text": "Hello there, nice to meet you!", "reasoning_chars": 407}` | https://docs.baseten.co/inference/function-calling.md |
+| spark_open_baseten: find_object tool call | PASS | 1029 ms | `{"model": "meta-models/muse-spark-open-1026", "finish_reason": "tool_calls", "tool_calls": [{"name": "find_object", "arguments": "{\"name\": \"keys\"}"}]}` | https://docs.baseten.co/inference/function-calling.md |
+
+### What the Baseten probes settle (2026-10-31)
+
+- **Muse Spark Open on Baseten** (`BASETEN_MODEL=meta-models/muse-spark-open-1026`, `BASETEN_BASE_URL`, Bearer key):
+  tool calling works, `finish_reason` is `tool_calls` (`find_object({"name": "keys"})`, about 1 s).
+- It is a **reasoning model**: the reply carries `reasoning_content` and `usage.completion_tokens_details.reasoning_tokens`.
+  A 5-word hello used 197 of a 200-token cap on reasoning and returned empty text (`finish_reason` "length"); with
+  1000 tokens it answered in 1 to 3 s after about 400 to 760 reasoning tokens. The Guide's cap is now 1500 tokens.
+- The Guide on the real memory ("where are my keys?", 2 tool calls, grounded): **3.8 s**; before the cap change 6.1 s
+  with an empty model reply, so the grounded fallback sentence was spoken. Above the 2 s target in CLAUDE.md.
+- TODO(verify): whether Baseten accepts a reasoning-effort setting for this model (not in the docs read so far); it
+  would cut the time to the first spoken word.

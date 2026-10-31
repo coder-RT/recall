@@ -176,3 +176,20 @@ p50 **2807 ms**, p90 4661 ms, 10 questions on the real memory.
 | Where is the laptop | 2659 | 2 | Your grey laptop is near the desk in the Living room at waist height, seen yesterday at 04:21. |
 | Where did I put my reading glasses? | 2869 | 2 | Your grey glasses were near the desk in the living room at waist height, seen yesterday at 04:21. |
 | Where is my umbrella? | 1608 | 1 | I haven't seen that yet. Scan the room it might be in, and I'll remember it. |
+
+### Guide latency, step 3: low + find_object says where (2026-10-31 18:09 UTC, `scripts/guide_latency.py`)
+
+p50 **2268 ms**, p90 2736 ms, 10 questions on the real memory.
+
+| Question | ms | Tool calls | Answer |
+|---|---|---|---|
+| Where are my keys? | 1956 | 1 | Your keys were near the desk in the Living room at waist height, seen yesterday at 04:21. |
+| Where did I leave my glasses? | 2736 | 1 | Your grey glasses were near the desk in the Living room at waist height, seen yesterday at 04:21. |
+| Where is my laptop? | 2990 | 1 | Your grey laptop was near the desk in the Living room at waist height, seen yesterday at 04:21. |
+| Where is my bag? | 2248 | 1 | I found two bags in the Living room seen yesterday at 04:21 — a grey one near the desk at knee height, and a white one on the cabinet on the first shelf at waist height. Which bag are you looking for? |
+| Have you seen a bottle? | 2721 | 1 | I saw three grey bottles in the living room near the desk at waist height, seen yesterday at 04:21. Do you mean the one on the desk or one of the ones near it? |
+| Where's my book? | 2287 | 1 | I saw two books yesterday at 04:21. One red book is on the desk in the Living room at waist height, and one grey book is near the shelf in the Living room at waist height. Which one are you looking for? |
+| Where are my keys | 1850 | 1 | Your keys were near the desk in the living room at waist height, seen yesterday at 04:21. |
+| Where is the laptop | 2245 | 1 | It's near the desk in the Living room at waist height, seen yesterday at 04:21. |
+| Where did I put my reading glasses? | 2326 | 1 | Your glasses were near the desk in the living room at waist height, seen yesterday at 04:21. |
+| Where is my umbrella? | 1781 | 1 | I haven't seen that yet. Scan the room it might be in, and I'll remember it. |

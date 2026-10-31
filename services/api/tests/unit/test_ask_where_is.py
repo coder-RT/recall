@@ -79,3 +79,26 @@ def test_not_found_says_so_and_suggests_scanning():
         [ChatReply(None, [ToolCall("c1", "find_object", {"name": "passport"})]), ChatReply("ok"), ChatReply("ok")]
     )("flat", "where is my passport?")
     assert "haven't seen" in a.text
+
+
+def test_find_object_says_where_so_one_tool_call_answers():
+    a = guide([FIND, ChatReply("Your keys are on the desk in the Office, at waist height, seen 12 minutes ago.")])(
+        "flat", "where are my keys?"
+    )
+    assert a.tool_calls == 1 and a.grounded and a.text.startswith("Your keys are on the desk")
+    homes, objects = memory()
+    from recall_api.application.tools import ToolContext
+
+    (match,) = Tools(homes, objects, FixedClock()).find_object(ToolContext("flat"), "keys")["matches"]
+    assert (match["room"], match["landmark"], match["relation"], match["height_band"]) == (
+        "Office",
+        "desk",
+        "on",
+        "waist",
+    )
+
+
+def test_the_fallback_needs_only_find_object():
+    lie = ChatReply("Your keys are on the kitchen counter.")
+    a = guide([FIND, lie, lie])("flat", "where are my keys?")
+    assert a.text.startswith("Your keys are on the desk") and "kitchen" not in a.text

@@ -56,25 +56,44 @@ class Tools:
 
     def find_object(self, ctx: ToolContext, name: str) -> dict:
         matches = []
+        home = self.homes.get(ctx.home_id)
+        found = []
         for o in self.objects.list_for_home(ctx.home_id):
             last = o.where()
             if last is not None and o.matches(name):
-                matches.append(
-                    {
-                        "object_id": o.id,
-                        "label": o.label,
-                        "name": o.corrections.name,
-                        "color": o.display_color(),
-                        "minutes_since_seen": self._minutes(last.seen_at),
-                        "seen_when": self._when(last.seen_at),
-                        "confidence": round(last.confidence, 2),
-                    }
-                )
-        if not matches:
+                found.append((last.seen_at, o, last))
+        if not found:
             return {"result": "not_found", "name": name}
-        matches.sort(key=lambda m: m["minutes_since_seen"])
+        found.sort(key=lambda f: f[0], reverse=True)
+        matches = []
+        for _, o, last in found[:3]:
+            # where it is comes with each match, so a plain question needs no second tool call
+            matches.append(
+                {
+                    "object_id": o.id,
+                    "label": o.label,
+                    "name": o.corrections.name,
+                    "color": o.display_color(),
+                    **(self._place(last, home) if home else {}),
+                    "minutes_since_seen": self._minutes(last.seen_at),
+                    "seen_when": self._when(last.seen_at),
+                    "confidence": round(last.confidence, 2),
+                }
+            )
         ctx.found_object = matches[0]["object_id"]
-        return {"result": "found", "matches": matches[:3]}
+        return {"result": "found", "matches": matches}
+
+    @staticmethod
+    def _place(last, home: Home) -> dict:
+        rel = relate(last.position, home.landmarks)
+        shelves = [lm.bbox.top_z for lm in home.landmarks if rel.landmark is lm and lm.label in ("shelf", "cabinet")]
+        return {
+            "room": rel.landmark.room if rel.landmark else None,
+            "landmark": rel.landmark.label if rel.landmark else None,
+            "relation": rel.kind,
+            "shelf_level": shelf_level(last.position.z, shelves) if shelves else None,
+            "height_band": rel.band.value,
+        }
 
     def describe_location(self, ctx: ToolContext, object_id: str) -> dict:
         obj = self.objects.get(object_id)
@@ -82,8 +101,6 @@ class Tools:
         if obj is None or home is None or obj.where() is None:
             return {"result": "not_found"}
         last = obj.where()
-        rel = relate(last.position, home.landmarks)
-        shelves = [lm.bbox.top_z for lm in home.landmarks if rel.landmark is lm and lm.label in ("shelf", "cabinet")]
         ctx.found_object = object_id
         return {
             "label": obj.label,
@@ -92,11 +109,7 @@ class Tools:
             "size_cm": [round(v * 100) for v in obj.size_m] if obj.size_m else None,
             "note": obj.corrections.note,
             "set_by_user": sorted(k for k, v in vars(obj.corrections).items() if v not in (None, False)),
-            "room": rel.landmark.room if rel.landmark else None,
-            "landmark": rel.landmark.label if rel.landmark else None,
-            "relation": rel.kind,
-            "shelf_level": shelf_level(last.position.z, shelves) if shelves else None,
-            "height_band": rel.band.value,
+            **self._place(last, home),
             "minutes_since_seen": self._minutes(last.seen_at),
             "seen_when": self._when(last.seen_at),
             "confidence": round(last.confidence, 2),

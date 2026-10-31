@@ -22,7 +22,8 @@ Rules:
 4. Speak one or two short sentences: the landmark first, then the shelf and height, then when it was seen.
 5. Say heights as words (floor, knee, waist, chest, head height). No lists, no markdown.
 6. If several things match, tell them apart by the user's name for them or their colour, and ask which one if unsure.
-7. Values in set_by_user come from the user; say them plainly, they are the most reliable."""
+7. Values in set_by_user come from the user; say them plainly, they are the most reliable.
+8. find_object already says where each match is; call describe_location only for size or the user's note."""
 
 
 @dataclass
@@ -40,9 +41,13 @@ def fallback_sentence(outputs: list[str]) -> str:
     facts: dict[str, Any] = {}
     for o in outputs:
         try:
-            facts.update(json.loads(o))
+            out = json.loads(o)
         except json.JSONDecodeError:
             continue
+        if out.get("matches"):  # find_object: the newest match, which carries its place
+            facts.update(out["matches"][0])
+        out.pop("matches", None)
+        facts.update(out)
     if facts.get("result") == "not_found" or "label" not in facts:
         return "I haven't seen that yet. Scan the room it might be in, and I'll remember it."
     where = f"{facts['relation'].replace('_', ' ')} the {facts['landmark']}" if facts.get("landmark") else "in the room"

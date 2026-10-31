@@ -3,7 +3,7 @@
     "type": "function",
     "function": {
       "name": "find_object",
-      "description": "Find remembered objects whose label or alias matches the name. Returns matches with label and minutes since last seen, or not_found.",
+      "description": "Find remembered objects whose label, name or alias matches. Returns up to 3 matches, newest first, each with where it is (room, landmark, relation, shelf level, height band) and when it was last seen; usually enough to answer. Or not_found.",
       "parameters": {
         "type": "object",
         "properties": {"name": {"type": "string", "description": "What the user is looking for, e.g. 'keys'"}},
@@ -16,7 +16,7 @@
     "type": "function",
     "function": {
       "name": "describe_location",
-      "description": "Where an object is: room, landmark, relation, shelf level, height band and minutes since seen. Only use what this returns.",
+      "description": "More about one object: its place as in find_object plus size, colour and the user's own name and note for it. Only use what this returns.",
       "parameters": {
         "type": "object",
         "properties": {"object_id": {"type": "string"}},

@@ -48,6 +48,7 @@ private struct ThemedRoot: View {
             Tab("Settings", systemImage: "gearshape", value: AppTab.settings) { SettingsView() }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
+        .overlay(alignment: .topLeading) { if UITestSamples.logSpeech { SpokenLogElement() } }
         .tint(Tokens.accent)
         .fullScreenCover(item: $router.guiding) { thing in
             if let container {
@@ -71,5 +72,16 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         guard identifier == Uploader.sessionIdentifier else { return completionHandler() }
         nonisolated(unsafe) let done = completionHandler
         AppContainer.uploader.setBackgroundCompletion { done() }
+    }
+}
+
+/// The usability tests' view of what was spoken: one invisible element, only with -UITestSpokenLog.
+private struct SpokenLogElement: View {
+    @State private var log = UITestSamples.SpokenLog.shared
+    var body: some View {
+        Color.clear.frame(width: 1, height: 1)
+            .accessibilityElement()
+            .accessibilityLabel(log.lines.joined(separator: " | "))
+            .accessibilityIdentifier("spoken-log")
     }
 }

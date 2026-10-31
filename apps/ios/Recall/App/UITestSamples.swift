@@ -1,10 +1,43 @@
 import Foundation
+import Observation
 import RecallDomain
 
 /// Made-up things for the UI tests (launch argument `-UITestSampleThings`), so Find and Found can be checked in the
 /// simulator, which has no Mac paired. Only the tests pass the argument; the app never shows these otherwise.
 enum UITestSamples {
     static let enabled = ProcessInfo.processInfo.arguments.contains("-UITestSampleThings")
+    /// The usability tests read what was spoken from one invisible element ("spoken-log").
+    static let logSpeech = ProcessInfo.processInfo.arguments.contains("-UITestSpokenLog")
+
+    /// Every line spoken since launch, newest last.
+    @MainActor @Observable final class SpokenLog {
+        static let shared = SpokenLog()
+        var lines: [String] = []
+    }
+
+    /// The Guide for the UI tests: answers like the recorded Muse Spark Open replies, about the sample things.
+    struct Guide: GuideService {
+        func ask(home: String, question: String) async throws -> Answer {
+            try await Task.sleep(for: .milliseconds(300))  // the acknowledgement is spoken first, as on the Mac
+            let q = question.lowercased()
+            if q.contains("key") {
+                return Answer(text: "Your keys are near the desk in the Living room, at waist height.", thingId: "s1",
+                              grounded: true)
+            }
+            if q.contains("wallet") {
+                return Answer(text: "Your brown wallet is on the counter in the Kitchen, at waist height.", thingId: "s6",
+                              grounded: true)
+            }
+            return Answer(text: "I haven't seen that yet. Scan the room it might be in, and I'll remember it.",
+                          thingId: nil, grounded: true)
+        }
+        func route(home: String, to thing: String, from pose: Pose, tracking: TrackingState) async throws -> Route {
+            throw RecallError.server("Directions need the camera, which the UI tests don't have.")
+        }
+        func verify(session: String, frame: ArrivalFrame) async throws -> ArrivalCheck {
+            throw RecallError.server("The arrival check needs the camera, which the UI tests don't have.")
+        }
+    }
 
     static let things: [Thing] = {
         let at = Date(timeIntervalSince1970: 1_800_000_000)

@@ -200,10 +200,12 @@ private struct ScanRow: View {
         .task(id: scan.id) { shareURL = await scans.archive(scan) }  // built once, off the main thread
         .accessibilityElement(children: .contain)
         .accessibilityAction(named: "Delete scan") { askToDelete() }
-        .confirmationDialog(deleteTitle, isPresented: $confirmingDelete, titleVisibility: .visible) {
+        // an alert, not a confirmation dialog: iOS 26 shows that as a popover with no Cancel, hard to leave by VoiceOver
+        .alert(deleteTitle, isPresented: $confirmingDelete) {
             Button(scan.deleteReach == .phoneAndMac ? "Delete from iPhone and Mac" : "Delete", role: .destructive) {
                 Task { await scans.delete(scan) }
             }
+            Button("Keep it", role: .cancel) {}
         } message: {
             Text(scan.deleteReach == .phoneAndMac
                  ? "Its photos, depth and the things only this scan found are erased from both. Memory goes back to "

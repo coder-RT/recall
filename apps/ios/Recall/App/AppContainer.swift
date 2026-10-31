@@ -41,6 +41,9 @@ final class AppContainer {
                            upload: UploadScan(files: files, uploads: Self.uploader, server: server, speech: speech),
                            track: TrackProcessing(processing: server, memory: server, speech: speech),
                            processing: server, settings: settings, things: things, speech: speech, clock: clock)
+        if UITestSamples.logSpeech {
+            speech.onSay = { line in UITestSamples.SpokenLog.shared.lines.append(line) }
+        }
         if UITestSamples.enabled {
             things.useForUITests(UITestSamples.things)
             scans.useForUITests(UITestSamples.scans)
@@ -56,7 +59,7 @@ final class AppContainer {
     }
 
     func findModel() -> FindModel {
-        FindModel(ask: AskWhereIs(guide: server), transcriber: server, voice: WavRecorder(), things: things,
+        FindModel(ask: AskWhereIs(guide: UITestSamples.enabled ? UITestSamples.Guide() : server), transcriber: server, voice: WavRecorder(), things: things,
                   settings: settings, speech: speech, haptics: haptics,
                   prepareGuide: { [weak self] in self?.prepareGuide() })
     }

@@ -14,6 +14,8 @@ public struct Thing: Identifiable, Sendable, Equatable {
     public let heightBand: String
     public let landmark: String?
     public let relation: String?
+    /// The room it was found in (the furniture's room, else the scan's).
+    public let room: String?
     public let sizeCm: [Int]?
     public let note: String?
     public let confidence: Double
@@ -23,11 +25,11 @@ public struct Thing: Identifiable, Sendable, Equatable {
 
     public init(id: String, label: String, name: String? = nil, color: String? = nil, measuredColor: String? = nil,
                 heightM: Double, userHeightM: Double? = nil, heightBand: String, landmark: String? = nil,
-                relation: String? = nil, sizeCm: [Int]? = nil, note: String? = nil, confidence: Double,
+                relation: String? = nil, room: String? = nil, sizeCm: [Int]? = nil, note: String? = nil, confidence: Double,
                 confirmed: Bool = false, needsReview: Bool = false, seenAt: Date) {
         self.id = id; self.label = label; self.name = name; self.color = color; self.measuredColor = measuredColor
         self.heightM = heightM; self.userHeightM = userHeightM; self.heightBand = heightBand; self.landmark = landmark
-        self.relation = relation; self.sizeCm = sizeCm; self.note = note; self.confidence = confidence
+        self.relation = relation; self.room = room; self.sizeCm = sizeCm; self.note = note; self.confidence = confidence
         self.confirmed = confirmed; self.needsReview = needsReview; self.seenAt = seenAt
     }
 

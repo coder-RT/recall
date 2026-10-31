@@ -167,6 +167,55 @@ final class AccessibilityTests: XCTestCase {
         XCTAssertTrue(tabs["Find"].isSelected)
     }
 
+    /// Found grouped by room, then furniture; sure things show their own icon, unsure ones the box.
+    func testFoundGroupsByRoomAndFurnitureWithIcons() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-UITestSampleThings"]
+        app.launch()
+        app.tabBars.buttons["Found"].tap()
+        let group = { (id: String) in app.descendants(matching: .any)["group-\(id)"] }
+        let living = group("Living room")
+        XCTAssertTrue(living.waitForExistence(timeout: 5))
+        XCTAssertEqual(living.label, "Living room, 4 things, 2 to check")
+        XCTAssertEqual(group("Kitchen").label, "Kitchen, 2 things")
+        XCTAssertTrue(app.staticTexts["ON OR NEAR THE DESK"].exists)
+        XCTAssertTrue(app.staticTexts["ELSEWHERE IN THE ROOM"].exists)
+        XCTAssertTrue(app.images["icon-keys"].exists)  // sure: a key
+        XCTAssertGreaterThanOrEqual(app.images.matching(identifier: "icon-unknown").count, 2)  // unsure bag and book: boxes
+        XCTAssertFalse(app.images["icon-handbag"].exists)
+        shot("ios-found-grouped")
+        try auditBothEnds(app)
+        // folding a room hides its things
+        XCTAssertTrue(living.waitForExistence(timeout: 3))
+        living.tap()
+        XCTAssertTrue(app.staticTexts["ON OR NEAR THE DESK"].waitForNonExistence(timeout: 2))
+        XCTAssertEqual(living.value as? String, "Folded")
+        living.tap()
+        // by height: floor to head
+        app.buttons["Group by height"].tap()
+        XCTAssertTrue(group("floor").waitForExistence(timeout: 3))
+        XCTAssertEqual(group("floor").label, "Floor height, 1 thing")
+        XCTAssertEqual(group("waist").label, "Waist height, 4 things, 1 to check")
+        // by kind
+        app.buttons["Group by kind"].tap()
+        XCTAssertTrue(group("keys").waitForExistence(timeout: 3))
+        XCTAssertEqual(group("keys").label, "Keys, 1 thing")
+        shot("ios-found-kind")
+        try audit(app)
+        app.buttons["Group by place"].tap()  // the choice is remembered; leave it as the default
+    }
+
+    func testFindShowsIconsAndRooms() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-UITestSampleThings"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Kitchen"].waitForExistence(timeout: 5))  // two rooms: a heading each
+        XCTAssertTrue(app.images["icon-wallet"].exists)
+        XCTAssertTrue(app.images["icon-mug"].exists)
+        shot("ios-find-icons")
+        try auditBothEnds(app)
+    }
+
     func testHomePassesTheAudit() throws {
         let app = XCUIApplication()
         app.launch()
@@ -188,7 +237,8 @@ final class AccessibilityTests: XCTestCase {
         app.buttons["Cancel"].tap()
         app.tabBars.buttons["Found"].tap()
         // paired: the list; not paired: the reason and a way to Settings
-        XCTAssertTrue(app.staticTexts["Everything"].waitForExistence(timeout: 10) || app.buttons["Open Settings"].exists)
+        let heading = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'group-'")).firstMatch
+        XCTAssertTrue(heading.waitForExistence(timeout: 10) || app.buttons["Open Settings"].exists)
         shot("ios-found-unpaired")
         try audit(app)
         app.tabBars.buttons["Settings"].tap()

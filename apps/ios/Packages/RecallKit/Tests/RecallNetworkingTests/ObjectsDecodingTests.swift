@@ -36,4 +36,5 @@ let objectsJSON = """
     #expect(objects[0].title == "grey bag" && objects[0].needsReview && objects[0].place == "near the desk, knee height")
     #expect(objects[1].title == "spare keys" && objects[1].confirmed && objects[1].userHeightM == 0.75)
     #expect(objects[1].place == "in the room, waist height")
+    #expect(objects[0].room == "Living room" && objects[1].room == nil)
 }

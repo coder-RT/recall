@@ -25,10 +25,19 @@ struct FindView: View {
                     } else if things.things.isEmpty, things.loaded {
                         EmptyState("shippingbox", "Nothing remembered yet. Scan a room and upload it first.")
                     }
-                    ForEach(things.things) { thing in
-                        Button { router.guiding = thing } label: { ThingRow(thing: thing) }
-                            .buttonStyle(.plain)
-                            .accessibilityHint("Walks you there with spoken directions.")
+                    // one room: a plain list; several: a heading per room
+                    let rooms = ThingGroups.byPlace(things.things)
+                    ForEach(rooms) { room in
+                        if rooms.count > 1 {
+                            Text(room.title).font(.headline).foregroundStyle(Tokens.muted)
+                                .padding(.top, 4)
+                                .accessibilityAddTraits(.isHeader)
+                        }
+                        ForEach(room.things) { thing in
+                            Button { router.guiding = thing } label: { ThingRow(thing: thing) }
+                                .buttonStyle(.plain)
+                                .accessibilityHint("Walks you there with spoken directions.")
+                        }
                     }
                 }
                 .padding(.horizontal, Tokens.gutter)
@@ -131,7 +140,7 @@ private struct ThingRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            IconTile("shippingbox")
+            ThingIcon(thing: thing)
             VStack(alignment: .leading, spacing: 3) {
                 Text(thing.title.capitalizedFirst).font(.headline).foregroundStyle(Tokens.ink)
                 Text(thing.place.capitalizedFirst).font(.subheadline).foregroundStyle(Tokens.muted)

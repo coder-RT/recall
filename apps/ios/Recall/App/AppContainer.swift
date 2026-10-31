@@ -41,6 +41,7 @@ final class AppContainer {
                            upload: UploadScan(files: files, uploads: Self.uploader, server: server, speech: speech),
                            track: TrackProcessing(processing: server, memory: server, speech: speech),
                            settings: settings, things: things, speech: speech, clock: clock)
+        if UITestSamples.enabled { things.useForUITests(UITestSamples.things) }
     }
 
     func findModel() -> FindModel {

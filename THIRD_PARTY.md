@@ -15,6 +15,12 @@ Library versions are pinned in the lockfiles (`pnpm-lock.yaml`, `uv.lock`).
 | Llama Prompt Guard | Screens inbound A2A messages | Mac | TODO(verify): licence and any required attribution (e.g. a "Built with Llama" notice), link |
 | MapAnything (`facebookresearch/map-anything` @ `3d10cf7`), weights `facebook/map-anything-apache` @ `00f9c24` | 3D reconstruction; produced the sample room in `apps/web/public/samples/demo-flat/` | Mac | Code Apache-2.0; weights Apache-2.0 (see `docs/verification.md`) |
 
+## Our own artwork
+
+| What | Where | Terms |
+|---|---|---|
+| Thing icons (keys, wallet, bag, backpack, book, bottle, glasses, phone, remote, mug, laptop, headphones, charger, watch, passport, and the box for unsure things) | `apps/ios/Recall/Resources/Assets.xcassets/Things`, drawn by `apps/ios/scripts/make_thing_icons.py` | Drawn for Recall; Apache-2.0 with the rest of the repo. No third-party art |
+
 ## Hosting and infrastructure
 
 | What | Used for | Terms |

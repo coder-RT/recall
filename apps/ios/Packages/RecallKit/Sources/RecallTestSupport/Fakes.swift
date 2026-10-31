@@ -5,9 +5,10 @@ import RecallDomain
 
 public extension Thing {
     static func sample(_ id: String = "obj_1", label: String = "keys", color: String? = "red", needsReview: Bool = false,
-                       landmark: String? = "desk") -> Thing {
-        Thing(id: id, label: label, color: color, heightM: 0.75, heightBand: "waist", landmark: landmark,
-              relation: "on", confidence: needsReview ? 0.6 : 0.9, needsReview: needsReview,
+                       landmark: String? = "desk", room: String? = "Living room", heightBand: String = "waist",
+                       name: String? = nil) -> Thing {
+        Thing(id: id, label: label, name: name, color: color, heightM: 0.75, heightBand: heightBand, landmark: landmark,
+              relation: "on", room: room, confidence: needsReview ? 0.6 : 0.9, needsReview: needsReview,
               seenAt: Date(timeIntervalSince1970: 1_800_000_000))
     }
 }

@@ -205,7 +205,7 @@ extension Thing {
         self.init(id: o.objectId, label: o.label, name: o.corrections?.name, color: o.color,
                   measuredColor: o.corrections?.color == nil ? o.color : nil,
                   heightM: o.position.count == 3 ? o.position[2] : 0, userHeightM: o.corrections?.heightM,
-                  heightBand: o.heightBand.rawValue, landmark: o.landmark, relation: o.relation?.rawValue,
+                  heightBand: o.heightBand.rawValue, landmark: o.landmark, relation: o.relation?.rawValue, room: o.room,
                   sizeCm: o.sizeM?.map { Int(($0 * 100).rounded()) }, note: o.corrections?.note, confidence: o.confidence,
                   confirmed: o.corrections?.confirmed ?? false, needsReview: o.needsReview ?? false, seenAt: o.seenAt)
     }

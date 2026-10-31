@@ -46,12 +46,21 @@ public struct Scan: Identifiable, Sendable, Equatable {
     public var directions: Int
     public var frames: Int
     public private(set) var state: UploadState
+    /// A rescan: the earlier scan whose room map the phone recognised, so both share one frame.
+    public var alignedTo: String?
+    /// What the Mac found different after this rescan.
+    public var changes: [ScanChange] = []
+    /// Scanned before but not recognised: the Mac started this room's memory afresh.
+    public var fresh = false
 
     public init(id: String, room: String, createdAt: Date, grade: ScanGrade, directions: Int, frames: Int,
-                state: UploadState = .notUploaded) {
+                state: UploadState = .notUploaded, alignedTo: String? = nil) {
         self.id = id; self.room = room; self.createdAt = createdAt; self.grade = grade
-        self.directions = directions; self.frames = frames; self.state = state
+        self.directions = directions; self.frames = frames; self.state = state; self.alignedTo = alignedTo
     }
+
+    /// A rescan whose results are in: "What changed" applies.
+    public var showsChanges: Bool { isProcessed && (alignedTo != nil || fresh || !changes.isEmpty) }
 
     /// An upload can start when the scan is only local or the last try failed.
     public var canUpload: Bool {
@@ -76,9 +85,23 @@ public struct Scan: Identifiable, Sendable, Equatable {
 /// The Mac's processing status for a scan.
 public enum ScanStatus: String, Sendable { case uploading, uploaded, processing, processed, failed }
 
+/// What the Mac says about a scan: its status, why it failed, and (for a rescan) what changed.
+public struct ScanReport: Sendable, Equatable {
+    public let status: ScanStatus
+    public let detail: String?
+    public let changes: [ScanChange]
+    public let fresh: Bool
+
+    public init(_ status: ScanStatus, detail: String? = nil, changes: [ScanChange] = [], fresh: Bool = false) {
+        self.status = status; self.detail = detail; self.changes = changes; self.fresh = fresh
+    }
+}
+
 // scans.json keeps the shape older builds wrote (uploadPhase, uploadDetail, uploadFraction), both ways
 extension Scan: Codable {
-    enum CodingKeys: String, CodingKey { case id, room, createdAt, grade, directions, frames, uploadPhase, uploadDetail, uploadFraction }
+    enum CodingKeys: String, CodingKey {
+        case id, room, createdAt, grade, directions, frames, uploadPhase, uploadDetail, uploadFraction, alignedTo, changes, fresh
+    }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -91,6 +114,9 @@ extension Scan: Codable {
         let phase = try c.decodeIfPresent(String.self, forKey: .uploadPhase)
         let detail = try c.decodeIfPresent(String.self, forKey: .uploadDetail)
         let fraction = try c.decodeIfPresent(Double.self, forKey: .uploadFraction) ?? 0
+        alignedTo = try c.decodeIfPresent(String.self, forKey: .alignedTo)
+        changes = try c.decodeIfPresent([ScanChange].self, forKey: .changes) ?? []
+        fresh = try c.decodeIfPresent(Bool.self, forKey: .fresh) ?? false
         state = switch phase {
         case "preparing": .preparing
         case "uploading": .uploading(fraction: fraction)
@@ -113,5 +139,8 @@ extension Scan: Codable {
         if state != .notUploaded { try c.encode(state.stage, forKey: .uploadPhase) }
         if case .failed(let why) = state { try c.encode(why, forKey: .uploadDetail) }
         if case .uploading(let f) = state { try c.encode(f, forKey: .uploadFraction) }
+        try c.encodeIfPresent(alignedTo, forKey: .alignedTo)
+        if !changes.isEmpty { try c.encode(changes, forKey: .changes) }
+        if fresh { try c.encode(fresh, forKey: .fresh) }
     }
 }

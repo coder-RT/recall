@@ -1,8 +1,9 @@
 import Foundation
 import RecallDomain
 
-/// The Mac takes a few minutes per scan. This asks about every scan still processing and says when one is ready:
-/// "Living room is ready. 10 things found, 4 to check."
+/// The Mac takes a minute or so per scan. This asks about every scan still processing and says when one is ready:
+/// "Living room is ready. 10 things found, 4 to check." After a rescan it says what changed instead: "Living room is
+/// ready. 2 changes: your beige keys moved from near the desk to on the shelf. Gone: your grey bag."
 @MainActor
 public struct TrackProcessing {
     private let processing: any ScanProcessing
@@ -13,24 +14,45 @@ public struct TrackProcessing {
         self.processing = processing; self.memory = memory; self.speech = speech
     }
 
-    /// The new states of the scans that changed (unreachable Macs change nothing).
-    public func callAsFunction(_ scans: [Scan], home: String) async -> [String: UploadState] {
-        var changes: [String: UploadState] = [:]
+    /// What changed for one scan: its new state, and for a processed rescan what the Mac found different.
+    public struct Outcome: Sendable, Equatable {
+        public let state: UploadState
+        public let changes: [ScanChange]
+        public let fresh: Bool
+        public init(_ state: UploadState, changes: [ScanChange] = [], fresh: Bool = false) {
+            self.state = state; self.changes = changes; self.fresh = fresh
+        }
+    }
+
+    /// The scans whose state changed (unreachable Macs change nothing).
+    public func callAsFunction(_ scans: [Scan], home: String) async -> [String: Outcome] {
+        var out: [String: Outcome] = [:]
         for scan in scans where scan.isProcessing {
-            guard let (status, detail) = try? await processing.status(scan: scan.id) else { continue }
-            switch status {
+            guard let report = try? await processing.status(scan: scan.id) else { continue }
+            switch report.status {
             case .processed:
-                changes[scan.id] = .processed
+                out[scan.id] = Outcome(.processed, changes: report.changes, fresh: report.fresh)
                 let things = (try? await memory.things(home: home)) ?? []
-                speech.say(Self.ready(scan.room, things: things), interrupt: false)
+                speech.say(Self.announce(scan, report: report, things: things), interrupt: false)
             case .failed:
-                changes[scan.id] = .failed(reason: detail ?? "The Mac couldn't process this scan.")
+                out[scan.id] = Outcome(.failed(reason: report.detail ?? "The Mac couldn't process this scan."))
                 speech.say("Processing \(scan.room) failed. The reason is on the scan.", interrupt: false)
             default:
                 break
             }
         }
-        return changes
+        return out
+    }
+
+    /// A rescan says what changed; a first scan (or a fresh start) says how much was found.
+    static func announce(_ scan: Scan, report: ScanReport, things: [Thing]) -> String {
+        if report.fresh {
+            return "I didn't recognise \(scan.room), so its memory started afresh. " + ready(scan.room, things: things)
+        }
+        if scan.alignedTo != nil || !report.changes.isEmpty {
+            return ChangeSummary.say(room: scan.room, changes: report.changes)
+        }
+        return ready(scan.room, things: things)
     }
 
     static func ready(_ room: String, things: [Thing]) -> String {

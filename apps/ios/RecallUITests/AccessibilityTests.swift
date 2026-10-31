@@ -216,6 +216,26 @@ final class AccessibilityTests: XCTestCase {
         try auditBothEnds(app)
     }
 
+    /// A processed scan offers "Scan again"; a rescan shows what moved, what's new and what's gone.
+    func testScanAgainAndWhatChanged() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-UITestSampleThings"]
+        app.launch()
+        openScans(app)
+        let card = app.descendants(matching: .any)["what-changed"]
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["What changed"].exists)
+        let moved = card.descendants(matching: .any)["Beige keys: Moved from near the desk to on the shelf."]
+        XCTAssertTrue(moved.exists)
+        XCTAssertTrue(card.descendants(matching: .any)["White mug: New, on the desk."].exists)
+        XCTAssertTrue(card.descendants(matching: .any)["Grey bag: Gone from near the desk."].exists)
+        XCTAssertTrue(app.buttons["Hear what changed again"].exists)
+        XCTAssertEqual(app.buttons.matching(identifier: "Scan again").count, 2)  // on both processed scans
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "what-changed").count, 1)  // the first scan has none
+        shot("ios-what-changed")
+        try auditBothEnds(app)
+    }
+
     func testHomePassesTheAudit() throws {
         let app = XCUIApplication()
         app.launch()

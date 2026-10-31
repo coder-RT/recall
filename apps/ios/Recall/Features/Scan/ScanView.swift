@@ -80,12 +80,12 @@ private struct StepCard: View {
     let update: CaptureUpdate
     let time: String
 
-    private var number: Int { min(update.step.rawValue + 1, 5) }
+    private var number: Int { min(max(update.step.rawValue + 1, 0), 5) }
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(update.step == .finish ? "Last step" : "Step \(number) of 5")
+                Text(update.step == .finish ? "Last step" : update.step == .recognise ? "Scanning again" : "Step \(number) of 5")
                     .font(.footnote.weight(.semibold)).foregroundStyle(.white)
                 Text(update.step.title).font(.title3.weight(.bold)).foregroundStyle(.white)
                     .fixedSize(horizontal: false, vertical: true)
@@ -105,7 +105,8 @@ private struct StepCard: View {
         .background(Tokens.blueDeep.opacity(0.92), in: .rect(cornerRadius: 22))
         .hudRim(RoundedRectangle(cornerRadius: 22))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Step \(number): \(update.step.title). \(update.mapStatus.spoken). \(time).")
+        .accessibilityLabel(update.step == .recognise ? "Scanning again: \(update.step.title). \(time)."
+                            : "Step \(number): \(update.step.title). \(update.mapStatus.spoken). \(time).")
     }
 }
 

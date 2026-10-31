@@ -29,8 +29,15 @@ def _scan(s: ScanEntity) -> Scan:
         fresh=s.fresh,
         changes=[
             ScanChange.model_validate(
-                {"kind": c.kind, "object_id": c.object_id, "label": c.label, "name": c.name, "color": c.color,
-                 "from": c.from_place, "to": c.to_place}
+                {
+                    "kind": c.kind,
+                    "object_id": c.object_id,
+                    "label": c.label,
+                    "name": c.name,
+                    "color": c.color,
+                    "from": c.from_place,
+                    "to": c.to_place,
+                }
             )
             for c in s.changes
         ],

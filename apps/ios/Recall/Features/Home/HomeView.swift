@@ -10,7 +10,7 @@ struct HomeView: View {
     @Environment(Router.self) private var router
     @Environment(\.container) private var container
     @State private var askingRoom = false
-    @State private var scanningRoom: String?
+    @State private var scanning: ScanRequest?
 
     var body: some View {
         NavigationStack {
@@ -30,7 +30,8 @@ struct HomeView: View {
                         EmptyState("viewfinder", "No scans yet. Scan a room to start.")
                     }
                     ForEach(scans.scans) { scan in
-                        ScanRow(scan: scan) { router.tab = .found }
+                        ScanRow(scan: scan, review: { router.tab = .found },
+                                again: { scanning = ScanRequest(room: scan.room, again: scan) })
                     }
                 }
                 .padding(.horizontal, Tokens.gutter)
@@ -40,11 +41,13 @@ struct HomeView: View {
             .sheet(isPresented: $askingRoom) {
                 RoomNameView { room in
                     askingRoom = false
-                    scanningRoom = room
+                    scanning = ScanRequest(room: room, again: nil)
                 }
             }
-            .fullScreenCover(item: Binding(get: { scanningRoom.map(RoomName.init) }, set: { scanningRoom = $0?.id })) { room in
-                if let container { ScanView(model: container.scanModel(room: room.id)) { scanningRoom = nil } }
+            .fullScreenCover(item: $scanning) { request in
+                if let container {
+                    ScanView(model: container.scanModel(room: request.room, again: request.again)) { scanning = nil }
+                }
             }
         }
     }
@@ -128,29 +131,45 @@ private struct SetupNotice: View {
     }
 }
 
-struct RoomName: Identifiable { let id: String }
+/// A scan to start: a new room, or a room scanned again (in the earlier scan's frame).
+struct ScanRequest: Identifiable {
+    let room: String
+    let again: Scan?
+    var id: String { "\(room)|\(again?.id ?? "new")" }
+}
 
 private struct ScanRow: View {
     @Environment(ScansModel.self) private var scans
     let scan: Scan
     let review: () -> Void
+    let again: () -> Void
     @State private var shareURL: URL?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                IconTile(RoomIcon.for(scan.room))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(scan.room).font(.headline).foregroundStyle(Tokens.ink)
-                    Text(scan.createdAt.formatted(date: .abbreviated, time: .shortened))
-                        .font(.footnote).foregroundStyle(Tokens.muted)
+            // the details read as one block, which also holds the long-press menu (Delete)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    IconTile(RoomIcon.for(scan.room))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(scan.room).font(.headline).foregroundStyle(Tokens.ink)
+                        Text(scan.createdAt.formatted(date: .abbreviated, time: .shortened))
+                            .font(.footnote).foregroundStyle(Tokens.muted)
+                    }
+                    Spacer(minLength: 8)
+                    GradeBadge(grade: scan.grade)
                 }
-                Spacer(minLength: 8)
-                GradeBadge(grade: scan.grade)
+                Text("\(scan.frames) frames · \(scan.directions) of 12 directions")
+                    .font(.footnote).foregroundStyle(Tokens.muted)
+                if scan.state != .notUploaded { UploadStatus(state: scan.state) }
             }
-            Text("\(scan.frames) frames · \(scan.directions) of 12 directions")
-                .font(.footnote).foregroundStyle(Tokens.muted)
-            if scan.state != .notUploaded { UploadStatus(state: scan.state) }
+            .contentShape(.rect)
+            .accessibilityElement(children: .combine)
+            .accessibilityAction(named: "Delete scan") { scans.delete(scan) }
+            .contextMenu {
+                Button("Delete scan", systemImage: "trash", role: .destructive) { scans.delete(scan) }
+            }
+            if scan.showsChanges { WhatChanged(scan: scan) }
             HStack(spacing: 10) {
                 if scan.canUpload {
                     let retry = if case .failed = scan.state { true } else { false }
@@ -160,8 +179,12 @@ private struct ScanRow: View {
                     .buttonStyle(SolidPillStyle(fill: Tokens.go, text: Tokens.onGo, compact: true))
                 }
                 if scan.isProcessed {
-                    Button(action: review) { Label("Check what was found", systemImage: "checklist") }
+                    Button(action: review) { Label("Check", systemImage: "checklist") }
                         .buttonStyle(SolidPillStyle(fill: Tokens.accentFill, text: Tokens.onAccent, compact: true))
+                        .accessibilityLabel("Check what was found")
+                    Button(action: again) { Label("Scan again", systemImage: "arrow.triangle.2.circlepath.camera") }
+                        .buttonStyle(SolidPillStyle(fill: Tokens.card, text: Tokens.accent, edge: Tokens.line, compact: true))
+                        .accessibilityHint("Scans \(scan.room) again and tells you what changed.")
                 }
                 Spacer(minLength: 0)
                 if let url = shareURL {
@@ -175,9 +198,6 @@ private struct ScanRow: View {
         .card()
         .task(id: scan.id) { shareURL = await scans.archive(scan) }  // built once, off the main thread
         .accessibilityElement(children: .contain)
-        .contextMenu {
-            Button("Delete scan", systemImage: "trash", role: .destructive) { scans.delete(scan) }
-        }
         .accessibilityAction(named: "Delete scan") { scans.delete(scan) }
     }
 }
@@ -244,6 +264,82 @@ private struct UploadStatus: View {
         case .processing: "gearshape.2"
         case .failed: "exclamationmark.triangle"
         default: "arrow.up.circle"
+        }
+    }
+}
+
+/// After a rescan: what moved, what's new, what's gone, each with its icon and the places in words; or that the room
+/// wasn't recognised and its memory started afresh. "Hear it again" says the summary.
+private struct WhatChanged: View {
+    @Environment(ScansModel.self) private var scans
+    let scan: Scan
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label("What changed", systemImage: "arrow.left.arrow.right").font(.headline).foregroundStyle(Tokens.ink)
+                Spacer(minLength: 8)
+                Button { scans.sayChanges(scan) } label: {
+                    Label("Hear it again", systemImage: "speaker.wave.2.fill").labelStyle(.iconOnly)
+                        .font(.title3).foregroundStyle(Tokens.accent).frame(minWidth: 44, minHeight: 44)
+                }
+                .accessibilityLabel("Hear what changed again")
+            }
+            if scan.fresh {
+                Text("The room wasn't recognised, so Recall started its memory afresh.")
+                    .font(.subheadline).foregroundStyle(Tokens.ink).fixedSize(horizontal: false, vertical: true)
+            } else if scan.changes.isEmpty {
+                Text("Nothing has moved since the last scan.").font(.subheadline).foregroundStyle(Tokens.ink)
+            } else {
+                ForEach(scan.changes) { change in ChangeRow(change: change) }
+            }
+        }
+        .padding(14)
+        .background(Tokens.tile, in: .rect(cornerRadius: 16))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("what-changed")
+    }
+}
+
+private struct ChangeRow: View {
+    let change: ScanChange
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ThingIcon(kind: change.thingKind, color: change.color, side: 36)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(change.title.capitalizedFirst).font(.subheadline.weight(.semibold)).foregroundStyle(Tokens.ink)
+                    Label(badge, systemImage: icon).font(.caption.weight(.bold)).foregroundStyle(colour)
+                }
+                Text(change.places).font(.footnote).foregroundStyle(Tokens.muted).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(change.title.capitalizedFirst): \(change.line).")
+    }
+
+    private var badge: String {
+        switch change.kind {
+        case .moved: "Moved"
+        case .new: "New"
+        case .gone: "Gone"
+        }
+    }
+
+    private var icon: String {
+        switch change.kind {
+        case .moved: "arrow.right.circle.fill"
+        case .new: "plus.circle.fill"
+        case .gone: "minus.circle.fill"
+        }
+    }
+
+    private var colour: Color {
+        switch change.kind {
+        case .moved: Tokens.accent
+        case .new: Tokens.goText
+        case .gone: Tokens.danger
         }
     }
 }

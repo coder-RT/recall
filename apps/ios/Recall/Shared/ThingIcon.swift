@@ -6,15 +6,18 @@ import SwiftUI
 /// its body in the colour the scan measured, on a white tile so it reads in every theme. An unsure thing shows the
 /// box: the picture never claims more than the scan knows. Hidden from VoiceOver: the row already says the name.
 struct ThingIcon: View {
-    let thing: Thing
+    let kind: ThingKind
+    let color: String?
     var side: CGFloat = 44
     @ScaledMetric(relativeTo: .title3) private var scale: CGFloat = 1
 
+    init(thing: Thing, side: CGFloat = 44) { kind = thing.iconKind; color = thing.color; self.side = side }
+    init(kind: ThingKind, color: String?, side: CGFloat = 44) { self.kind = kind; self.color = color; self.side = side }
+
     var body: some View {
-        let kind = thing.iconKind
         ZStack {
             Image("thing-\(kind.rawValue)-fill").resizable().renderingMode(.template)
-                .foregroundStyle(kind == .unknown ? Tokens.bluePale : (ThingColors.named(thing.color) ?? Tokens.bluePale))
+                .foregroundStyle(kind == .unknown ? Tokens.bluePale : (ThingColors.named(color) ?? Tokens.bluePale))
             Image("thing-\(kind.rawValue)-line").resizable().renderingMode(.original)
         }
         .scaledToFit()

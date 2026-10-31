@@ -31,9 +31,15 @@ final class ScansModel {
     func start() async {
         await uploads.observe { [weak self] id, state in Task { @MainActor in self?.apply(id, state) } }
         while !Task.isCancelled {
-            let changes = await track(scans, home: settings.connection.homeId)
-            for (id, state) in changes { apply(id, state, announce: false) }
-            if changes.values.contains(.processed) { await things.refresh() }
+            let outcomes = await track(scans, home: settings.connection.homeId)
+            for (id, outcome) in outcomes {
+                if let i = scans.firstIndex(where: { $0.id == id }) {
+                    scans[i].changes = outcome.changes
+                    scans[i].fresh = outcome.fresh
+                }
+                apply(id, outcome.state, announce: false)
+            }
+            if outcomes.values.contains(where: { $0.state == .processed }) { await things.refresh() }
             try? await clock.sleep(seconds: 10)
         }
     }
@@ -70,8 +76,21 @@ final class ScansModel {
 
     /// The saved room map to relocalise in: the home's first processed scan made on this phone (routes are planned
     /// in that scan's world).
+    /// The room map guidance starts from: the newest processed scan's (a recognised rescan's map holds the first
+    /// scan's world, extended).
     func roomMap() -> Data? {
-        scans.filter(\.isProcessed).sorted { $0.createdAt < $1.createdAt }.lazy.compactMap { self.files.roomMap(scan: $0.id) }.first
+        scans.filter(\.isProcessed).sorted { $0.createdAt > $1.createdAt }.lazy.compactMap { self.files.roomMap(scan: $0.id) }.first
+    }
+
+    /// UI tests only (launch argument `-UITestSampleThings`): a fixed list of scans. Real users never see it.
+    func useForUITests(_ sample: [Scan]) { scans = sample }
+
+    /// One scan's room map, for scanning that room again in the same frame.
+    func roomMap(scan: Scan) -> Data? { files.roomMap(scan: scan.id) }
+
+    /// Says a processed rescan's changes again (the "Hear it again" button).
+    func sayChanges(_ scan: Scan) {
+        speech.say(ChangeSummary.say(room: scan.room, changes: scan.changes), interrupt: true)
     }
 
     private func apply(_ id: String, _ state: UploadState, announce: Bool = true) {

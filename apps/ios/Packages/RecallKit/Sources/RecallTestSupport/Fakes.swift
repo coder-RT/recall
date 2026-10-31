@@ -60,11 +60,14 @@ public final class FakeGuide: GuideService, @unchecked Sendable {
 }
 
 public final class FakeProcessing: ScanProcessing, @unchecked Sendable {
-    public var statuses: [String: (ScanStatus, String?)]
-    public init(_ statuses: [String: (ScanStatus, String?)] = [:]) { self.statuses = statuses }
-    public func status(scan: String) async throws -> (ScanStatus, detail: String?) {
-        guard let s = statuses[scan] else { throw RecallError.status(404) }
-        return s
+    public var reports: [String: ScanReport]
+    public init(_ statuses: [String: (ScanStatus, String?)] = [:]) {
+        reports = statuses.mapValues { ScanReport($0.0, detail: $0.1) }
+    }
+    public init(reports: [String: ScanReport]) { self.reports = reports }
+    public func status(scan: String) async throws -> ScanReport {
+        guard let r = reports[scan] else { throw RecallError.status(404) }
+        return r
     }
 }
 

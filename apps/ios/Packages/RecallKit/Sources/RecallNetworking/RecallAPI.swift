@@ -137,12 +137,17 @@ extension RecallAPI: ConnectionCheck, ScanProcessing, ScanServer {
         return provider
     }
 
-    public func status(scan: String) async throws -> (ScanStatus, detail: String?) {
+    public func status(scan: String) async throws -> ScanReport {
         let r = try await call { try await client.getScan(path: .init(scanId: scan)) }
         switch r {
         case .ok(let ok):
             let s = try ok.body.json
-            return (ScanStatus(rawValue: s.status.rawValue) ?? .failed, s.detail)
+            let changes = (s.changes ?? []).map { c in
+                ScanChange(kind: ScanChange.Kind(rawValue: c.kind.rawValue) ?? .moved, objectId: c.objectId, label: c.label,
+                           name: c.name, color: c.color, from: c.from, to: c.to)
+            }
+            return ScanReport(ScanStatus(rawValue: s.status.rawValue) ?? .failed, detail: s.detail, changes: changes,
+                              fresh: s.fresh ?? false)
         case .notFound: throw RecallError.server("The Mac doesn't know this scan.")
         case .undocumented(let code, _): throw RecallError.status(code)
         }

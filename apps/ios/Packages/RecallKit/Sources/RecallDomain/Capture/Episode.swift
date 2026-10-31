@@ -66,6 +66,8 @@ public struct Manifest: Codable, Sendable {
     public var files: [FileEntry]
     public var captureMetrics: CaptureMetrics
     public var compass: Compass?
+    /// A rescan recognised in this earlier scan's room map (same frame); nil for a first or fresh scan.
+    public var alignedTo: String?
 
     /// Where magnetic north lies in this scan's ARKit world (yaw; 0 = facing −Z, clockwise from above).
     public struct Compass: Codable, Sendable, Equatable {
@@ -81,16 +83,16 @@ public struct Manifest: Codable, Sendable {
     enum CodingKeys: String, CodingKey {
         case scanId = "scan_id", format, device, appVersion = "app_version", createdAt = "created_at"
         case durationS = "duration_s", frameCount = "frame_count", image, depth, intrinsics
-        case worldMap = "world_map", files, captureMetrics = "capture_metrics", compass
+        case worldMap = "world_map", files, captureMetrics = "capture_metrics", compass, alignedTo = "aligned_to"
     }
 
     public init(scanId: String, device: String, appVersion: String, createdAt: Date, durationS: Double, frameCount: Int,
                 image: Size, depth: Depth, intrinsics: Intrinsics, worldMap: String?, files: [FileEntry],
-                captureMetrics: CaptureMetrics, compass: Compass? = nil) {
+                captureMetrics: CaptureMetrics, compass: Compass? = nil, alignedTo: String? = nil) {
         self.scanId = scanId; self.device = device; self.appVersion = appVersion; self.createdAt = createdAt
         self.durationS = durationS; self.frameCount = frameCount; self.image = image; self.depth = depth
         self.intrinsics = intrinsics; self.worldMap = worldMap; self.files = files; self.captureMetrics = captureMetrics
-        self.compass = compass
+        self.compass = compass; self.alignedTo = alignedTo
     }
 
     public static func encoder() -> JSONEncoder {

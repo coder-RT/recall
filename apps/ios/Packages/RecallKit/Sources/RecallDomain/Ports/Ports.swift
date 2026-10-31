@@ -25,7 +25,7 @@ public protocol Transcriber: Sendable {
 
 /// The Mac's processing status of an uploaded scan.
 public protocol ScanProcessing: Sendable {
-    func status(scan: String) async throws -> (ScanStatus, detail: String?)
+    func status(scan: String) async throws -> ScanReport
 }
 
 /// That the Mac answers and accepts the key; returns the model the Guide runs on.

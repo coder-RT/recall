@@ -38,3 +38,20 @@ let objectsJSON = """
     #expect(objects[1].place == "in the room, waist height")
     #expect(objects[0].room == "Living room" && objects[1].room == nil)
 }
+
+@Test func aRescansChangesDecode() async throws {
+    let json = """
+    {"scan_id": "0b9f2a1e-0000-4000-8000-000000000002", "home_id": "flat", "room": "Living room", "status": "processed",
+     "detail": "1 moved, 1 gone", "frame_count": 40, "object_count": 9, "aligned_to": "0b9f2a1e-0000-4000-8000-000000000001",
+     "fresh": false, "changes": [
+       {"kind": "moved", "object_id": "obj1", "label": "keys", "name": null, "color": "beige", "from": "near the desk", "to": "on the shelf"},
+       {"kind": "gone", "object_id": "obj2", "label": "bag", "name": "Mum's purse", "color": "grey", "from": "near the desk", "to": null}]}
+    """
+    let api = RecallAPI(baseURL: URL(string: "http://mac.local:8000")!, deviceKey: "k", transport: FixedTransport(body: json))
+    let report = try await api.status(scan: "0b9f2a1e-0000-4000-8000-000000000002")
+    #expect(report.status == .processed && !report.fresh)
+    #expect(report.changes == [
+        ScanChange(kind: .moved, objectId: "obj1", label: "keys", color: "beige", from: "near the desk", to: "on the shelf"),
+        ScanChange(kind: .gone, objectId: "obj2", label: "bag", name: "Mum's purse", color: "grey", from: "near the desk"),
+    ])
+}

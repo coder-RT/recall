@@ -747,6 +747,58 @@
           }
         }
       },
+      "ScanChange": {
+        "type": "object",
+        "description": "One difference a rescan found against what Recall remembered in that room",
+        "required": [
+          "kind",
+          "object_id",
+          "label"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "moved",
+              "new",
+              "gone"
+            ]
+          },
+          "object_id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The user's own name for it, when they gave one"
+          },
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "from": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where it was, in words: \"near the desk\" (moved, gone)"
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where it is now, in words: \"on the shelf\" (moved, new)"
+          }
+        }
+      },
       "Scan": {
         "type": "object",
         "required": [
@@ -785,6 +837,24 @@
           },
           "object_count": {
             "type": "integer"
+          },
+          "aligned_to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The earlier scan of this room whose map the phone recognised, so both share one frame"
+          },
+          "fresh": {
+            "type": "boolean",
+            "description": "The room was scanned before but not recognised: memory for it started over"
+          },
+          "changes": {
+            "type": "array",
+            "description": "What a rescan found different (empty for a room's first scan)",
+            "items": {
+              "$ref": "#/components/schemas/ScanChange"
+            }
           }
         }
       },
@@ -1034,6 +1104,13 @@
           },
           "capture_metrics": {
             "$ref": "#/components/schemas/CaptureMetrics"
+          },
+          "aligned_to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A rescan: the earlier scan whose ARWorldMap the phone relocalised in before recording, so this scan's poses share its world. Absent when the room wasn't recognised (a fresh scan)."
           },
           "compass": {
             "type": [

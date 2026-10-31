@@ -41,7 +41,10 @@ final class AppContainer {
                            upload: UploadScan(files: files, uploads: Self.uploader, server: server, speech: speech),
                            track: TrackProcessing(processing: server, memory: server, speech: speech),
                            settings: settings, things: things, speech: speech, clock: clock)
-        if UITestSamples.enabled { things.useForUITests(UITestSamples.things) }
+        if UITestSamples.enabled {
+            things.useForUITests(UITestSamples.things)
+            scans.useForUITests(UITestSamples.scans)
+        }
     }
 
     func findModel() -> FindModel {
@@ -71,10 +74,13 @@ final class AppContainer {
                           ended: { [weak self] in self?.guiding = false })
     }
 
-    func scanModel(room: String) -> ScanModel {
+    /// `again`: a processed scan of this room to scan again in the same frame (its room map is recognised first).
+    func scanModel(room: String, again: Scan? = nil) -> ScanModel {
         idle?.cancel()
         locator.stop()  // one ARKit session at a time: the scan needs the camera
-        return ScanModel(room: room, scans: scans, files: files, compass: compass, speech: speech, haptics: haptics)
+        let rescan = again.flatMap { s in scans.roomMap(scan: s).map { (scanId: s.id, roomMap: $0) } }
+        return ScanModel(room: room, rescan: rescan, scans: scans, files: files, compass: compass, speech: speech,
+                         haptics: haptics)
     }
 }
 
@@ -117,7 +123,7 @@ final class LiveServer: HomeMemory, GuideService, Transcriber, ScanProcessing, C
         try await current().route(home: home, to: thing, from: pose, tracking: tracking)
     }
     func transcribe(wav: Data) async throws -> String { try await current().transcribe(wav: wav) }
-    func status(scan: String) async throws -> (ScanStatus, detail: String?) { try await current().status(scan: scan) }
+    func status(scan: String) async throws -> ScanReport { try await current().status(scan: scan) }
     func check() async throws -> String { try await current().check() }
     func createScan(scan: String, home: String, room: String, size: Int, sha256: String, partSize: Int) async throws -> UploadPlan {
         try await current().createScan(scan: scan, home: home, room: room, size: size, sha256: sha256, partSize: partSize)

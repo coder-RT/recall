@@ -58,7 +58,8 @@ public final class EpisodeWriter: @unchecked Sendable {
     }
 
     /// Writes poses.jsonl, the world map and, last, manifest.json. Returns the manifest.
-    func finish(worldMap: Data?, metrics: CaptureMetrics, compass: Manifest.Compass? = nil, duration: Double, device: String, appVersion: String,
+    func finish(worldMap: Data?, metrics: CaptureMetrics, compass: Manifest.Compass? = nil, alignedTo: String? = nil,
+                duration: Double, device: String, appVersion: String,
                 createdAt: Date) throws -> Manifest {
         save(posesData, "poses.jsonl")
         var mapPath: String?
@@ -68,7 +69,7 @@ public final class EpisodeWriter: @unchecked Sendable {
             frameCount: frameCount, image: .init(width: Int(imageSize.width), height: Int(imageSize.height)),
             depth: .init(width: Int(depthSize.width), height: Int(depthSize.height)),
             intrinsics: intrinsics ?? .init(fx: 0, fy: 0, cx: 0, cy: 0), worldMap: mapPath, files: files,
-            captureMetrics: metrics, compass: compass)
+            captureMetrics: metrics, compass: compass, alignedTo: alignedTo)
         try Manifest.encoder().encode(manifest).write(to: directory.appending(path: "manifest.json"), options: .atomic)
         return manifest
     }

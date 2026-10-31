@@ -22,4 +22,18 @@ enum UITestSamples {
             t("s6", "wallet", "brown", room: "Kitchen", landmark: "counter", relation: "on"),
         ]
     }()
+
+    /// A room's first scan and its rescan, with what the rescan found different.
+    static let scans: [Scan] = {
+        let first = Scan(id: "scan-1", room: "Living room", createdAt: Date(timeIntervalSince1970: 1_800_000_000),
+                         grade: .usable, directions: 10, frames: 56, state: .processed)
+        var again = Scan(id: "scan-2", room: "Living room", createdAt: Date(timeIntervalSince1970: 1_800_090_000),
+                         grade: .good, directions: 12, frames: 64, state: .processed, alignedTo: "scan-1")
+        again.changes = [
+            ScanChange(kind: .moved, objectId: "s1", label: "keys", color: "beige", from: "near the desk", to: "on the shelf"),
+            ScanChange(kind: .new, objectId: "s7", label: "mug", color: "white", to: "on the desk"),
+            ScanChange(kind: .gone, objectId: "s2", label: "bag", color: "grey", from: "near the desk"),
+        ]
+        return [again, first]
+    }()
 }

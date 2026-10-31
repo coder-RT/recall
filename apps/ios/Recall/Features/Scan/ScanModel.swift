@@ -27,9 +27,12 @@ final class ScanModel {
     private let speech: any SpeechOutput
     private let haptics: any HapticsOutput
 
-    init(room: String, scans: ScansModel, files: any EpisodeFiles, compass: CoreLocationCompass,
-         speech: any SpeechOutput, haptics: any HapticsOutput) {
-        self.room = room; self.scans = scans; self.files = files; self.compass = compass; self.speech = speech
+    /// Scanning a room again: the earlier scan and its room map (recognised first, so both share one frame).
+    let rescan: (scanId: String, roomMap: Data)?
+
+    init(room: String, rescan: (scanId: String, roomMap: Data)? = nil, scans: ScansModel, files: any EpisodeFiles,
+         compass: CoreLocationCompass, speech: any SpeechOutput, haptics: any HapticsOutput) {
+        self.room = room; self.rescan = rescan; self.scans = scans; self.files = files; self.compass = compass; self.speech = speech
         self.haptics = haptics
         if !CaptureSession.isSupported { phase = .unsupported }
     }
@@ -41,9 +44,10 @@ final class ScanModel {
             capture.onUpdate = { [weak self] u in Task { @MainActor in self?.apply(u) } }
             compass.start()
             compassOn = true
-            capture.start(writer: writer, heading: compass.sampler)
+            capture.start(writer: writer, heading: compass.sampler, rescan: rescan)
             UIApplication.shared.isIdleTimerDisabled = true
-            speech.say("Scanning \(room). I'll tell you each step.", interrupt: false)
+            speech.say(rescan == nil ? "Scanning \(room). I'll tell you each step." : "Scanning \(room) again.",
+                       interrupt: false)
         } catch {
             phase = .failed(error.localizedDescription)
         }
@@ -101,7 +105,7 @@ final class ScanModel {
             let manifest = try await capture.finish(device: Self.hardwareModel, appVersion: version)
             let m = manifest.captureMetrics
             let scan = Scan(id: scanId, room: room, createdAt: manifest.createdAt, grade: m.grade,
-                            directions: m.directionsCovered, frames: manifest.frameCount)
+                            directions: m.directionsCovered, frames: manifest.frameCount, alignedTo: manifest.alignedTo)
             scans.add(scan)
             phase = .done(scan, m)
             let grade = m.grade == .good ? "good" : m.grade == .usable ? "usable" : "a redo"

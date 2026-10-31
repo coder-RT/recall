@@ -113,12 +113,14 @@ public enum MapStatus: String, Codable, Sendable {
 /// so nobody gets stuck). Then the room map has to be ready before stopping.
 public struct ScanGuide: Sendable {
     public enum Step: Int, Sendable, CaseIterable, Comparable {
+        case recognise = -1  // a rescan only: find the earlier scan's room first
         case start, turnAround, alongWalls, sweepDown, returnToStart, finish
 
         public static func < (a: Step, b: Step) -> Bool { a.rawValue < b.rawValue }
 
         public var title: String {
             switch self {
+            case .recognise: "Recognise the room"
             case .start: "Get ready"
             case .turnAround: "Turn all the way round"
             case .alongWalls: "Walk along the walls"
@@ -130,6 +132,7 @@ public struct ScanGuide: Sendable {
 
         public var spoken: String {
             switch self {
+            case .recognise: "Scanning again. Point the phone slowly around the room so I can recognise it."
             case .start: "Stand by the door with the phone at chest height, camera facing the room."
             case .turnAround: "Turn slowly all the way round."
             case .alongWalls: "Now walk along the walls, about a metre away, with the phone pointing at the wall."
@@ -157,18 +160,29 @@ public struct ScanGuide: Sendable {
         }
     }
 
-    public private(set) var step = Step.start
+    public private(set) var step: Step
     public private(set) var loopClosed = false
     public private(set) var mapReady = false
     private var stepStarted = 0.0
 
-    public init() {}
+    /// `recognising`: a rescan, which first has to find the earlier scan's room.
+    public init(recognising: Bool = false) { step = recognising ? .recognise : .start }
+
+    /// Ends the recognise step: the room was found (this scan shares the earlier one's frame) or it wasn't (this
+    /// scan starts fresh). Returns the line to say.
+    public mutating func endRecognise(recognised: Bool, at t: Double) -> String {
+        step = .start
+        stepStarted = t
+        return (recognised ? "Room recognised. " : "I couldn't recognise the room, so this scan starts fresh. ")
+            + Step.start.spoken
+    }
 
     /// Steps the scan on; returns a line to say when something changed (a new step, or the map becoming ready).
     public mutating func update(_ p: Progress) -> String? {
         let inStep = p.elapsed - stepStarted
         let done: Bool = switch step {
-        case .start: p.elapsed >= 4
+        case .recognise: false  // ended by endRecognise
+        case .start: inStep >= 4
         case .turnAround: p.directions >= 11 || inStep > 60
         case .alongWalls: p.walls >= 9 || inStep > 120
         case .sweepDown: p.floorSeenM2 >= max(2.5, 0.5 * p.areaWalkedM2) || inStep > 90

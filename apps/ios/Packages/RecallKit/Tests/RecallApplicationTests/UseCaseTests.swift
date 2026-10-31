@@ -149,8 +149,38 @@ struct UseCaseTests {
         let track = TrackProcessing(processing: FakeProcessing(["a": (.processed, nil), "b": (.failed, "No frames.")]),
                                     memory: FakeHomeMemory(things: [keys, .sample("2", needsReview: true)]), speech: speech)
         let changes = await track(scans, home: "flat")
-        #expect(changes == ["a": .processed, "b": .failed(reason: "No frames.")])
+        #expect(changes == ["a": .init(.processed), "b": .init(.failed(reason: "No frames."))])
         #expect(speech.lines.contains("Living room is ready. 2 things found, 1 to check."))
+    }
+
+    @Test func aRescanSaysWhatChanged() async {
+        let speech = FakeSpeech()
+        var again = Scan(id: "r", room: "Living room", createdAt: .now, grade: .good, directions: 10, frames: 50,
+                         state: .processing, alignedTo: "a")
+        let moved = ScanChange(kind: .moved, objectId: "o1", label: "keys", color: "beige", from: "near the desk",
+                               to: "on the shelf")
+        let gone = ScanChange(kind: .gone, objectId: "o2", label: "bag", color: "grey", from: "near the desk")
+        let track = TrackProcessing(processing: FakeProcessing(reports: ["r": ScanReport(.processed, changes: [moved, gone])]),
+                                    memory: FakeHomeMemory(things: [keys]), speech: speech)
+        let out = await track([again], home: "flat")
+        #expect(out["r"] == .init(.processed, changes: [moved, gone]))
+        #expect(speech.lines == ["Living room is ready. 2 changes: Your beige keys moved from near the desk to on the shelf. "
+                                 + "Gone: your grey bag."])
+        // nothing moved: said so
+        again = Scan(id: "s", room: "Hall", createdAt: .now, grade: .good, directions: 10, frames: 50, state: .processing,
+                     alignedTo: "h")
+        _ = await TrackProcessing(processing: FakeProcessing(reports: ["s": ScanReport(.processed)]),
+                                  memory: FakeHomeMemory(things: []), speech: speech)([again], home: "flat")
+        #expect(speech.lines.last == "Hall is ready. Nothing has moved since the last scan.")
+    }
+
+    @Test func aRescanThatWasNotRecognisedSaysItStartedAfresh() async {
+        let speech = FakeSpeech()
+        let scan = Scan(id: "f", room: "Kitchen", createdAt: .now, grade: .good, directions: 10, frames: 50, state: .processing)
+        let out = await TrackProcessing(processing: FakeProcessing(reports: ["f": ScanReport(.processed, fresh: true)]),
+                                        memory: FakeHomeMemory(things: [keys]), speech: speech)([scan], home: "flat")
+        #expect(out["f"]?.fresh == true)
+        #expect(speech.lines == ["I didn't recognise Kitchen, so its memory started afresh. Kitchen is ready. 1 thing found."])
     }
 
     @Test func uploadNeedsSetupAndAManifest() async throws {

@@ -65,6 +65,12 @@ public final class CaptureSession: NSObject, ARSessionDelegate, @unchecked Senda
     private var dropped = 0
     private var pendingSignal: ScanSignals.Event?
     private var pendingLine: String?
+    // a rescan: recognise the earlier scan's room before keeping any view, or start fresh after a while
+    private var alignTo: String?
+    private var recognising = false
+    private var recogniseStarted: TimeInterval?
+    private var alignedTo: String?
+    static let recogniseTimeout: Double = 25
 
     public var onUpdate: (@Sendable (CaptureUpdate) -> Void)?
 
@@ -72,25 +78,44 @@ public final class CaptureSession: NSObject, ARSessionDelegate, @unchecked Senda
         ARWorldTrackingConfiguration.isSupported && ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth)
     }
 
-    /// `heading` reads the compass (any thread); without it the scan has no compass.
-    public func start(writer: EpisodeWriter, heading: (@Sendable () -> HeadingReading?)? = nil) {
+    /// `heading` reads the compass (any thread); without it the scan has no compass. `rescan`: the earlier scan's id
+    /// and room map; the session starts in that map and keeps no view until ARKit has recognised the room, so this
+    /// scan's poses share the earlier scan's frame (or, after 25 s without a match, it starts fresh).
+    public func start(writer: EpisodeWriter, heading: (@Sendable () -> HeadingReading?)? = nil,
+                      rescan: (scanId: String, roomMap: Data)? = nil) {
+        let map = rescan.flatMap { try? NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMap.self, from: $0.roomMap) }
         queue.sync {
             self.writer = writer
             self.heading = heading
-            selector = KeyframeSelector(); coverage = CoverageTracker(); surfaces = SurfaceCoverage()
-            signals = ScanSignals(); guide = ScanGuide(); calibration = CompassCalibration(); mapStatus = .notAvailable
-            start = nil; startedAt = Date(); lastEmit = -1; lastBlurCheck = -1; lastDepthSample = -1
-            lastPosition = nil; centreDepth = nil; highConfidence = nil; keptSharpness = []; dropped = 0
-            pendingSignal = nil; pendingLine = ScanGuide.Step.start.spoken
+            startedAt = Date(); dropped = 0; keptSharpness = []
+            alignTo = map == nil ? nil : rescan?.scanId
+            recognising = alignTo != nil
+            recogniseStarted = nil; alignedTo = nil
+            resetMeasures()
+            guide = ScanGuide(recognising: recognising)
+            pendingLine = recognising ? ScanGuide.Step.recognise.spoken : ScanGuide.Step.start.spoken
         }
+        session.delegateQueue = queue
+        session.delegate = self
+        session.run(Self.configuration(map), options: [.resetTracking, .removeExistingAnchors])
+    }
+
+    private static func configuration(_ map: ARWorldMap?) -> ARWorldTrackingConfiguration {
         let config = ARWorldTrackingConfiguration()
         config.frameSemantics = [.sceneDepth]
         config.planeDetection = []
         config.environmentTexturing = .none
         config.isLightEstimationEnabled = true
-        session.delegateQueue = queue
-        session.delegate = self
-        session.run(config, options: [.resetTracking, .removeExistingAnchors])
+        config.initialWorldMap = map
+        return config
+    }
+
+    /// Everything measured about the walk so far (cleared again when a rescan starts fresh).
+    private func resetMeasures() {
+        selector = KeyframeSelector(); coverage = CoverageTracker(); surfaces = SurfaceCoverage()
+        signals = ScanSignals(); calibration = CompassCalibration(); mapStatus = .notAvailable
+        start = nil; lastEmit = -1; lastBlurCheck = -1; lastDepthSample = -1
+        lastPosition = nil; centreDepth = nil; highConfidence = nil; pendingSignal = nil
     }
 
     /// Stops, saves the world map and writes the manifest last. Throws when too few frames were kept.
@@ -109,8 +134,8 @@ public final class CaptureSession: NSObject, ARSessionDelegate, @unchecked Senda
                 mapStatus: mapStatus, loopClosed: guide.loopClosed, compassSpreadDeg: compass?.spreadDeg)
             let duration = Date().timeIntervalSince(startedAt)
             self.writer = nil
-            return try writer.finish(worldMap: mapData, metrics: metrics, compass: compass, duration: duration,
-                                     device: device, appVersion: appVersion, createdAt: startedAt)
+            return try writer.finish(worldMap: mapData, metrics: metrics, compass: compass, alignedTo: alignedTo,
+                                     duration: duration, device: device, appVersion: appVersion, createdAt: startedAt)
         }
     }
 
@@ -136,6 +161,10 @@ public final class CaptureSession: NSObject, ARSessionDelegate, @unchecked Senda
 
     public func session(_ session: ARSession, didUpdate frame: ARFrame) {
         guard let writer else { return }
+        if recognising {
+            recognise(frame)
+            return
+        }
         let t0 = start ?? frame.timestamp
         start = t0
         let t = frame.timestamp - t0
@@ -202,6 +231,33 @@ public final class CaptureSession: NSObject, ARSessionDelegate, @unchecked Senda
             pendingSignal = nil
             pendingLine = nil
             onUpdate?(update)
+        }
+    }
+
+    /// A rescan's first seconds: wait for ARKit to recognise the earlier scan's room (tracking turns normal in that
+    /// map), keeping nothing; then measure from there. No match in time: start over without the map.
+    private func recognise(_ frame: ARFrame) {
+        let t0 = recogniseStarted ?? frame.timestamp
+        recogniseStarted = t0
+        let t = frame.timestamp - t0
+        let (tracking, _) = Self.tracking(frame.camera.trackingState)
+        let recognised = tracking == .normal
+        guard recognised || t > Self.recogniseTimeout else {
+            if t - lastEmit >= 0.25 || pendingLine != nil {
+                lastEmit = t
+                onUpdate?(CaptureUpdate(elapsed: t, directionsCovered: 0, keyframes: 0, droppedBlurry: 0, tracking: tracking,
+                                        lightLux: 0, step: .recognise, guideLine: pendingLine))
+                pendingLine = nil
+            }
+            return
+        }
+        recognising = false
+        alignedTo = recognised ? alignTo : nil
+        resetMeasures()
+        lastEmit = -1
+        pendingLine = guide.endRecognise(recognised: recognised, at: 0)
+        if !recognised {
+            session.run(Self.configuration(nil), options: [.resetTracking, .removeExistingAnchors])  // a fresh scan
         }
     }
 

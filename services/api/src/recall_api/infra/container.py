@@ -33,7 +33,7 @@ from recall_api.application.tools import Tools
 from recall_api.application.upload_scan import UploadScan
 from recall_api.application.verify_arrival import VerifyArrival
 from recall_api.config.settings import REPO_ROOT, Settings
-from recall_api.infra.clock import SystemClock
+from recall_api.infra.clock import FrozenClock, SystemClock
 from recall_api.infra.db import API_ROOT, make_engine, migrate
 from recall_api.infra.pipeline_trigger import SubprocessPipelineTrigger
 from recall_api.util.ids import new_id
@@ -69,7 +69,8 @@ class Container:
 
     @cached_property
     def clock(self):
-        return SystemClock()
+        at = self.settings.frozen_clock
+        return FrozenClock(at) if at else SystemClock()
 
     @cached_property
     def upload_scan(self) -> UploadScan:
@@ -133,7 +134,15 @@ class Container:
     @cached_property
     def ask(self) -> AskWhereIs:
         schemas = json.loads((API_ROOT / "resources" / "tools.json").read_text())
-        return AskWhereIs(llm_from_settings(self.settings), self.tools, schemas, self.homes)
+        return AskWhereIs(self.llm, self.tools, schemas, self.homes)
+
+    @cached_property
+    def llm(self):
+        if self.settings.llm_provider == "replay":
+            from recall_api.adapters.outbound.replay.recorded_llm import RecordedLlm
+
+            return RecordedLlm(self.settings.replay_dir / "guide.jsonl")
+        return llm_from_settings(self.settings)
 
     @cached_property
     def verify_arrival(self) -> VerifyArrival:

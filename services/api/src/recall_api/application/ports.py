@@ -60,6 +60,10 @@ class ChatReply:
     model: str = ""
 
 
+class ModelUnavailable(RuntimeError):
+    """A model can't answer this; the message is written for the person and safe to show."""
+
+
 class LlmProvider(Protocol):
     """An OpenAI-compatible chat model with tool calling (Muse Spark Open, Glimmer, hosted Spark)."""
 

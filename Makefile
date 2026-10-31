@@ -5,7 +5,7 @@ PIPE := services/pipeline
 WEB := apps/web
 REDOCLY := npx -y @redocly/cli@2.72.1
 
-.PHONY: help setup dev worker robot-export regression viewer live demo probes pair rerun test lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
+.PHONY: help setup dev worker robot-export regression viewer live demo record probes pair rerun test lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -43,10 +43,11 @@ viewer: ## Export a home's newest processed scan for /homes/<home>/viewer: make 
 live: ## The API with real Meta model calls (keys from .env), and the scan worker
 	( cd $(API) && uv run recall-api ) & $(MAKE) worker ; wait
 
-demo: ## Replay recordings of real runs (samples/replay/); none exist until a real run is recorded
-	@if [ -d samples/replay ] && [ -n "$$(ls -A samples/replay 2>/dev/null)" ]; then \
-		echo "replay is not built yet"; exit 1; \
-	else echo "No recordings of real runs yet: run 'make live' first."; exit 1; fi
+demo: ## No keys: the API on a memory built from a recorded real scan; the Guide's replies are replayed (labelled recorded)
+	cd $(API) && uv run python -m recall_api.infra.demo serve $(if $(PORT),--port $(PORT))
+
+record: ## Re-record samples/replay/ with real Muse Spark Open calls: make record RESULT=<result.json> ROOM="Living room" AT=<iso>
+	cd $(API) && uv run python -m recall_api.infra.demo record "$(abspath $(RESULT))" --room "$(ROOM)" --captured-at "$(AT)"
 
 probes: ## One real call per Meta model or service; appends results to docs/verification.md (never in CI)
 	cd $(API) && uv run python ../../scripts/probes/run.py

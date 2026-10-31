@@ -5,6 +5,8 @@ from __future__ import annotations
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 
+from recall_api.application.ports import ModelUnavailable
+
 from .deps import container, require_device_key
 from .models import Answer, AskRequest, Transcript
 
@@ -12,9 +14,8 @@ router = APIRouter(dependencies=[Depends(require_device_key)])
 
 
 def _unavailable(e: Exception) -> HTTPException:
-    return HTTPException(
-        503, {"error": "model_unavailable", "detail": f"The model could not be reached: {type(e).__name__}."}
-    )
+    detail = str(e) if isinstance(e, ModelUnavailable) else f"The model could not be reached: {type(e).__name__}."
+    return HTTPException(503, {"error": "model_unavailable", "detail": detail})
 
 
 @router.post("/ask", response_model=Answer, tags=["ask"])

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
@@ -20,7 +21,11 @@ class Settings(BaseSettings):
     # shared with the phone and the pipeline; pairing, not a login
     device_key: SecretStr | None = Field(None, alias="RECALL_DEVICE_KEY")
 
-    llm_provider: Literal["baseten_spark_open", "glimmer_hosted", "lmstudio", "meta"] = "baseten_spark_open"
+    # replay: `make demo`, the Guide's replies from a recorded real run in samples/replay/ (no keys)
+    llm_provider: Literal["baseten_spark_open", "glimmer_hosted", "lmstudio", "meta", "replay"] = "baseten_spark_open"
+    replay_dir: Path = Field(REPO_ROOT / "samples" / "replay" / "flat", alias="RECALL_REPLAY_DIR")
+    # the recorded demo runs at the time of its recording, so "seen yesterday at 04:21" reads the same
+    frozen_clock: datetime | None = Field(None, alias="RECALL_FROZEN_CLOCK")
     baseten_base_url: str | None = None
     baseten_api_key: SecretStr | None = None
     baseten_model: str = Field(

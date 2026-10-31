@@ -83,7 +83,7 @@ The landing page. No image of anyone's home is in this repo: the 3D viewer shows
 
 **Frameworks and stack**
 - Web: Next.js 16, React 19, TypeScript, GSAP (scroll storytelling), Motion (UI), react-three-fiber (3D viewer).
-- Backend: Python 3.12, FastAPI, SQLite, hexagonal architecture (ports and adapters) with DDD aggregates.
+- Backend: Python 3.12, FastAPI, SQLite, hexagonal architecture (ports and adapters) with DDD aggregates. How it fits together and why each piece was chosen over the alternatives: [docs/architecture.md](docs/architecture.md) and [docs/decisions.md](docs/decisions.md).
 - Reconstruction pipeline: Python, MapAnything on the Mac's GPU, NumPy and SciPy for the geometry.
 - iPhone and Watch: Swift 6, SwiftUI, ARKit, RealityKit, AVSpeechSynthesizer, WatchConnectivity.
 - Models: Meta Model API, Baseten (Muse Spark Open), Modal or LM Studio for open weights.

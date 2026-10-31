@@ -19,22 +19,57 @@ public final class ARLocator: Locator {
 
     public static var isSupported: Bool { ARWorldTrackingConfiguration.isSupported }
 
+    /// The map the session runs (or last ran) with, decoded once: starting again with the same map resumes the
+    /// session instead of throwing away what ARKit has already recognised.
+    private var current: (data: Data, map: ARWorldMap)?
+    private var running = false
+    private var runningWithMap = false
+
+    /// Starts recognising the room before anyone asks to go (Find's answer is being read out); a guide that starts
+    /// soon after finds the session already matched. A no-op when it is already running with this map.
+    @discardableResult
+    public func prepare(roomMap: Data?) -> Bool { start(roomMap: roomMap) }
+
     public func start(roomMap: Data?) -> Bool {
         let config = ARWorldTrackingConfiguration()
         config.planeDetection = []
-        var readable = true
-        if let roomMap {
-            if let map = try? NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMap.self, from: roomMap) {
-                config.initialWorldMap = map
-            } else {
-                readable = false
-            }
+        guard let roomMap else {
+            if running, !runningWithMap { return true }
+            session.run(config, options: [.resetTracking, .removeExistingAnchors])
+            running = true; runningWithMap = false
+            return true
         }
+        if let current, current.data == roomMap {
+            if running, runningWithMap { return true }  // already matching (or matched) this room
+            if runningWithMap {
+                // paused after a guide: resume, keeping what was recognised (ARKit relocalises itself if needed).
+                // TODO(verify) on the iPhone how quickly tracking returns to normal after a resume.
+                session.run(config, options: [])
+            } else {
+                config.initialWorldMap = current.map
+                session.run(config, options: [.resetTracking, .removeExistingAnchors])
+            }
+            running = true; runningWithMap = true
+            return true
+        }
+        guard let map = try? NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMap.self, from: roomMap) else {
+            return false
+        }
+        current = (roomMap, map)
+        config.initialWorldMap = map
         session.run(config, options: [.resetTracking, .removeExistingAnchors])
-        return readable
+        running = true; runningWithMap = true
+        return true
     }
 
-    public func stop() { session.pause() }
+    /// Pauses (keeping what ARKit recognised, so the next guide resumes quickly).
+    public func stop() {
+        session.pause()
+        running = false
+    }
+
+    /// Whether the session is running at the moment (a prepared locator nobody used is paused after a while).
+    public var isRunning: Bool { running }
 
     public func mark(_ target: SIMD3<Double>?) {
         arrow?.removeFromParentNode()

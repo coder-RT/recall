@@ -16,8 +16,11 @@ final class GuideModel {
     private let supported: Bool
     private var task: Task<Void, Never>?
 
-    init(guide: GuideToThing, session: ARSession, scene: SCNScene, supported: Bool) {
+    private let ended: () -> Void
+
+    init(guide: GuideToThing, session: ARSession, scene: SCNScene, supported: Bool, ended: @escaping () -> Void = {}) {
         self.guide = guide; self.session = session; self.scene = scene; self.supported = supported; thing = guide.thing
+        self.ended = ended
         guide.onChange = { [weak self] in self?.phase = $0 }
     }
 
@@ -32,6 +35,7 @@ final class GuideModel {
     func stop() {
         task?.cancel()
         guide.stop()
+        ended()
     }
 
     func repeatLast() { guide.repeatLast() }

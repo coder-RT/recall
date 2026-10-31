@@ -210,7 +210,7 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
 
 ### 2. See your own room in the viewer
 
-- Scan a room with the iPhone app and upload it to your Mac (`make live` runs the API and the scan worker; the steps are on the viewer page).
+- Scan a room with the iPhone app and upload it to your Mac (`make live` runs the API and the scan worker; the steps are on the viewer page). The worker keeps MapAnything loaded (`recall-pipeline serve`, freed after 10 minutes idle) and starts loading it as soon as an upload begins; SAM 3.1 runs alongside the reconstruction, so a new room is ready in about a minute.
 - Export the home's newest processed scan, then open `http://localhost:3000/homes/flat/viewer`:
   ```bash
   make viewer HOME_ID=flat

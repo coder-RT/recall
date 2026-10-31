@@ -65,9 +65,13 @@ public final class GuideToThing {
         compass?.start()
         let hasMap = roomMap != nil && locator.start(roomMap: roomMap)
         if !hasMap { _ = locator.start(roomMap: nil) }
-        speech.say(hasMap ? "Finding where you are. Hold the phone up at chest height and turn slowly."
-                          : "Finding your \(thing.title).", interrupt: true)
-        let tracking = hasMap ? await locate() : .limited
+        // prepared while the answer was read out: often the room is already recognised and we can plan at once
+        let matched = hasMap && locator.reading()?.tracking == .normal
+        if !matched {
+            speech.say(hasMap ? "Finding where you are. Hold the phone up at chest height and turn slowly."
+                              : "Finding your \(thing.title).", interrupt: true)
+        }
+        let tracking = matched ? .normal : hasMap ? await locate() : .limited
         guard !cancelled else { return }
         if tracking == .normal { haptics.tap() }
 
@@ -120,7 +124,7 @@ public final class GuideToThing {
         let started = clock.now()
         while !cancelled, clock.now().timeIntervalSince(started) < settings.locateTimeout {
             if locator.reading()?.tracking == .normal { return .normal }
-            try? await clock.sleep(seconds: 0.3)
+            try? await clock.sleep(seconds: 0.15)
         }
         return .limited
     }

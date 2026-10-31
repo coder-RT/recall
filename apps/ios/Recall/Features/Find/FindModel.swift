@@ -22,11 +22,13 @@ final class FindModel {
     private let settings: SettingsModel
     private let speech: any SpeechOutput
     private let haptics: any HapticsOutput
+    /// Starts recognising the room while the answer is read out, so "Take me there" begins at once.
+    private let prepareGuide: @MainActor () -> Void
 
     init(ask: AskWhereIs, transcriber: any Transcriber, voice: any VoiceInput, things: ThingsModel, settings: SettingsModel,
-         speech: any SpeechOutput, haptics: any HapticsOutput) {
+         speech: any SpeechOutput, haptics: any HapticsOutput, prepareGuide: @escaping @MainActor () -> Void = {}) {
         self.ask = ask; self.transcriber = transcriber; self.voice = voice; self.things = things
-        self.settings = settings; self.speech = speech; self.haptics = haptics
+        self.settings = settings; self.speech = speech; self.haptics = haptics; self.prepareGuide = prepareGuide
     }
 
     var busy: Bool { state == .thinking || state == .transcribing }
@@ -64,6 +66,7 @@ final class FindModel {
             if !things.loaded { await things.refresh() }
             let result = try await ask(question, home: settings.connection.homeId, known: things.things)
             state = .answered(result)
+            if result.thing != nil { prepareGuide() }
             speech.say(result.answer.text + (result.thing == nil ? "" : " Tap Take me there for directions."), interrupt: true)
         } catch {
             state = .failed(UserMessage.explain(error))

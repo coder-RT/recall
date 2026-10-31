@@ -50,6 +50,20 @@ struct GuideToThingTests {
         #expect(locator.stopped)
     }
 
+    @Test func aRoomAlreadyRecognisedPlansAtOnce() async {
+        // prepared while Find read the answer: the first reading is already normal
+        let locator = FakeLocator(readings: [
+            (.at(x: 0, z: 0), .normal), (.at(x: 0, z: 0), .normal), (.at(x: 0, z: -3.7), .normal),
+        ])
+        let service = FakeGuide(routes: [route([[0, 0], [0, -4]])])
+        let (g, speech, _, _) = guide(locator: locator, service: service)
+        await g.run()
+        #expect(!speech.lines.contains { $0.hasPrefix("Finding where you are") })
+        #expect(speech.lines.first == "Straight ahead, then 2 metres.")
+        #expect(service.routeRequests.first?.tracking == .normal)
+        #expect(g.phase == .arrived("Your keys should be in front of you, on the desk."))
+    }
+
     @Test func withoutARoomMapItGivesLandmarkDirections() async {
         let locator = FakeLocator(readings: [(.at(x: 3, z: 3), .normal)])
         let service = FakeGuide(routes: [route([], landmarks: true)])

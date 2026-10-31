@@ -17,6 +17,11 @@ final class AppContainer {
     let speech = Announcer()
     let haptics = Haptics()
     let compass = CoreLocationCompass()
+    /// One ARKit locator for every guide: prepared when Find answers, so the room is often recognised before
+    /// "Take me there" is tapped, and paused (not reset) between guides.
+    let locator = ARLocator()
+    private var guiding = false
+    private var idle: Task<Void, Never>?
     let clock: any Clock = SystemClock()
     let server = LiveServer()
     let files: any EpisodeFiles = FileEpisodeFiles()
@@ -40,18 +45,35 @@ final class AppContainer {
 
     func findModel() -> FindModel {
         FindModel(ask: AskWhereIs(guide: server), transcriber: server, voice: WavRecorder(), things: things,
-                  settings: settings, speech: speech, haptics: haptics)
+                  settings: settings, speech: speech, haptics: haptics,
+                  prepareGuide: { [weak self] in self?.prepareGuide() })
+    }
+
+    /// Starts recognising the saved room in the background; paused again if no guide starts within a minute.
+    func prepareGuide() {
+        guard ARLocator.isSupported, !guiding, let map = scans.roomMap() else { return }
+        locator.prepare(roomMap: map)
+        idle?.cancel()
+        idle = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(60))
+            guard let self, !Task.isCancelled, !self.guiding else { return }
+            self.locator.stop()
+        }
     }
 
     func guideModel(for thing: Thing) -> GuideModel {
-        let locator = ARLocator()
+        idle?.cancel()
+        guiding = true
         let use = GuideToThing(home: settings.connection.homeId, thing: thing, roomMap: scans.roomMap(), locator: locator,
                                guide: server, speech: speech, haptics: haptics, clock: clock, compass: compass)
-        return GuideModel(guide: use, session: locator.session, scene: locator.scene, supported: ARLocator.isSupported)
+        return GuideModel(guide: use, session: locator.session, scene: locator.scene, supported: ARLocator.isSupported,
+                          ended: { [weak self] in self?.guiding = false })
     }
 
     func scanModel(room: String) -> ScanModel {
-        ScanModel(room: room, scans: scans, files: files, compass: compass, speech: speech, haptics: haptics)
+        idle?.cancel()
+        locator.stop()  // one ARKit session at a time: the scan needs the camera
+        return ScanModel(room: room, scans: scans, files: files, compass: compass, speech: speech, haptics: haptics)
     }
 }
 

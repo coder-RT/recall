@@ -29,7 +29,8 @@ jobs:
       - run: uv run pytest
 
   pipeline:
-    # the pipeline's tests are pure NumPy; torch and MapAnything (several GB) are not installed in CI
+    # torch and MapAnything (several GB) are not installed in CI; no test needs them. Open3D, OpenCV and Pillow are:
+    # the synthetic-room integration test runs the real pipeline on a ray-cast episode
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -40,7 +41,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - run: uvx ruff check . && uvx ruff format --check .
-      - run: uv run --no-project --python 3.12 --with numpy --with scipy --with shapely --with pytest pytest
+      - run: >-
+          uv run --no-project --python 3.12 --with numpy --with scipy --with shapely --with pytest --with httpx
+          --with opencv-python-headless --with open3d --with pillow --with pyyaml pytest
       - run: uv run --no-project --python 3.12 --with import-linter lint-imports
 
   web:

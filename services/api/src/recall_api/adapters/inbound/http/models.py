@@ -385,6 +385,12 @@ class GuidanceSession(BaseModel):
             min_length=3,
         ),
     ] = None
+    floor_y_arkit: Annotated[
+        float | None,
+        Field(
+            description="The floor's height in the phone's ARKit world (metres, y up), for the arrows drawn on the floor"
+        ),
+    ] = None
     bearing_deg: Annotated[
         float | None,
         Field(

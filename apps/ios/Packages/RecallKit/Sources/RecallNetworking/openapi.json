@@ -1656,6 +1656,13 @@
             "minItems": 3,
             "maxItems": 3
           },
+          "floor_y_arkit": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "The floor's height in the phone's ARKit world (metres, y up), for the arrows drawn on the floor"
+          },
           "bearing_deg": {
             "type": [
               "number",

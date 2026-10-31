@@ -23,6 +23,9 @@ properties:
     items: {type: number}
     minItems: 3
     maxItems: 3
+  floor_y_arkit:
+    type: [number, "null"]
+    description: "The floor's height in the phone's ARKit world (metres, y up), for the arrows drawn on the floor"
   bearing_deg:
     type: [number, "null"]
     description: "Compass bearing from the room's centre to the object (magnetic, clockwise from north), when the scan

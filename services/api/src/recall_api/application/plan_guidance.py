@@ -118,11 +118,19 @@ class PlanGuidance:
         arrive = f"Your {obj.label} should be in front of you, {where}, at {rel.band.value} height."
         # where to draw the arrow in the phone's camera view, and the compass bearing for landmark directions
         target = (np.linalg.inv(T) @ np.array([last.position.x, last.position.y, last.position.z, 1.0]))[:3]
+        # the floor's height in the phone's world (under the person and under the thing), for the arrows on the floor
+        floor_y = np.mean(
+            [
+                (np.linalg.inv(T) @ np.array([x, y, 0.0, 1.0]))[1]
+                for x, y in ((pos[0], pos[1]), (last.position.x, last.position.y))
+            ]
+        )
         base = {
             "session_id": session.id,
             "object_label": obj.label,
             "arrive_say": arrive,
             "target_arkit": [round(float(v), 3) for v in target],
+            "floor_y_arkit": round(float(floor_y), 3),
             "bearing_deg": _bearing(home.room_model, last.position.x, last.position.y),
         }
         if tracking != "normal":

@@ -105,7 +105,7 @@ extension RecallAPI: GuideService, Transcriber {
                          waypoints: (g.pathArkit ?? []).compactMap { $0.count == 2 ? SIMD2($0[0], $0[1]) : nil },
                          arriveSay: g.arriveSay,
                          target: g.targetArkit.flatMap { $0.count == 3 ? SIMD3($0[0], $0[1], $0[2]) : nil },
-                         bearingDeg: g.bearingDeg)
+                         bearingDeg: g.bearingDeg, floorY: g.floorYArkit)
         case .notFound(let e): throw RecallError.server(((try? e.body.json.detail) ?? nil) ?? "The Mac can't plan a route yet.")
         case .undocumented(let code, _): throw RecallError.status(code)
         }

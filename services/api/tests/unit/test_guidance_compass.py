@@ -30,6 +30,7 @@ def test_the_arrow_target_is_the_thing_in_the_phones_world():
     out = _guidance(None)
     # home (3.5, 1.5, 0.8) back into ARKit: x stays, ARKit y = z_home - 1.4, ARKit z = -y_home
     assert out["target_arkit"] == [3.5, -0.6, -1.5]
+    assert out["floor_y_arkit"] == -1.4  # the floor arrows lie here
 
 
 def test_bearing_is_magnetic_and_only_when_north_is_known():

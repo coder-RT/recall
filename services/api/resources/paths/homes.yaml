@@ -1,0 +1,47 @@
+room:
+  get:
+    tags: [homes]
+    operationId: getRoomModel
+    summary: The home's room model (floor polygon, walls, furniture boxes) for the phone's 3D map
+    parameters:
+      - $ref: ../schemas/Params.yaml#/home_id
+    responses:
+      "200":
+        description: Room model
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/RoomModel.yaml
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound
+robot_export:
+  get:
+    tags: [robots]
+    operationId: getRobotExport
+    summary: One room's memory for a robot (Nav2 map, things, furniture); off unless the owner turns it on
+    description: >
+      Read-only. A robot needs robot access on (PUT /sharing, or ROBOT_EXPORT_ENABLED=true on the Mac) and the robot
+      key (RECALL_ROBOT_KEY); the owner's device key can always export it, to share it.
+      `room` picks a room; the default is the newest processed scan's.
+    security:
+      - deviceKey: []
+    parameters:
+      - $ref: ../schemas/Params.yaml#/home_id
+      - name: room
+        in: query
+        required: false
+        schema: {type: string}
+    responses:
+      "200":
+        description: The export
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/RobotExport.yaml
+      "403":
+        description: Robot access is off
+        content:
+          application/json:
+            schema: {$ref: ../schemas/Error.yaml}
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound

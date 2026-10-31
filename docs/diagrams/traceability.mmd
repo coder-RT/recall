@@ -1,0 +1,7 @@
+flowchart LR
+  A["Answer<br/>answer_log"] --> G["Guide model<br/>and tokens"]
+  A --> T["Tool steps<br/>find_object, explain:<br/>inputs, outputs, timings"]
+  A --> O["Sightings it rests on<br/>append-only"]
+  O --> K["Keyframe crop<br/>cut on request"]
+  O --> S["Scan<br/>room, time"]
+  S --> P["Provenance<br/>SAM 3.1, MapAnything or LiDAR,<br/>pipeline commit"]

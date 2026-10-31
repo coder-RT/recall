@@ -1,0 +1,19 @@
+type: object
+description: >
+  Where the home's data is kept and what leaves this Mac, under the current settings, in words for the person. Only
+  what is true now: the robot rows appear only while robot access is on.
+required: [stored_on, sent, robot_access, audit_days]
+properties:
+  stored_on: {type: string, description: "Where scans and memory are kept, e.g. \"This Mac\""}
+  sent:
+    type: array
+    items:
+      type: object
+      required: [what, to, when]
+      properties:
+        what: {type: string, description: "What leaves this Mac"}
+        to: {type: string, description: "Who receives it and which model"}
+        when: {type: string}
+        on_this_mac: {type: boolean, description: "True when it never leaves the Mac (a model run locally)"}
+  robot_access: {type: boolean}
+  audit_days: {type: integer, description: "How long the activity log keeps events"}

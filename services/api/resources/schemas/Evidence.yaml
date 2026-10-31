@@ -1,0 +1,21 @@
+type: object
+description: 'Why Recall said what it said: the logged answer, every tool call with its result, and the sightings behind
+  it, each with its scan, keyframe crop and the models that produced it.
+
+  '
+required:
+- answer
+- steps
+- sightings
+properties:
+  answer:
+    $ref: EvidenceAnswer.yaml
+  steps:
+    type: array
+    description: In order; a model step or a tool step
+    items:
+      $ref: EvidenceStep.yaml
+  sightings:
+    type: array
+    items:
+      $ref: EvidenceSighting.yaml

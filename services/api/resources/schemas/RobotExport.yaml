@@ -1,0 +1,58 @@
+type: object
+description: >
+  One room's memory for a robot's navigation stack (ROS 2 / Nav2): the occupancy map, where things and furniture are,
+  and the room's outline. Geometry and labels only: never photos, frames, the user's own names or notes, or anyone's
+  live position. Frame "map" is the home frame: metres, z up, floor at z = 0. Each room is its own frame.
+required: [format, home_id, room, scan_id, frame_id, generated_at, map, objects, landmarks, room_model]
+properties:
+  format: {type: string, const: recall-robot-export/1}
+  home_id: {type: string}
+  room: {type: string}
+  scan_id: {type: string, description: "The processed scan the map and places come from (the room's newest)"}
+  frame_id: {type: string, const: map}
+  generated_at: {type: string, format: date-time}
+  map:
+    type: object
+    description: "Nav2 map server: map.yaml fields, the size, and map.pgm (binary P5, trinary shades) as base64"
+    required: [image, mode, resolution, origin, negate, occupied_thresh, free_thresh, width, height, pgm_base64]
+    properties:
+      image: {type: string}
+      mode: {type: string, const: trinary}
+      resolution: {type: number, description: "Metres per cell"}
+      origin: {type: array, items: {type: number}, minItems: 3, maxItems: 3, description: "x, y, yaw of the lower-left pixel"}
+      negate: {type: integer, enum: [0]}
+      occupied_thresh: {type: number}
+      free_thresh: {type: number}
+      width: {type: integer}
+      height: {type: integer}
+      pgm_base64: {type: string, description: "254 free, 0 occupied, 128 unknown"}
+  objects:
+    type: array
+    items:
+      type: object
+      required: [id, label, aliases, position, orientation, frame_id, last_seen, confidence]
+      properties:
+        id: {type: string}
+        label: {type: string}
+        aliases: {type: array, items: {type: string}}
+        color: {type: [string, "null"], description: "A colour word only"}
+        position: {type: array, items: {type: number}, minItems: 3, maxItems: 3}
+        orientation: {type: array, items: {type: number}, minItems: 4, maxItems: 4, description: "Quaternion x, y, z, w (identity: no measured heading)"}
+        frame_id: {type: string, const: map}
+        size_m: {type: [array, "null"], items: {type: number}, minItems: 3, maxItems: 3}
+        last_seen: {type: string, format: date-time}
+        confidence: {type: number}
+  landmarks:
+    type: array
+    items:
+      type: object
+      required: [id, label, centroid, bbox_min, bbox_max, frame_id]
+      properties:
+        id: {type: string}
+        label: {type: string}
+        centroid: {type: array, items: {type: number}, minItems: 3, maxItems: 3}
+        bbox_min: {type: array, items: {type: number}, minItems: 3, maxItems: 3}
+        bbox_max: {type: array, items: {type: number}, minItems: 3, maxItems: 3}
+        front_dir: {type: [array, "null"], items: {type: number}, minItems: 2, maxItems: 2}
+        frame_id: {type: string, const: map}
+  room_model: {$ref: RoomModel.yaml}

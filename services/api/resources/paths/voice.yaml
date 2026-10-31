@@ -1,0 +1,26 @@
+transcribe:
+  post:
+    tags: [voice]
+    operationId: transcribe
+    summary: Speech to text through Muse Voice Transcribe (the only speech model)
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [audio]
+            properties:
+              audio:
+                type: string
+                format: binary
+                description: The recorded question
+    responses:
+      "200":
+        description: Transcript
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/Transcript.yaml
+      "503":
+        $ref: ../schemas/Responses.yaml#/Unavailable

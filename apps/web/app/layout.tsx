@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Atkinson_Hyperlegible_Next } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { MagnifierLens } from "@/components/ui/MagnifierLens";
 import { ReadAloud } from "@/components/ui/ReadAloud";
 import { TextMagnifier } from "@/components/ui/TextMagnifier";
@@ -46,6 +47,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </A11yPrefsProvider>
         </MotionPrefsProvider>
         </I18nProvider>
+        {/* page-speed numbers for Vercel deployments; no cookies, nothing personal; does nothing locally */}
+        <SpeedInsights />
       </body>
     </html>
   );

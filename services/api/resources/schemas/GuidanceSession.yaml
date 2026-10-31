@@ -1,0 +1,32 @@
+type: object
+required: [session_id, mode, steps]
+properties:
+  session_id: {type: string}
+  mode: {type: string, enum: [route, landmarks], description: "landmarks when tracking is limited or there is no safe path"}
+  reason: {type: [string, "null"]}
+  steps:
+    type: array
+    items: {$ref: RouteStep.yaml}
+  path:
+    type: array
+    description: "Waypoints [x, y] in the home frame (metres)"
+    items: {type: array, items: {type: number}, minItems: 2, maxItems: 2}
+  path_arkit:
+    type: array
+    description: "The same waypoints in the phone's ARKit world as [x, z], for the on-device RouteFollower"
+    items: {type: array, items: {type: number}, minItems: 2, maxItems: 2}
+  arrive_say: {type: string, description: "What to say on arrival, e.g. where the object is relative to the person"}
+  object_label: {type: string}
+  target_arkit:
+    type: [array, "null"]
+    description: "The object's position in the phone's ARKit world [x, y, z], for the arrow drawn above it"
+    items: {type: number}
+    minItems: 3
+    maxItems: 3
+  floor_y_arkit:
+    type: [number, "null"]
+    description: "The floor's height in the phone's ARKit world (metres, y up), for the arrows drawn on the floor"
+  bearing_deg:
+    type: [number, "null"]
+    description: "Compass bearing from the room's centre to the object (magnetic, clockwise from north), when the scan
+      had a reliable compass; used for landmark directions"

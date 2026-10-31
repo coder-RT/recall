@@ -1,0 +1,8 @@
+type: object
+description: "Robot access: whether robots and other agents may read this home's memory (off by default)"
+required: [robot_access, a2a_url, agent_card_url, export_url]
+properties:
+  robot_access: {type: boolean}
+  a2a_url: {type: string, description: "The Home Memory agent (A2A 1.0, JSON-RPC); robots use the robot key"}
+  agent_card_url: {type: string}
+  export_url: {type: string, description: "The robot export (GET, robot key)"}

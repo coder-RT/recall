@@ -1,0 +1,45 @@
+sessions:
+  post:
+    tags: [guidance]
+    operationId: startGuidance
+    summary: Plan a route from the user's relocalised pose to an object
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/GuidanceRequest.yaml
+    responses:
+      "200":
+        description: Route
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/GuidanceSession.yaml
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound
+verify:
+  post:
+    tags: [guidance]
+    operationId: verifyArrival
+    summary: Confirm the object from one arrival frame (SAM 3.1 + geometry; Muse Spark 1.1 may only downgrade)
+    parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema: {type: string}
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            $ref: ../schemas/VerificationRequest.yaml
+    responses:
+      "200":
+        description: Verification result
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/VerificationResult.yaml
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound

@@ -1,0 +1,6 @@
+type: object
+required: [status, llm_provider, storage]
+properties:
+  status: {type: string, enum: [ok]}
+  llm_provider: {type: string, description: Which Guide provider is configured}
+  storage: {type: string, enum: [local, r2]}

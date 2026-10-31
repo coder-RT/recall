@@ -1,0 +1,36 @@
+evidence:
+  get:
+    tags: [ask]
+    operationId: getEvidence
+    summary: Why an answer said what it said (answer → tool results → sightings → crop → scan → models)
+    parameters:
+      - name: answer_id
+        in: path
+        required: true
+        schema: {type: string}
+    responses:
+      "200":
+        description: The evidence chain
+        content:
+          application/json:
+            schema: {$ref: ../schemas/Evidence.yaml}
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound
+crop:
+  get:
+    tags: [ask]
+    operationId: getSightingCrop
+    summary: The part of the keyframe where a sighting was made (cut on request; no extra file is stored)
+    parameters:
+      - name: observation_id
+        in: path
+        required: true
+        schema: {type: string}
+    responses:
+      "200":
+        description: JPEG
+        content:
+          image/jpeg:
+            schema: {type: string, format: binary}
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound

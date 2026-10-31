@@ -7,13 +7,18 @@ Library versions are pinned in the lockfiles (`pnpm-lock.yaml`, `uv.lock`).
 
 | What | Used for | Runs on | Terms |
 |---|---|---|---|
-| Muse Spark Open (`meta-models/muse-spark-open-1026`) | Guide agent | Baseten | TODO(verify): model licence, link |
+| Muse Spark Open (`meta-models/muse-spark-open-1026`) | Guide agent; the Home Memory agent's check on object names from other agents | Baseten | TODO(verify): model licence, link |
 | Muse Glimmer | Guide agent, local privacy mode | LM Studio on the Mac | TODO(verify): licence on the Hugging Face model card, link |
 | Muse Spark (hosted) and Muse Spark 1.1 | Guide fallback; Verifier tie-break | Meta Model API | Meta developer terms. TODO(verify): link |
 | SAM 3.1 | Objects and furniture in frames; arrival check | Meta Model API | Meta developer terms. TODO(verify): link; weights licence if self-hosted |
 | Muse Voice Transcribe (`muse-voice-transcribe-1.0`) | All speech input (app and the landing page's "Ask by voice", server route `apps/web/app/api/voice/transcribe/route.ts`; the key never reaches the browser) | Meta Model API | Meta developer terms. Audio is forwarded for transcription and not stored by Recall. |
-| Llama Prompt Guard | Screens inbound A2A messages | Mac | TODO(verify): licence and any required attribution (e.g. a "Built with Llama" notice), link |
 | MapAnything (`facebookresearch/map-anything` @ `3d10cf7`), weights `facebook/map-anything-apache` @ `00f9c24` | 3D reconstruction; produced the sample room in `apps/web/public/samples/demo-flat/` | Mac | Code Apache-2.0; weights Apache-2.0 (see `docs/verification.md`) |
+
+## Our own artwork
+
+| What | Where | Terms |
+|---|---|---|
+| Thing icons (keys, wallet, bag, backpack, book, bottle, glasses, phone, remote, mug, laptop, headphones, charger, watch, passport, and the box for unsure things) | `apps/ios/Recall/Resources/Assets.xcassets/Things`, drawn by `apps/ios/scripts/make_thing_icons.py` | Drawn for Recall; Apache-2.0 with the rest of the repo. No third-party art |
 
 ## Hosting and infrastructure
 
@@ -41,18 +46,22 @@ Direct dependencies only. Licences below are as published by each project.
 | `@react-three/drei`, `postprocessing` (phase 4 only, not yet added) | Viewer labels, orbit controls, outline effect for the high-contrast toggle | MIT; Zlib. TODO(verify) before adding: https://github.com/pmndrs/drei , https://github.com/pmndrs/postprocessing |
 | GSAP, `@gsap/react` | Scroll storytelling (ScrollTrigger, SplitText, DrawSVG) | Standard "No Charge" GSAP License (Webflow; its own terms, not MIT): free for any website or web app, commercial included, no attribution required, keep its notices intact. https://gsap.com/community/standard-license/ (checked 2026-10-29). Used as an npm dependency, not copied into the repo. |
 | Motion | UI animation | MIT |
+| `@vercel/speed-insights` | Page-speed numbers (Core Web Vitals) on the Vercel deployment; no cookies | Apache-2.0 (npm registry, version 2.0.0, checked 2026-10-30), https://www.npmjs.com/package/@vercel/speed-insights |
 
 ### Python (`services/api`, `services/pipeline`)
 
 | What | Used for | Licence |
 |---|---|---|
 | FastAPI, Uvicorn | HTTP API | MIT; BSD-3-Clause |
+| OpenTelemetry Python (`opentelemetry-sdk`, `-instrumentation-fastapi`, `-instrumentation-httpx`, `-exporter-otlp-proto-http`) | Request and model-call traces | Apache-2.0 (package metadata checked 2026-10-30), https://github.com/open-telemetry/opentelemetry-python |
+| Huey (`SqliteHuey`) | Scan job queue and nightly scheduler on the Mac | MIT (licence file in the 3.5.3 wheel, checked 2026-10-30), https://github.com/coleifer/huey |
 | Pydantic, pydantic-settings | Models and config | MIT |
 | SQLAlchemy, Alembic | Database access and migrations | MIT |
 | NumPy, SciPy | 3D maths | BSD-3-Clause |
 | Open3D (classic geometry only: downsample, outlier removal, `segment_plane`, `cluster_dbscan`, FPFH + ICP; never Open3D-ML), trimesh | Point clouds, planes, clustering, registration, meshes | MIT. TODO(verify) before first use: current API names, https://www.open3d.org/docs/ |
 | Shapely | 2D room geometry: floor polygon, wall segments, footprints | BSD-3-Clause. TODO(verify): https://github.com/shapely/shapely |
 | opencv-python-headless | Classic image functions only (Laplacian blur measure); never the DNN module | Apache-2.0 (OpenCV) / MIT (package). TODO(verify): https://github.com/opencv/opencv-python |
+| Pillow | API: cuts the evidence crop from a stored keyframe (`GET /observations/{id}/crop`); pipeline: reads frames | MIT-CMU (HPND). TODO(verify): https://github.com/python-pillow/Pillow/blob/main/LICENSE |
 | rerun-sdk (dev dependency of `services/pipeline` only) | Debug viewer for pipeline runs (`RERUN=1`, `make rerun`) | MIT or Apache-2.0. TODO(verify): https://github.com/rerun-io/rerun |
 | a2a-sdk | Agent-to-agent protocol | Apache-2.0 |
 | httpx | Calls to model APIs | BSD-3-Clause |

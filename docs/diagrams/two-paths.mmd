@@ -1,0 +1,27 @@
+sequenceDiagram
+  autonumber
+  participant P as iPhone
+  participant A as API on the Mac (only writer)
+  participant Q as Huey worker
+  participant S as Pipeline (MapAnything on the Mac's GPU)
+  participant M as Meta Model API (SAM 3.1, Voice Transcribe)
+  participant B as Baseten (Muse Spark Open)
+  Note over P,S: Scan path: batch, about a minute per room
+  P->>A: upload parts, then the manifest, then complete
+  A->>Q: queue process_scan
+  Q->>S: run the job on the warm server
+  S->>M: SAM 3.1 boxes per frame (456 calls per room)
+  S->>S: reconstruct (overlapping the SAM calls), fit planes, lift boxes, write stage files
+  S->>A: POST /scans/{id}/results
+  A->>A: ingest_scan: compare with the room's last scan, append sightings
+  Note over P,B: Question path: live, about 2 seconds after the transcript
+  P->>A: POST /transcribe (spoken questions only, typed ones skip it)
+  A->>M: Muse Voice Transcribe
+  A-->>P: the question as text
+  P->>P: says "Looking for your keys." at once (system voice)
+  P->>A: POST /ask
+  A->>B: Muse Spark Open picks find_object
+  A->>A: find_object: geometry says where
+  A->>B: Muse Spark Open phrases it
+  A->>A: grounding check, then log the answer with its sightings
+  A-->>P: the answer, spoken by the system voice

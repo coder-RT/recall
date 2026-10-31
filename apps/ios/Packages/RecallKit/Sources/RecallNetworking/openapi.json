@@ -1,0 +1,2944 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Recall API",
+    "version": "0.1.0",
+    "summary": "Voice-first 3D memory of a home. Spec-first source of truth.",
+    "license": {
+      "name": "Apache-2.0",
+      "identifier": "Apache-2.0"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "The Mac (reach it from the phone over the LAN or a Cloudflare Tunnel)"
+    }
+  ],
+  "security": [
+    {
+      "deviceKey": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "health",
+      "description": "Liveness; the only route without the device key"
+    },
+    {
+      "name": "scans",
+      "description": "Resumable episode upload from the phone, and results from the pipeline"
+    },
+    {
+      "name": "homes",
+      "description": "The remembered room model and objects"
+    },
+    {
+      "name": "ask",
+      "description": "The Guide agent"
+    },
+    {
+      "name": "guidance",
+      "description": "Routes and the arrival check"
+    },
+    {
+      "name": "voice",
+      "description": "Speech to text through Muse Voice Transcribe"
+    },
+    {
+      "name": "robots",
+      "description": "Read-only home memory for robots (off by default)"
+    },
+    {
+      "name": "audit",
+      "description": "Who did what to the home's memory and its sharing (append-only, owner only)"
+    },
+    {
+      "name": "a2a",
+      "description": "The Home Memory agent for other agents, over A2A 1.0 (off by default)"
+    },
+    {
+      "name": "privacy",
+      "description": "What is kept on this Mac and what is sent where, under the current settings"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "operationId": "getHealth",
+        "security": [],
+        "summary": "Liveness and which providers are configured (never their keys)",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scans": {
+      "post": {
+        "tags": [
+          "scans"
+        ],
+        "operationId": "createScan",
+        "summary": "Start a resumable upload of one episode archive",
+        "description": "The phone creates the scan id, so retries are idempotent: posting the same id again returns the same upload plan and the parts already received. The archive is split into parts of `part_size` bytes (the last may be shorter).\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Upload plan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadPlan"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        }
+      }
+    },
+    "/scans/{scan_id}": {
+      "get": {
+        "tags": [
+          "scans"
+        ],
+        "operationId": "getScan",
+        "summary": "Upload and processing status of one scan",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/scan_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Scan status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Scan"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "scans"
+        ],
+        "operationId": "eraseScan",
+        "summary": "Erase a scan from the Mac",
+        "description": "Removes the scan's photos, depth, archive and logs from the Mac, and what memory learnt from it. Memory goes back to what the room's other scans say: things seen only in this scan are forgotten; erasing the room's newest scan puts back what it marked moved or gone; a room with no scans left loses its furniture. Owner's device key only.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/scan_id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Erased"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/scans/{scan_id}/parts/{part_number}": {
+      "put": {
+        "tags": [
+          "scans"
+        ],
+        "operationId": "putScanPart",
+        "summary": "Upload one part of the archive",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/scan_id"
+          },
+          {
+            "name": "part_number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Content-SHA256",
+            "in": "header",
+            "required": true,
+            "description": "Lowercase hex SHA-256 of the part body",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Part stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartReceipt"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        }
+      }
+    },
+    "/scans/{scan_id}/manifest": {
+      "put": {
+        "tags": [
+          "scans"
+        ],
+        "operationId": "putScanManifest",
+        "summary": "Upload the episode manifest, after every part",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/scan_id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Manifest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Manifest stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Scan"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        }
+      }
+    },
+    "/scans/{scan_id}/complete": {
+      "post": {
+        "tags": [
+          "scans"
+        ],
+        "operationId": "completeScan",
+        "summary": "Verify the archive and every file against the manifest, then start the pipeline",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/scan_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted; processing started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Scan"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/scans/{scan_id}/results": {
+      "post": {
+        "tags": [
+          "scans"
+        ],
+        "operationId": "postScanResults",
+        "summary": "The pipeline posts its results; the API is the only writer of memory",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/scan_id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanResult"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ingested",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Scan"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/homes/{home_id}/room": {
+      "get": {
+        "tags": [
+          "homes"
+        ],
+        "operationId": "getRoomModel",
+        "summary": "The home's room model (floor polygon, walls, furniture boxes) for the phone's 3D map",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/home_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Room model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomModel"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/homes/{home_id}/objects": {
+      "get": {
+        "tags": [
+          "homes"
+        ],
+        "operationId": "listObjects",
+        "summary": "Every remembered object with its last confident sighting",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/home_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Objects",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ObjectLocation"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/sharing": {
+      "get": {
+        "tags": [
+          "robots"
+        ],
+        "operationId": "getSharing",
+        "summary": "Robot access, and where robots reach the memory",
+        "responses": {
+          "200": {
+            "description": "Robot access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sharing"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "robots"
+        ],
+        "operationId": "setSharing",
+        "summary": "Turn robot access on or off (the owner's device key only; the robot key can't)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SharingUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Robot access after the change",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sharing"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "operationId": "listAuditEvents",
+        "summary": "The audit log, newest first (the owner's device key only)",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 50
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "e.g. home_memory.query"
+          },
+          {
+            "name": "actor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "owner",
+                "robot",
+                "pipeline",
+                "unknown"
+              ]
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEvent"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/privacy": {
+      "get": {
+        "tags": [
+          "privacy"
+        ],
+        "operationId": "getPrivacy",
+        "summary": "Where the home's data lives and what is sent where, right now",
+        "responses": {
+          "200": {
+            "description": "The privacy facts under the current settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Privacy"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/answers/{answer_id}/evidence": {
+      "get": {
+        "tags": [
+          "ask"
+        ],
+        "operationId": "getEvidence",
+        "summary": "Why an answer said what it said (answer → tool results → sightings → crop → scan → models)",
+        "parameters": [
+          {
+            "name": "answer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The evidence chain",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Evidence"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/observations/{observation_id}/crop": {
+      "get": {
+        "tags": [
+          "ask"
+        ],
+        "operationId": "getSightingCrop",
+        "summary": "The part of the keyframe where a sighting was made (cut on request; no extra file is stored)",
+        "parameters": [
+          {
+            "name": "observation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JPEG",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/homes/{home_id}/robot-export": {
+      "get": {
+        "tags": [
+          "robots"
+        ],
+        "operationId": "getRobotExport",
+        "summary": "One room's memory for a robot (Nav2 map, things, furniture); off unless the owner turns it on",
+        "description": "Read-only. A robot needs robot access on (PUT /sharing, or ROBOT_EXPORT_ENABLED=true on the Mac) and the robot key (RECALL_ROBOT_KEY); the owner's device key can always export it, to share it. `room` picks a room; the default is the newest processed scan's.\n",
+        "security": [
+          {
+            "deviceKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/home_id"
+          },
+          {
+            "name": "room",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The export",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RobotExport"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Robot access is off",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/a2a/home-memory": {
+      "post": {
+        "tags": [
+          "a2a"
+        ],
+        "operationId": "homeMemoryA2A",
+        "summary": "The Home Memory agent (A2A 1.0, JSON-RPC 2.0); off unless HOME_MEMORY_A2A_ENABLED, robot key",
+        "description": "Request and response bodies are defined by the A2A 1.0 specification (https://a2a-protocol.org/v1.0.0/specification/), served by the a2a-sdk. One skill, find_object: send a message with one data part {\"object\": \"<name>\"} (schema resources/agents/find-object.input.schema.json); free text is refused. The name is then checked by a Meta model (Muse Spark Open, or Glimmer); invalid JSON, a timeout or \"injection\" refuses (it fails closed). The answer is a message with a sentence and a data part.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "A2A JSON-RPC request (method SendMessage)"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A2A JSON-RPC response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong robot key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/a2a/home-memory/.well-known/agent-card.json": {
+      "get": {
+        "tags": [
+          "a2a"
+        ],
+        "operationId": "homeMemoryAgentCard",
+        "summary": "The Home Memory Agent Card (A2A 1.0); 404 while sharing is off",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Agent Card (source of truth resources/agents/home-memory.card.json)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/homes/{home_id}/objects/{object_id}": {
+      "patch": {
+        "tags": [
+          "homes"
+        ],
+        "operationId": "correctObject",
+        "summary": "Fix what a scan was unsure about (name, colour, height, note) or confirm it",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/home_id"
+          },
+          {
+            "$ref": "#/components/parameters/object_id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObjectCorrection"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The object as it is now remembered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectLocation"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "homes"
+        ],
+        "operationId": "removeObject",
+        "summary": "Forget something a scan got wrong",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/home_id"
+          },
+          {
+            "$ref": "#/components/parameters/object_id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Forgotten"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/ask": {
+      "post": {
+        "tags": [
+          "ask"
+        ],
+        "operationId": "ask",
+        "summary": "Ask where something is; the Guide agent answers from tool output only",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Grounded answer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Answer"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/guidance/sessions": {
+      "post": {
+        "tags": [
+          "guidance"
+        ],
+        "operationId": "startGuidance",
+        "summary": "Plan a route from the user's relocalised pose to an object",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuidanceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Route",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuidanceSession"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/guidance/sessions/{session_id}/verify": {
+      "post": {
+        "tags": [
+          "guidance"
+        ],
+        "operationId": "verifyArrival",
+        "summary": "Confirm the object from one arrival frame (SAM 3.1 + geometry; Muse Spark 1.1 may only downgrade)",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/VerificationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verification result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificationResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/transcribe": {
+      "post": {
+        "tags": [
+          "voice"
+        ],
+        "operationId": "transcribe",
+        "summary": "Speech to text through Muse Voice Transcribe (the only speech model)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "audio"
+                ],
+                "properties": {
+                  "audio": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "The recorded question"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transcript",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transcript"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "deviceKey": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "A shared key from .env (RECALL_DEVICE_KEY), entered once on the phone and given to the pipeline. Pairing, not a login: the API is reachable through a Cloudflare Tunnel, so every route except /health needs it. A robot uses its own read-only key (RECALL_ROBOT_KEY) in the same header, for the robot export only.\n"
+      }
+    },
+    "schemas": {
+      "Health": {
+        "type": "object",
+        "required": [
+          "status",
+          "llm_provider",
+          "storage"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          },
+          "llm_provider": {
+            "type": "string",
+            "description": "Which Guide provider is configured"
+          },
+          "storage": {
+            "type": "string",
+            "enum": [
+              "local",
+              "r2"
+            ]
+          }
+        }
+      },
+      "ScanCreate": {
+        "type": "object",
+        "required": [
+          "scan_id",
+          "home_id",
+          "room",
+          "archive"
+        ],
+        "properties": {
+          "scan_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "home_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]{1,64}$"
+          },
+          "room": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60,
+            "description": "Room name the user gave, e.g. \"Living room\""
+          },
+          "archive": {
+            "type": "object",
+            "required": [
+              "size",
+              "sha256",
+              "part_size"
+            ],
+            "properties": {
+              "size": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 209715200,
+                "description": "Bytes; episodes stay under 200 MB"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "part_size": {
+                "type": "integer",
+                "minimum": 5242880,
+                "maximum": 67108864,
+                "description": "About 8 MB"
+              }
+            }
+          }
+        }
+      },
+      "UploadPlan": {
+        "type": "object",
+        "required": [
+          "scan_id",
+          "part_size",
+          "parts",
+          "manifest_url",
+          "complete_url"
+        ],
+        "properties": {
+          "scan_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "part_size": {
+            "type": "integer"
+          },
+          "parts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "number",
+                "url",
+                "received"
+              ],
+              "properties": {
+                "number": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "url": {
+                  "type": "string",
+                  "description": "Where to PUT this part (relative to the API base, or absolute for R2)"
+                },
+                "received": {
+                  "type": "boolean",
+                  "description": "Already stored; skip it when resuming"
+                }
+              }
+            }
+          },
+          "manifest_url": {
+            "type": "string"
+          },
+          "complete_url": {
+            "type": "string"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Machine-readable code"
+          },
+          "detail": {
+            "type": "string",
+            "description": "One plain sentence for a person"
+          }
+        }
+      },
+      "ScanChange": {
+        "type": "object",
+        "description": "One difference a rescan found against what Recall remembered in that room",
+        "required": [
+          "kind",
+          "object_id",
+          "label"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "moved",
+              "new",
+              "gone"
+            ]
+          },
+          "object_id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The user's own name for it, when they gave one"
+          },
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "from": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where it was, in words: \"near the desk\" (moved, gone)"
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where it is now, in words: \"on the shelf\" (moved, new)"
+          }
+        }
+      },
+      "Scan": {
+        "type": "object",
+        "required": [
+          "scan_id",
+          "home_id",
+          "room",
+          "status"
+        ],
+        "properties": {
+          "scan_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "home_id": {
+            "type": "string"
+          },
+          "room": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "uploading",
+              "uploaded",
+              "processing",
+              "processed",
+              "failed"
+            ]
+          },
+          "detail": {
+            "type": "string",
+            "description": "Why it failed, in one sentence"
+          },
+          "frame_count": {
+            "type": "integer"
+          },
+          "object_count": {
+            "type": "integer"
+          },
+          "aligned_to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The earlier scan of this room whose map the phone recognised, so both share one frame"
+          },
+          "fresh": {
+            "type": "boolean",
+            "description": "The room was scanned before but not recognised: memory for it started over"
+          },
+          "changes": {
+            "type": "array",
+            "description": "What a rescan found different (empty for a room's first scan)",
+            "items": {
+              "$ref": "#/components/schemas/ScanChange"
+            }
+          }
+        }
+      },
+      "PartReceipt": {
+        "type": "object",
+        "required": [
+          "number",
+          "size",
+          "sha256"
+        ],
+        "properties": {
+          "number": {
+            "type": "integer"
+          },
+          "size": {
+            "type": "integer"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        }
+      },
+      "CaptureMetrics": {
+        "type": "object",
+        "required": [
+          "directions_covered",
+          "keyframes_kept",
+          "keyframes_dropped_blurry",
+          "tracking_normal_ratio",
+          "mean_speed_mps",
+          "peak_speed_mps",
+          "slow_down_cues",
+          "grade"
+        ],
+        "properties": {
+          "directions_covered": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 12,
+            "description": "Camera headings in 12 sectors of 30 degrees"
+          },
+          "keyframes_kept": {
+            "type": "integer"
+          },
+          "keyframes_dropped_blurry": {
+            "type": "integer"
+          },
+          "tracking_normal_ratio": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "mean_speed_mps": {
+            "type": "number"
+          },
+          "peak_speed_mps": {
+            "type": "number"
+          },
+          "slow_down_cues": {
+            "type": "integer"
+          },
+          "area_walked_m2": {
+            "type": "number"
+          },
+          "mean_light_lux": {
+            "type": "number"
+          },
+          "walls_covered": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 12,
+            "description": "Bearings around the room (of 12) where the LiDAR saw a wall or tall surface"
+          },
+          "floor_seen_m2": {
+            "type": "number",
+            "description": "Floor area the LiDAR saw"
+          },
+          "map_status": {
+            "type": "string",
+            "enum": [
+              "not_available",
+              "limited",
+              "extending",
+              "mapped"
+            ],
+            "description": "ARKit's world-mapping status at the end"
+          },
+          "loop_closed": {
+            "type": "boolean",
+            "description": "The scan ended within a metre of where it started"
+          },
+          "compass_spread_deg": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "grade": {
+            "type": "string",
+            "enum": [
+              "good",
+              "usable",
+              "redo"
+            ]
+          }
+        }
+      },
+      "Manifest": {
+        "type": "object",
+        "description": "The episode's manifest.json, written on the phone and uploaded last",
+        "required": [
+          "scan_id",
+          "format",
+          "device",
+          "app_version",
+          "created_at",
+          "duration_s",
+          "frame_count",
+          "image",
+          "depth",
+          "intrinsics",
+          "files",
+          "capture_metrics"
+        ],
+        "properties": {
+          "scan_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "format": {
+            "type": "string",
+            "const": "recall-episode/1"
+          },
+          "device": {
+            "type": "string",
+            "description": "Hardware model, e.g. iPhone17,1"
+          },
+          "app_version": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "duration_s": {
+            "type": "number",
+            "minimum": 0
+          },
+          "frame_count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "image": {
+            "type": "object",
+            "required": [
+              "width",
+              "height"
+            ],
+            "properties": {
+              "width": {
+                "type": "integer"
+              },
+              "height": {
+                "type": "integer"
+              }
+            }
+          },
+          "depth": {
+            "type": "object",
+            "required": [
+              "width",
+              "height",
+              "unit",
+              "encoding"
+            ],
+            "properties": {
+              "width": {
+                "type": "integer"
+              },
+              "height": {
+                "type": "integer"
+              },
+              "unit": {
+                "type": "string",
+                "const": "mm"
+              },
+              "encoding": {
+                "type": "string",
+                "const": "png16"
+              }
+            }
+          },
+          "intrinsics": {
+            "type": "object",
+            "description": "Pinhole intrinsics for the SAVED frame size (scaled from ARKit's full camera image)",
+            "required": [
+              "fx",
+              "fy",
+              "cx",
+              "cy"
+            ],
+            "properties": {
+              "fx": {
+                "type": "number"
+              },
+              "fy": {
+                "type": "number"
+              },
+              "cx": {
+                "type": "number"
+              },
+              "cy": {
+                "type": "number"
+              }
+            }
+          },
+          "world_map": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Relative path of the saved ARWorldMap, if any"
+          },
+          "files": {
+            "type": "array",
+            "description": "Every file in the episode with its SHA-256",
+            "items": {
+              "type": "object",
+              "required": [
+                "path",
+                "size",
+                "sha256"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "size": {
+                  "type": "integer"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            }
+          },
+          "capture_metrics": {
+            "$ref": "#/components/schemas/CaptureMetrics"
+          },
+          "aligned_to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A rescan: the earlier scan whose ARWorldMap the phone relocalised in before recording, so this scan's poses share its world. Absent when the room wasn't recognised (a fresh scan)."
+          },
+          "compass": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Where magnetic north lies in the ARKit world of this scan (yaw, degrees, 0 = facing -Z, clockwise seen from above), from the circular mean of compass minus camera yaw while the phone was upright",
+            "required": [
+              "north_yaw_deg",
+              "spread_deg",
+              "samples"
+            ],
+            "properties": {
+              "north_yaw_deg": {
+                "type": "number"
+              },
+              "spread_deg": {
+                "type": "number",
+                "description": "Circular spread of the samples; over 25 means unreliable"
+              },
+              "samples": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      },
+      "RoomModel": {
+        "type": "object",
+        "description": "room.json, built from planes and footprints in the home frame (metres)",
+        "required": [
+          "floor_polygon",
+          "walls",
+          "furniture",
+          "height_m"
+        ],
+        "properties": {
+          "floor_polygon": {
+            "type": "array",
+            "description": "Closed outline of the floor, [x, y] vertices, counter-clockwise",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "minItems": 3
+          },
+          "walls": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "start",
+                "end",
+                "height_m"
+              ],
+              "properties": {
+                "start": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "end": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "height_m": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "furniture": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "label",
+                "footprint",
+                "top_z"
+              ],
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "footprint": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 2,
+                    "maxItems": 2
+                  },
+                  "minItems": 3
+                },
+                "top_z": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "height_m": {
+            "type": "number",
+            "description": "Floor to ceiling, or the tallest wall seen"
+          },
+          "north_deg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Direction of magnetic north in the home frame, degrees clockwise from +y seen from above (null when the scan had no reliable compass)"
+          }
+        }
+      },
+      "DetectedThing": {
+        "type": "object",
+        "required": [
+          "label",
+          "centroid",
+          "bbox_min",
+          "bbox_max",
+          "confidence",
+          "sightings"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "centroid": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "bbox_min": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "bbox_max": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "sightings": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Frames that saw it"
+          },
+          "keyframe_index": {
+            "type": "integer",
+            "description": "The best frame"
+          },
+          "box": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            },
+            "minItems": 4,
+            "maxItems": 4,
+            "description": "The best frame's box (x1, y1, x2, y2), source-image pixels: the evidence crop"
+          },
+          "front_dir": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            },
+            "description": "Unit vector (x, y) the front faces, landmarks only"
+          },
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Basic colour name measured from the photo pixels inside the box (objects only)"
+          },
+          "size_m": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3,
+            "description": "Bounding box x, y, z in metres"
+          }
+        }
+      },
+      "ScanResult": {
+        "type": "object",
+        "description": "What the pipeline found, in the home frame (floor z = 0, z up, metres)",
+        "required": [
+          "scan_id",
+          "room",
+          "landmarks",
+          "objects",
+          "stats"
+        ],
+        "properties": {
+          "scan_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "room": {
+            "$ref": "#/components/schemas/RoomModel"
+          },
+          "landmarks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DetectedThing"
+            }
+          },
+          "objects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DetectedThing"
+            }
+          },
+          "transform_to_home": {
+            "type": "array",
+            "description": "4x4 row-major transform from this scan's frame to the home frame (identity for the first scan)",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 16,
+            "maxItems": 16
+          },
+          "provenance": {
+            "type": "object",
+            "description": "Which models and code produced this result, kept with the scan so every answer can name them",
+            "properties": {
+              "segmenter": {
+                "type": "string",
+                "description": "e.g. sam-3.1"
+              },
+              "reconstructor": {
+                "type": "string",
+                "description": "e.g. map-anything-apache@00f9c24 or arkit-depth"
+              },
+              "pipeline_commit": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The pipeline's git commit"
+              }
+            }
+          },
+          "stats": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Measured timings and counts for this run"
+          }
+        }
+      },
+      "ObjectCorrection": {
+        "type": "object",
+        "description": "What the user fixes after a scan. Send only the fields to change; null clears a field back to the measured value. The user's values win over measurements and later scans never overwrite them.",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 40,
+            "description": "The user's own name for it, e.g. work bag"
+          },
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "black",
+              "white",
+              "grey",
+              "red",
+              "orange",
+              "yellow",
+              "green",
+              "blue",
+              "purple",
+              "pink",
+              "brown",
+              "beige",
+              null
+            ]
+          },
+          "height_m": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 3,
+            "description": "Height above the floor in metres"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "confirmed": {
+            "type": "boolean",
+            "description": "The user checked it is right; it then counts as certain"
+          }
+        }
+      },
+      "ObjectLocation": {
+        "type": "object",
+        "required": [
+          "object_id",
+          "label",
+          "position",
+          "height_band",
+          "seen_at",
+          "confidence"
+        ],
+        "properties": {
+          "object_id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "position": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "height_band": {
+            "type": "string",
+            "enum": [
+              "floor",
+              "knee",
+              "waist",
+              "chest",
+              "head"
+            ]
+          },
+          "room": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "landmark": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "relation": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "on",
+              "left_of",
+              "right_of",
+              "near",
+              null
+            ]
+          },
+          "shelf_level": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "seen_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "confidence": {
+            "type": "number"
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Basic colour name: the user's if they set one, else measured from the photo"
+          },
+          "size_m": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3,
+            "description": "Bounding box x, y, z in metres"
+          },
+          "corrections": {
+            "$ref": "#/components/schemas/ObjectCorrection"
+          },
+          "needs_review": {
+            "type": "boolean",
+            "description": "The models were unsure (confidence under 0.7) and the user hasn't confirmed it"
+          }
+        }
+      },
+      "Sharing": {
+        "type": "object",
+        "description": "Robot access: whether robots and other agents may read this home's memory (off by default)",
+        "required": [
+          "robot_access",
+          "a2a_url",
+          "agent_card_url",
+          "export_url"
+        ],
+        "properties": {
+          "robot_access": {
+            "type": "boolean"
+          },
+          "a2a_url": {
+            "type": "string",
+            "description": "The Home Memory agent (A2A 1.0, JSON-RPC); robots use the robot key"
+          },
+          "agent_card_url": {
+            "type": "string"
+          },
+          "export_url": {
+            "type": "string",
+            "description": "The robot export (GET, robot key)"
+          }
+        }
+      },
+      "SharingUpdate": {
+        "type": "object",
+        "required": [
+          "robot_access"
+        ],
+        "properties": {
+          "robot_access": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AuditEvent": {
+        "type": "object",
+        "description": "One recorded event: who (by the key they used), what, how it ended. Append-only, kept on the Mac for RECALL_AUDIT_RETENTION_DAYS (90). Never a key, token or password; free text is trimmed.\n",
+        "required": [
+          "id",
+          "at",
+          "actor",
+          "action",
+          "outcome",
+          "detail"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actor": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "robot",
+              "pipeline",
+              "unknown"
+            ]
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "robot_access.changed",
+              "robot_export.read",
+              "home_memory.query",
+              "auth.refused",
+              "object.corrected",
+              "object.forgotten",
+              "scan.ingested",
+              "scan.erased",
+              "arrival.verified"
+            ]
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "refused",
+              "failed"
+            ]
+          },
+          "target_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "target_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "detail": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "request_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "Privacy": {
+        "type": "object",
+        "description": "Where the home's data is kept and what leaves this Mac, under the current settings, in words for the person. Only what is true now: the robot rows appear only while robot access is on.\n",
+        "required": [
+          "stored_on",
+          "sent",
+          "robot_access",
+          "audit_days"
+        ],
+        "properties": {
+          "stored_on": {
+            "type": "string",
+            "description": "Where scans and memory are kept, e.g. \"This Mac\""
+          },
+          "sent": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "what",
+                "to",
+                "when"
+              ],
+              "properties": {
+                "what": {
+                  "type": "string",
+                  "description": "What leaves this Mac"
+                },
+                "to": {
+                  "type": "string",
+                  "description": "Who receives it and which model"
+                },
+                "when": {
+                  "type": "string"
+                },
+                "on_this_mac": {
+                  "type": "boolean",
+                  "description": "True when it never leaves the Mac (a model run locally)"
+                }
+              }
+            }
+          },
+          "robot_access": {
+            "type": "boolean"
+          },
+          "audit_days": {
+            "type": "integer",
+            "description": "How long the activity log keeps events"
+          }
+        }
+      },
+      "EvidenceAnswer": {
+        "type": "object",
+        "required": [
+          "answer_id",
+          "question",
+          "text",
+          "grounded",
+          "model",
+          "provider",
+          "created_at",
+          "latency_ms"
+        ],
+        "properties": {
+          "answer_id": {
+            "type": "string"
+          },
+          "question": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "grounded": {
+            "type": "boolean"
+          },
+          "model": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "latency_ms": {
+            "type": "integer"
+          },
+          "prompt_tokens": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "completion_tokens": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        }
+      },
+      "EvidenceStep": {
+        "type": "object",
+        "required": [
+          "kind",
+          "ms"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "model",
+              "tool"
+            ]
+          },
+          "ms": {
+            "type": "integer"
+          },
+          "tool": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "arguments": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
+          },
+          "output": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
+          }
+        }
+      },
+      "EvidenceScan": {
+        "type": "object",
+        "required": [
+          "scan_id",
+          "room",
+          "captured_at"
+        ],
+        "properties": {
+          "scan_id": {
+            "type": "string"
+          },
+          "room": {
+            "type": "string"
+          },
+          "captured_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "provenance": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
+          }
+        }
+      },
+      "EvidenceSighting": {
+        "type": "object",
+        "required": [
+          "observation_id",
+          "object_id",
+          "label",
+          "position",
+          "confidence",
+          "seen_at",
+          "current",
+          "scan"
+        ],
+        "properties": {
+          "observation_id": {
+            "type": "string"
+          },
+          "object_id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "position": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "confidence": {
+            "type": "number"
+          },
+          "seen_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "current": {
+            "type": "boolean",
+            "description": "Still where the thing is now (not set aside by a later scan)"
+          },
+          "keyframe_index": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "box": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            }
+          },
+          "crop_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "GET it with the device key: the camera's view of the thing"
+          },
+          "scan": {
+            "$ref": "#/components/schemas/EvidenceScan"
+          }
+        }
+      },
+      "Evidence": {
+        "type": "object",
+        "description": "Why Recall said what it said: the logged answer, every tool call with its result, and the sightings behind it, each with its scan, keyframe crop and the models that produced it.\n",
+        "required": [
+          "answer",
+          "steps",
+          "sightings"
+        ],
+        "properties": {
+          "answer": {
+            "$ref": "#/components/schemas/EvidenceAnswer"
+          },
+          "steps": {
+            "type": "array",
+            "description": "In order; a model step or a tool step",
+            "items": {
+              "$ref": "#/components/schemas/EvidenceStep"
+            }
+          },
+          "sightings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EvidenceSighting"
+            }
+          }
+        }
+      },
+      "RobotExport": {
+        "type": "object",
+        "description": "One room's memory for a robot's navigation stack (ROS 2 / Nav2): the occupancy map, where things and furniture are, and the room's outline. Geometry and labels only: never photos, frames, the user's own names or notes, or anyone's live position. Frame \"map\" is the home frame: metres, z up, floor at z = 0. Each room is its own frame.\n",
+        "required": [
+          "format",
+          "home_id",
+          "room",
+          "scan_id",
+          "frame_id",
+          "generated_at",
+          "map",
+          "objects",
+          "landmarks",
+          "room_model"
+        ],
+        "properties": {
+          "format": {
+            "type": "string",
+            "const": "recall-robot-export/1"
+          },
+          "home_id": {
+            "type": "string"
+          },
+          "room": {
+            "type": "string"
+          },
+          "scan_id": {
+            "type": "string",
+            "description": "The processed scan the map and places come from (the room's newest)"
+          },
+          "frame_id": {
+            "type": "string",
+            "const": "map"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "map": {
+            "type": "object",
+            "description": "Nav2 map server: map.yaml fields, the size, and map.pgm (binary P5, trinary shades) as base64",
+            "required": [
+              "image",
+              "mode",
+              "resolution",
+              "origin",
+              "negate",
+              "occupied_thresh",
+              "free_thresh",
+              "width",
+              "height",
+              "pgm_base64"
+            ],
+            "properties": {
+              "image": {
+                "type": "string"
+              },
+              "mode": {
+                "type": "string",
+                "const": "trinary"
+              },
+              "resolution": {
+                "type": "number",
+                "description": "Metres per cell"
+              },
+              "origin": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 3,
+                "maxItems": 3,
+                "description": "x, y, yaw of the lower-left pixel"
+              },
+              "negate": {
+                "type": "integer",
+                "enum": [
+                  0
+                ]
+              },
+              "occupied_thresh": {
+                "type": "number"
+              },
+              "free_thresh": {
+                "type": "number"
+              },
+              "width": {
+                "type": "integer"
+              },
+              "height": {
+                "type": "integer"
+              },
+              "pgm_base64": {
+                "type": "string",
+                "description": "254 free, 0 occupied, 128 unknown"
+              }
+            }
+          },
+          "objects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "label",
+                "aliases",
+                "position",
+                "orientation",
+                "frame_id",
+                "last_seen",
+                "confidence"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "aliases": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "color": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "A colour word only"
+                },
+                "position": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "orientation": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 4,
+                  "maxItems": 4,
+                  "description": "Quaternion x, y, z, w (identity: no measured heading)"
+                },
+                "frame_id": {
+                  "type": "string",
+                  "const": "map"
+                },
+                "size_m": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "last_seen": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "confidence": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "landmarks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "label",
+                "centroid",
+                "bbox_min",
+                "bbox_max",
+                "frame_id"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "centroid": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "bbox_min": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "bbox_max": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "front_dir": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "frame_id": {
+                  "type": "string",
+                  "const": "map"
+                }
+              }
+            }
+          },
+          "room_model": {
+            "$ref": "#/components/schemas/RoomModel"
+          }
+        }
+      },
+      "AskRequest": {
+        "type": "object",
+        "required": [
+          "home_id",
+          "question"
+        ],
+        "properties": {
+          "home_id": {
+            "type": "string"
+          },
+          "question": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "session_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A guidance session, if the user is already being guided"
+          },
+          "about": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The thing the last answer was about, for a follow-up (\"why do you think so?\")"
+          }
+        }
+      },
+      "Answer": {
+        "type": "object",
+        "required": [
+          "text",
+          "grounded"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "One or two short sentences to speak"
+          },
+          "grounded": {
+            "type": "boolean",
+            "description": "Every place, distance and time in the text came from a tool"
+          },
+          "object_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tool_calls": {
+            "type": "integer"
+          },
+          "model": {
+            "type": "string",
+            "description": "The Meta model that phrased it"
+          },
+          "latency_ms": {
+            "type": "integer"
+          },
+          "answer_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The logged answer; GET /answers/{answer_id}/evidence explains it"
+          }
+        }
+      },
+      "Pose": {
+        "type": "object",
+        "description": "ARKit camera-to-world transform, column-major, metres (ARKit camera convention)",
+        "required": [
+          "matrix"
+        ],
+        "properties": {
+          "matrix": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 16,
+            "maxItems": 16
+          }
+        }
+      },
+      "GuidanceRequest": {
+        "type": "object",
+        "required": [
+          "home_id",
+          "object_id",
+          "pose",
+          "tracking"
+        ],
+        "properties": {
+          "home_id": {
+            "type": "string"
+          },
+          "object_id": {
+            "type": "string"
+          },
+          "pose": {
+            "$ref": "#/components/schemas/Pose"
+          },
+          "tracking": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "limited",
+              "not_available"
+            ]
+          }
+        }
+      },
+      "RouteStep": {
+        "type": "object",
+        "required": [
+          "clock",
+          "metres",
+          "say"
+        ],
+        "properties": {
+          "clock": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12,
+            "description": "Turn as a clock face; 12 is straight ahead"
+          },
+          "metres": {
+            "type": "number"
+          },
+          "say": {
+            "type": "string"
+          },
+          "waypoint": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          }
+        }
+      },
+      "GuidanceSession": {
+        "type": "object",
+        "required": [
+          "session_id",
+          "mode",
+          "steps"
+        ],
+        "properties": {
+          "session_id": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "route",
+              "landmarks"
+            ],
+            "description": "landmarks when tracking is limited or there is no safe path"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RouteStep"
+            }
+          },
+          "path": {
+            "type": "array",
+            "description": "Waypoints [x, y] in the home frame (metres)",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "path_arkit": {
+            "type": "array",
+            "description": "The same waypoints in the phone's ARKit world as [x, z], for the on-device RouteFollower",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "arrive_say": {
+            "type": "string",
+            "description": "What to say on arrival, e.g. where the object is relative to the person"
+          },
+          "object_label": {
+            "type": "string"
+          },
+          "target_arkit": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "description": "The object's position in the phone's ARKit world [x, y, z], for the arrow drawn above it",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "floor_y_arkit": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "The floor's height in the phone's ARKit world (metres, y up), for the arrows drawn on the floor"
+          },
+          "bearing_deg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Compass bearing from the room's centre to the object (magnetic, clockwise from north), when the scan had a reliable compass; used for landmark directions"
+          }
+        }
+      },
+      "VerificationRequest": {
+        "type": "object",
+        "required": [
+          "image",
+          "depth",
+          "pose"
+        ],
+        "properties": {
+          "image": {
+            "type": "string",
+            "format": "binary",
+            "description": "JPEG of the camera at arrival (any size; intrinsics are for this image)"
+          },
+          "depth": {
+            "type": "string",
+            "format": "binary",
+            "description": "LiDAR depth at arrival: unsigned 16-bit little-endian millimetres, row by row, depth_size in `pose` (0 = none)"
+          },
+          "pose": {
+            "type": "string",
+            "description": "JSON: {\"pose\": [16 numbers, ARKit camera-to-world, column-major, in the saved room map's world], \"intrinsics\": {\"fx\", \"fy\", \"cx\", \"cy\"} for the JPEG, \"image_size\": [w, h], \"depth_size\": [w, h]}\n"
+          }
+        }
+      },
+      "VerificationResult": {
+        "type": "object",
+        "required": [
+          "outcome",
+          "say"
+        ],
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "found_nearby",
+              "uncertain",
+              "not_here"
+            ]
+          },
+          "say": {
+            "type": "string"
+          },
+          "distance_cm": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "sam_score": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "position": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            }
+          }
+        }
+      },
+      "Transcript": {
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "latency_ms": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "responses": {
+      "Invalid": {
+        "description": "Invalid input",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Not in a state that allows this",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unavailable": {
+        "description": "A required model or service is not configured or not reachable",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "parameters": {
+      "scan_id": {
+        "name": "scan_id",
+        "in": "path",
+        "required": true,
+        "description": "Created on the phone (UUID), so retries are idempotent",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "home_id": {
+        "name": "home_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]{1,64}$"
+        }
+      },
+      "object_id": {
+        "name": "object_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^[a-z]+_[0-9a-f]{1,32}$"
+        }
+      }
+    }
+  }
+}

@@ -3,7 +3,8 @@ export function Logo({ className = "" }: { className?: string }) {
   const on = new Set([1, 2, 3, 5]);
   return (
     <span className={`inline-flex items-center gap-2 ${className}`}>
-      <svg viewBox="0 0 32 32" className="size-8" aria-hidden="true">
+      {/* sized in px: a logotype doesn't grow with the text-size setting (WCAG 1.4.4), so the bar fits a phone */}
+      <svg viewBox="0 0 32 32" className="size-[32px]" aria-hidden="true">
         <rect width="32" height="32" rx="8" fill="white" />
         {[1, 2, 3, 4, 5, 6].map((d) => {
           const cx = d <= 3 ? 12 : 20;
@@ -11,7 +12,7 @@ export function Logo({ className = "" }: { className?: string }) {
           return <circle key={d} cx={cx} cy={cy} r="3" fill={on.has(d) ? "#3b5998" : "#dfe3ee"} />;
         })}
       </svg>
-      <span className="text-xl font-extrabold tracking-[0.12em]">RECALL</span>
+      <span className="text-[20px] leading-[28px] font-extrabold tracking-[0.12em]">RECALL</span>
     </span>
   );
 }

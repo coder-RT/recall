@@ -1,0 +1,8 @@
+description: >
+  Layout of one episode folder (zipped for upload). Paths are relative to the folder.
+  manifest.json → Manifest.yaml; frames/NNNNNN.jpg (long edge 1024); depth/NNNNNN.png (16-bit mm);
+  confidence/NNNNNN.png (8-bit, 0 to 2); poses.jsonl (one PoseRecord per line); worldmap.arworldmap (optional).
+type: object
+properties:
+  pose_record:
+    $ref: PoseRecord.yaml

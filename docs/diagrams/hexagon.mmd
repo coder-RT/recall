@@ -1,0 +1,27 @@
+flowchart TB
+  subgraph infra["Infra: composition root (container.py), app factory, job queue, settings"]
+    direction LR
+    i1["Builds the adapters from config<br/>and hands them to the use cases"]
+  end
+  subgraph adapters["Adapters"]
+    direction LR
+    subgraph inbound["Inbound"]
+      direction LR
+      http["HTTP routers"] ~~~ a2aa["A2A server"]
+    end
+    subgraph outbound["Outbound"]
+      direction LR
+      llm["Muse Spark Open / Glimmer / Spark"] ~~~ sam["SAM 3.1"] ~~~ voice["Muse Voice Transcribe"] ~~~ sqlite[("SQLite")] ~~~ disk[("Disk / R2")]
+    end
+  end
+  subgraph application["Application: one file per use case, ports as Protocols"]
+    direction LR
+    ask["ask_where_is"] ~~~ ingest["ingest_scan"] ~~~ verify["verify_arrival"] ~~~ erase["erase_scan"] ~~~ explain["explain_answer"]
+  end
+  subgraph domain["Domain: plain dataclasses, NumPy maths, no frameworks"]
+    direction LR
+    mem["Home · Scan · TrackedObject"] ~~~ spatial["Spatial relations"] ~~~ nav["Navigation A*"] ~~~ ground["Grounding rules"]
+  end
+  infra -- "imports" --> adapters
+  adapters -- "imports" --> application
+  application -- "imports" --> domain

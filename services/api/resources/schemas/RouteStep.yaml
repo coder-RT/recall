@@ -1,0 +1,7 @@
+type: object
+required: [clock, metres, say]
+properties:
+  clock: {type: integer, minimum: 1, maximum: 12, description: Turn as a clock face; 12 is straight ahead}
+  metres: {type: number}
+  say: {type: string}
+  waypoint: {type: array, items: {type: number}, minItems: 2, maxItems: 2}

@@ -1,0 +1,62 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "find_object",
+      "description": "Find remembered objects whose label, name or alias matches. Returns up to 3 matches, newest first, each with where it is (room, landmark, relation, shelf level, height band) and when it was last seen; usually enough to answer. Or not_found.",
+      "parameters": {
+        "type": "object",
+        "properties": {"name": {"type": "string", "description": "What the user is looking for, e.g. 'keys'"}},
+        "required": ["name"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "describe_location",
+      "description": "More about one object: its place as in find_object plus size, colour and the user's own name and note for it. Only use what this returns.",
+      "parameters": {
+        "type": "object",
+        "properties": {"object_id": {"type": "string"}},
+        "required": ["object_id"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "localize",
+      "description": "The user's current position and facing in the home frame, and the tracking state.",
+      "parameters": {
+        "type": "object",
+        "properties": {"session_id": {"type": "string"}},
+        "required": ["session_id"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "plan_route",
+      "description": "Steps from the user to the object as clock-face turns and metres, or no_safe_path.",
+      "parameters": {
+        "type": "object",
+        "properties": {"session_id": {"type": "string"}, "object_id": {"type": "string"}},
+        "required": ["session_id", "object_id"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "explain",
+      "description": "Why Recall thinks the thing is where it says: how many sightings, how many scans, which room, when, how sure, which models found and placed it, and what the user set. Use it when asked why or how sure.",
+      "parameters": {"type": "object", "properties": {"object_id": {"type": "string"}}, "required": ["object_id"], "additionalProperties": false}
+    }
+  }
+]

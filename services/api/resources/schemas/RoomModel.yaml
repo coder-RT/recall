@@ -1,0 +1,35 @@
+type: object
+description: room.json, built from planes and footprints in the home frame (metres)
+required: [floor_polygon, walls, furniture, height_m]
+properties:
+  floor_polygon:
+    type: array
+    description: Closed outline of the floor, [x, y] vertices, counter-clockwise
+    items: {type: array, items: {type: number}, minItems: 2, maxItems: 2}
+    minItems: 3
+  walls:
+    type: array
+    items:
+      type: object
+      required: [start, end, height_m]
+      properties:
+        start: {type: array, items: {type: number}, minItems: 2, maxItems: 2}
+        end: {type: array, items: {type: number}, minItems: 2, maxItems: 2}
+        height_m: {type: number}
+  furniture:
+    type: array
+    items:
+      type: object
+      required: [label, footprint, top_z]
+      properties:
+        label: {type: string}
+        footprint:
+          type: array
+          items: {type: array, items: {type: number}, minItems: 2, maxItems: 2}
+          minItems: 3
+        top_z: {type: number}
+  height_m: {type: number, description: "Floor to ceiling, or the tallest wall seen"}
+  north_deg:
+    type: [number, "null"]
+    description: "Direction of magnetic north in the home frame, degrees clockwise from +y seen from above (null when the
+      scan had no reliable compass)"

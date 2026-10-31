@@ -120,7 +120,7 @@ export function HowItWorks() {
                 className="translate-y-3 opacity-55 data-[active=true]:translate-y-0 data-[active=true]:opacity-100 lg:transition-all lg:duration-500 lg:ease-out"
               >
                 <TiltCard className="card flex h-full flex-col p-7 text-ink">
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-wrap items-center gap-4">
                     <span className="ig-ring grid size-16 shrink-0 place-items-center rounded-full p-[3px]">
                       <span className="grid size-full place-items-center rounded-full bg-white text-3xl" aria-hidden="true">
                         {ICONS[i]}

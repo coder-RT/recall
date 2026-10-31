@@ -1,0 +1,18 @@
+type: object
+required:
+- scan_id
+- room
+- captured_at
+properties:
+  scan_id:
+    type: string
+  room:
+    type: string
+  captured_at:
+    type: string
+    format: date-time
+  provenance:
+    type:
+    - object
+    - 'null'
+    additionalProperties: true

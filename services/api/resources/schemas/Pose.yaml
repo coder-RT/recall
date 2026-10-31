@@ -1,0 +1,9 @@
+type: object
+description: ARKit camera-to-world transform, column-major, metres (ARKit camera convention)
+required: [matrix]
+properties:
+  matrix:
+    type: array
+    items: {type: number}
+    minItems: 16
+    maxItems: 16

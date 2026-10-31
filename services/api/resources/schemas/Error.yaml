@@ -1,0 +1,5 @@
+type: object
+required: [error]
+properties:
+  error: {type: string, description: Machine-readable code}
+  detail: {type: string, description: One plain sentence for a person}

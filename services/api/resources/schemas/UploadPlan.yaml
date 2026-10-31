@@ -1,0 +1,16 @@
+type: object
+required: [scan_id, part_size, parts, manifest_url, complete_url]
+properties:
+  scan_id: {type: string, format: uuid}
+  part_size: {type: integer}
+  parts:
+    type: array
+    items:
+      type: object
+      required: [number, url, received]
+      properties:
+        number: {type: integer, minimum: 1}
+        url: {type: string, description: "Where to PUT this part (relative to the API base, or absolute for R2)"}
+        received: {type: boolean, description: Already stored; skip it when resuming}
+  manifest_url: {type: string}
+  complete_url: {type: string}

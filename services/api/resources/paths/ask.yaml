@@ -1,0 +1,20 @@
+ask:
+  post:
+    tags: [ask]
+    operationId: ask
+    summary: Ask where something is; the Guide agent answers from tool output only
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/AskRequest.yaml
+    responses:
+      "200":
+        description: Grounded answer
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/Answer.yaml
+      "503":
+        $ref: ../schemas/Responses.yaml#/Unavailable

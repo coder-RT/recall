@@ -1,0 +1,5 @@
+extends:
+  - recommended
+rules:
+  # /health has no client errors to report; the others declare theirs
+  operation-4xx-response: warn

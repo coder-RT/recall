@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recall.local/agents/find-object.input.schema.json",
+  "title": "find_object input",
+  "description": "The only input the Home Memory agent accepts: a data part with one object name. Free text is refused.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["object"],
+  "properties": {
+    "object": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "pattern": "^[A-Za-z0-9 -]+$",
+      "description": "A thing's name: letters, digits, spaces and hyphens, at most 40 characters (\"blue mug\", \"keys\")"
+    }
+  }
+}

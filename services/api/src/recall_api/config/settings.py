@@ -1,0 +1,87 @@
+"""Settings from the environment and .env (never logged). Every model is a Meta model (CLAUDE.md rule 8)."""
+
+from __future__ import annotations
+
+from datetime import datetime
+from pathlib import Path
+from typing import Literal
+
+from pydantic import AliasChoices, Field, SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+REPO_ROOT = Path(__file__).resolve().parents[5]
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=REPO_ROOT / ".env", extra="ignore", populate_by_name=True)
+
+    data_dir: Path = Field(REPO_ROOT / "data", alias="RECALL_DATA_DIR")
+    database_url: str | None = Field(None, alias="RECALL_DATABASE_URL")
+    storage: Literal["local", "r2"] = Field("local", alias="STORAGE")
+    # shared with the phone and the pipeline; pairing, not a login
+    device_key: SecretStr | None = Field(None, alias="RECALL_DEVICE_KEY")
+
+    # replay: `make demo`, the Guide's replies from a recorded real run in samples/replay/ (no keys)
+    llm_provider: Literal["baseten_spark_open", "glimmer_hosted", "lmstudio", "meta", "replay"] = "baseten_spark_open"
+    replay_dir: Path = Field(REPO_ROOT / "samples" / "replay" / "flat", alias="RECALL_REPLAY_DIR")
+    # the recorded demo runs at the time of its recording, so "seen yesterday at 04:21" reads the same
+    frozen_clock: datetime | None = Field(None, alias="RECALL_FROZEN_CLOCK")
+    baseten_base_url: str | None = None
+    baseten_api_key: SecretStr | None = None
+    baseten_model: str = Field(
+        "meta-models/muse-spark-open-1026", validation_alias=AliasChoices("BASETEN_MODEL", "BASETEN_SPARK_OPEN_MODEL")
+    )
+    glimmer_base_url: str | None = None
+    glimmer_api_key: SecretStr | None = None
+    glimmer_model: str | None = None
+    lmstudio_base_url: str = "http://localhost:1234/v1"
+    lmstudio_model: str | None = None
+    # Baseten runs Muse Spark Open at reasoning_effort "xhigh" unless told otherwise; "low" cut the phrasing step from
+    # 1.3 s to 1.0 s with the same answers (docs/verification.md). Sent only to Baseten, which documents it.
+    reasoning_effort: Literal["low", "medium", "high", "xhigh"] = Field("low", alias="GUIDE_REASONING_EFFORT")
+    meta_muse_base_url: str | None = None
+    meta_muse_api_key: SecretStr | None = None
+
+    pipeline_command: str = "uv run --project services/pipeline recall-pipeline process"
+    # queue: the Huey worker runs it (make worker); subprocess: start it right away (tests, no worker)
+    pipeline_runner: Literal["queue", "subprocess"] = Field("queue", alias="RECALL_PIPELINE_RUNNER")
+    # the warm pipeline (recall-pipeline serve); jobs fall back to a fresh process when it isn't running
+    pipeline_server: str = Field("http://127.0.0.1:8766", alias="RECALL_PIPELINE_SERVER")
+
+    # robots: the read-only export of one room's memory, off unless the owner turns it on; robots get their own key
+    robot_export_enabled: bool = Field(False, alias="ROBOT_EXPORT_ENABLED")
+    # one key for robots and other agents: the export and the Home Memory agent (A2A); never the phone's routes
+    robot_key: SecretStr | None = Field(None, validation_alias=AliasChoices("RECALL_ROBOT_KEY", "A2A_HOME_MEMORY_KEY"))
+    # the Home Memory agent over A2A (read-only "where is X?"), off unless the owner turns it on
+    home_memory_a2a_enabled: bool = Field(False, alias="HOME_MEMORY_A2A_ENABLED")
+    # how other agents reach this Mac (written into the Agent Card); a robot in Docker uses host.docker.internal
+    public_url: str = Field("http://localhost:8000", alias="RECALL_PUBLIC_URL")
+    # the home the Home Memory agent answers about
+    home_id: str = Field("flat", alias="RECALL_HOME_ID")
+    # older audit events are dropped
+    audit_retention_days: int = Field(90, alias="RECALL_AUDIT_RETENTION_DAYS")
+    # the Meta model that checks object names sent to the Home Memory agent (after the schema)
+    screen_provider: Literal["baseten_spark_open", "lmstudio"] = Field("baseten_spark_open", alias="SCREEN_PROVIDER")
+
+    # the home's clock, for "seen yesterday at 04:21" (sightings are stored in UTC)
+    home_timezone: str = Field("Europe/Warsaw", alias="HOME_TIMEZONE")
+
+    log_level: str = Field("INFO", alias="RECALL_LOG_LEVEL")
+    # traces: "file" writes data/logs/traces.jsonl; "otlp" sends to OTEL_EXPORTER_OTLP_ENDPOINT; "off" for tests
+    traces: Literal["file", "otlp", "off"] = Field("file", alias="RECALL_TRACES")
+
+    @property
+    def log_dir(self) -> Path:
+        return self.data_dir / "logs"
+
+    @property
+    def db_url(self) -> str:
+        return (
+            self.database_url
+            if self.database_url and self.database_url.startswith("sqlite")
+            else (f"sqlite:///{self.data_dir / 'recall.db'}")
+        )
+
+    @classmethod
+    def load(cls) -> Settings:
+        return cls()

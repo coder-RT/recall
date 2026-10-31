@@ -1,0 +1,26 @@
+sharing:
+  get:
+    tags: [robots]
+    operationId: getSharing
+    summary: Robot access, and where robots reach the memory
+    responses:
+      "200":
+        description: Robot access
+        content:
+          application/json:
+            schema: {$ref: ../schemas/Sharing.yaml}
+  put:
+    tags: [robots]
+    operationId: setSharing
+    summary: Turn robot access on or off (the owner's device key only; the robot key can't)
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: ../schemas/SharingUpdate.yaml}
+    responses:
+      "200":
+        description: Robot access after the change
+        content:
+          application/json:
+            schema: {$ref: ../schemas/Sharing.yaml}

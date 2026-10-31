@@ -27,7 +27,6 @@ Indie track · Theme: <strong>Build for Your World</strong></p>
   <img src="https://img.shields.io/badge/Muse_Spark_Open-Meta_model-0467df?logo=meta&logoColor=white" alt="Muse Spark Open">
   <img src="https://img.shields.io/badge/Muse_Glimmer-Meta_model-0467df?logo=meta&logoColor=white" alt="Muse Glimmer">
   <img src="https://img.shields.io/badge/Muse_Voice_Transcribe-Meta_model-0467df?logo=meta&logoColor=white" alt="Muse Voice Transcribe">
-  <img src="https://img.shields.io/badge/Llama_Prompt_Guard-Meta_model-0467df?logo=meta&logoColor=white" alt="Llama Prompt Guard">
 </p>
 
 <p align="center">
@@ -60,15 +59,9 @@ Indie track · Theme: <strong>Build for Your World</strong></p>
 
 ## Screenshots
 
-All images are our own captures: the landing page, and one real room reconstructed by the pipeline.
+The landing page. No image of anyone's home is in this repo: the 3D viewer shows only a room you scan yourself.
 
-| Landing page | 3D viewer with layers |
-|---|---|
-| ![The landing page hero](docs/media/hero.png) | ![The scanned room as a point cloud with the floor grid, height bands and flat surfaces](docs/media/viewer-layers.png) |
-
-| The point cloud gathering into the room |
-|---|
-| ![Three moments of the gather animation](docs/media/gather.png) |
+![The landing page hero](docs/media/hero.png)
 
 ## What it is
 
@@ -84,31 +77,30 @@ All images are our own captures: the landing page, and one real room reconstruct
 - Independence and accessibility, not care: Recall is a memory and a guide, nothing medical.
 
 **How**
-- The iPhone records frames, LiDAR depth and ARKit poses, and tells you to slow down if you move too fast. Meta's MapAnything turns the frames into a metric 3D map; SAM 3.1 finds the furniture and objects in every frame.
+- The iPhone records frames, LiDAR depth and ARKit poses, and leads the scan by voice, step by step: turn round, walk the walls, sweep the floor, close the loop. It measures how much floor and wall the LiDAR saw and whether ARKit's room map is ready, and says when to slow down, step back, add light or tilt down. Meta's MapAnything turns the frames into a metric 3D map; SAM 3.1 finds the furniture and objects in every frame.
 - Geometry decides the facts (floor, surfaces, height bands, distances). A Meta language model only phrases them.
 - A small team of agents answers, verifies and shares; every model they call is a Meta model.
 
 **Frameworks and stack**
 - Web: Next.js 16, React 19, TypeScript, GSAP (scroll storytelling), Motion (UI), react-three-fiber (3D viewer).
-- Backend: Python 3.12, FastAPI, SQLite, hexagonal architecture (ports and adapters) with DDD aggregates.
+- Backend: Python 3.12, FastAPI, SQLite, hexagonal architecture (ports and adapters) with DDD aggregates. How it fits together and why each piece was chosen over the alternatives: [docs/architecture.md](docs/architecture.md) and [docs/decisions.md](docs/decisions.md).
 - Reconstruction pipeline: Python, MapAnything on the Mac's GPU, NumPy and SciPy for the geometry.
 - iPhone and Watch: Swift 6, SwiftUI, ARKit, RealityKit, AVSpeechSynthesizer, WatchConnectivity.
 - Models: Meta Model API, Baseten (Muse Spark Open), Modal or LM Studio for open weights.
 
 ## Why I built it
 
-- The question "where did I put my keys?" is asked in every home, and for a blind person it can end a morning.
+- The question "where did I put my keys?" is asked in every home, and for someone who is blind or has low vision it can end a morning.
 - A home barely changes; what moves are the small things. That calls for a memory of the space, not a smarter camera.
 - The pieces now exist as open Meta models: metric 3D from photos (MapAnything), find anything by name (SAM 3.1), a language model that can call tools and phrase a short spoken answer (Muse Spark Open / Glimmer).
 - I wanted the result measured on real objects in a real flat, with the numbers published, rather than demonstrated on slides.
 
 ## Why agents
 
-- **Guide** is the only agent on the live question path. It calls four tools (`find_object`, `describe_location`, `localize`, `plan_route`) and phrases the answer. It never states a place, distance or time that no tool returned. Target: first spoken words within 2 seconds.
+- **Guide** is the only agent on the live question path. It calls four tools (`find_object`, `describe_location`, `localize`, `plan_route`) and phrases the answer. It never states a place, distance or time that no tool returned. The phone says "Looking for your keys." as soon as it has the question; the Guide's answer follows in 2.3 s (median of 10 real questions, one tool call each, Muse Spark Open at low reasoning effort; `docs/verification.md`).
 - **Verifier** runs once, on arrival: one camera frame, SAM 3.1 plus the LiDAR depth, and a yes or no on whether the object is really there. Muse Spark 1.1 can only lower confidence. If the object isn't there, the memory heals itself and the Guide says when it was last seen. The Guide calls it in-process by default and in the live demo; A2A between the two is optional.
-- **Home Memory** is the house's face to other agents (a robot, a pair of glasses, another assistant) over the open A2A 1.0 protocol: read-only, off by default, never the user's live position, and every incoming message is screened by Llama Prompt Guard first.
+- **Home Memory** is the house's face to other agents (a robot, a pair of glasses, another assistant) over the open A2A 1.0 protocol: read-only, off by default, never the user's live position. It accepts only structured input (one object name, checked against a schema), and a Meta model (Muse Spark Open, or Glimmer) checks that name before any tool runs. Every request is in the owner's audit log.
 - One rule: every agent has a job no other agent does. Complexity is not the goal; the three jobs are different.
-- Details: `docs/agents.md`.
 
 ## How it works: the Meta models
 
@@ -123,7 +115,7 @@ All images are our own captures: the landing page, and one real room reconstruct
 | SAM 3.1 | Objects and furniture in every frame, by text prompt; the arrival check | Meta Model API (optional self-hosted on Modal) | `services/pipeline/.../sam31_meta_api.py`, `services/api/.../sam31_meta_api.py` |
 | MapAnything (`facebook/map-anything-apache`) | Metric 3D reconstruction from the frames, depth and poses | Mac (Apple GPU); Modal if too slow | `services/pipeline/.../mapanything_local.py` |
 | Muse Voice Transcribe | Speech to text with turn detection | Meta Model API | `services/api/.../voice/muse_transcribe.py`, `apps/web/app/api/voice/transcribe/` |
-| Llama Prompt Guard | Screens every message other agents send to the home memory | Mac | `services/api/.../safety/prompt_guard_local.py` |
+| Muse Spark Open (or Muse Glimmer) as a screen | Checks the object name other agents send the home memory, after the schema; strict JSON verdict, fails closed | Baseten (LM Studio for Glimmer) | `services/api/.../safety/meta_model_screen.py` |
 | Muse Spark (hosted), in the demo client | A "home robot" agent that asks Recall over A2A | Meta Model API | `examples/a2a-client/home_robot.py` |
 
 **The scan path** (minutes, in the background)
@@ -144,7 +136,7 @@ All images are our own captures: the landing page, and one real room reconstruct
 | Feature | Used for | Where |
 |---|---|---|
 | LiDAR depth, ARKit tracking, ARWorldMap | Capture in metres; relocalisation for live guidance | iPhone |
-| Core Motion, compass | Speed and turn rate for scan coaching; heading while guiding | iPhone, Watch (stretch) |
+| Core Motion, compass (magnetic north, no location) | Speed and turn rate for scan coaching; the scan learns where north lies in the room, so directions can say "north-east" | iPhone, Watch (stretch) |
 | Haptics | Turn and arrival cues | iPhone, Apple Watch |
 | VoiceOver, Dynamic Type | The app is usable without looking | iPhone, Watch |
 | AVSpeechSynthesizer | Speaking answers and steps | iPhone |
@@ -163,8 +155,8 @@ All images are our own captures: the landing page, and one real room reconstruct
   5. One or two short sentences: landmark first, then shelf and height, then time.
   6. At most 6 agent steps; on failure, the best grounded partial answer.
 - **The Verifier can only downgrade.** The vision model may turn a result into "uncertain"; only SAM plus geometry can confirm.
-- **Prompt Guard on the door.** Every message from an external agent is screened by Llama Prompt Guard before any tool runs.
-- **Privacy.** Raw walkthrough video and frames are never committed; the sample room is processed output, reviewed for anything personal. Voice clips are sent for transcription and not stored. The phone holds no API keys and talks only to our backend. In local privacy mode the agent runs on the Mac.
+- **Two checks on the door.** Another agent can send only one object name (letters, digits, spaces and hyphens, at most 40 characters, `resources/agents/find-object.input.schema.json`); free text is refused and never reaches a model or a tool. Then Muse Spark Open (or Glimmer) must answer `{"verdict": "safe", ...}` in strict JSON; anything else, a timeout or "injection" refuses. Measured: 21 ordinary names allowed, 18 instruction-like names refused, none wrong.
+- **Privacy.** The home's memory lives on the owner's own computer (a Mac today); there is no Recall server. Scan photos go to SAM 3.1 on the Meta Model API, voice clips to Muse Voice Transcribe, and questions (no photos) to Muse Spark Open, or stay on the Mac with Glimmer in private mode. Deleting a scan on the phone erases it from the Mac too. No scan of anyone's home is in the repo or on the hosted site. Full note: [docs/privacy.md](docs/privacy.md), the same as the app's Settings → Privacy and the site's `/privacy`.
 - **Honesty.** Sample and recorded data are labelled as such in the UI and the docs; the demo shows only what was built.
 - **Rules.** Only Meta models at runtime; no non-Meta model anywhere, and no TTS model of any kind.
 
@@ -172,7 +164,7 @@ All images are our own captures: the landing page, and one real room reconstruct
 
 - **Keyframe selection:** a frame is kept when the phone moved about 15 cm or turned about 10°; blurry frames are dropped by a sharpness check.
 - **Pose convention:** ARKit camera-to-world poses are converted to the OpenCV convention MapAnything expects (`T @ diag(1, −1, −1, 1)`), unit tested.
-- **Metric reconstruction:** MapAnything with the phone's intrinsics, poses and LiDAR depth as metric inputs, so the map is in metres and in the phone's own frame.
+- **Metric reconstruction:** MapAnything with the phone's intrinsics, poses and LiDAR depth as metric inputs, so the map is in metres and in the phone's own frame. `RECONSTRUCTOR=arkit_depth` skips the model and back-projects the LiDAR depth with the ARKit poses: on our living room every object landed within 7 cm of the MapAnything run (`docs/verification.md` 8b).
 - **Drift check:** a Umeyama similarity transform between ARKit and MapAnything camera centres measures drift, and aligns images-only runs when phone data is missing.
 - **Room model:** RANSAC plane fitting for the floor and the walls, deterministic and seeded; furniture from SAM 3.1 text prompts, lifted into 3D boxes.
 - **Flat surfaces:** a height histogram of the point cloud, peaks grouped into connected patches on a 5 cm grid, thin lines rejected by fill ratio. This is what finds desk tops, seats and shelf levels.
@@ -207,34 +199,48 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
   ```
 - Open:
   - `http://localhost:3000/` for the landing page;
-  - `http://localhost:3000/homes/demo-flat/viewer` for the sample room (our own scan).
-- Optional: "Ask by voice" on the landing page calls Muse Voice Transcribe through a server route. Copy `.env.example` to `.env` and fill `META_MUSE_BASE_URL` and `META_MUSE_API_KEY`; without them the card still works with the preset questions. Every spoken line on the site is the browser's own voice.
+  - `http://localhost:3000/homes/flat/viewer` for your own scanned home (`flat` is the app's default home name); until it has a scan, the page lists the steps (section 2).
+- Optional: "Ask by voice" on the landing page calls Muse Voice Transcribe through a server route. Create `.env` in the repo root with `META_MUSE_API_KEY=<your key>`; without it the card still works with the preset questions. Every spoken line on the site is the browser's own voice.
 - Checks:
   ```bash
   pnpm lint && pnpm exec tsc --noEmit && pnpm build
   pnpm exec playwright test        # the browser suite; starts the dev server if needed
   ```
 
-### 2. Export a scan to the viewer (runs now)
+### 2. See your own room in the viewer
 
-- Input: a MapAnything run saved as an `.npz` with per-view points, masks, confidence, colours and poses (see `docs/verification.md` for how the sample was produced).
-- Run:
+- Scan a room with the iPhone app and upload it to your Mac (`make live` runs the API and the scan worker; the steps are on the viewer page). The worker keeps MapAnything loaded (`recall-pipeline serve`, freed after 10 minutes idle) and starts loading it as soon as an upload begins; SAM 3.1 runs alongside the reconstruction, so a new room is ready in about a minute.
+- Export the home's newest processed scan, then open `http://localhost:3000/homes/flat/viewer`:
   ```bash
-  uv run services/pipeline/scripts/export_viewer_points.py VIEWS.npz apps/web/public/samples/demo-flat --stats stats.json
+  make viewer HOME_ID=flat
   ```
-- Output: `points.bin`, `colors.bin` (kept out of git), `conf.bin` and `meta.json` with the detected flat surfaces.
+- Output: `apps/web/public/local-scan/<home>/` (points, photo colours, confidence, the room model and what Recall found). Git ignores the folder, so your room never leaves your computer.
+- The viewer's **View** switch shows the room five ways, all computed from the scan's measurements (no generative model):
+  - **Dots:** every measured point.
+  - **Room model:** furniture as boxes coloured by kind, things at their measured size and colour.
+  - **Surface:** the points joined into one coloured surface (Poisson reconstruction, Open3D).
+  - **Photo room:** that surface painted with the scan's own photos, each patch from the photo that saw it best (checked against LiDAR depth so nothing behind a chair is painted onto it).
+  - **Architect:** the room regenerated as an architect would draw it: walls squared to the room's main direction, walls the scan never saw marked as such, furniture rebuilt as parametric parts (a desk is a top on four legs) at its measured size and colour.
+- Under the viewer, **Drawings** has A3 sheets drawn from the same data: a dimensioned floor plan (A1.1) and the walls seen square on from the scan's points (A2.1). The algorithms are in `services/pipeline/src/recall_pipeline/domain/` (`architecture.py`, `drawings.py`, `texturing.py`).
 
 ### 3. Backend and pipeline (planned, phases 0 to 2)
 
 - `make setup`: Python 3.12 with uv, both services, the web app.
-- `make demo`: replays a recorded sample scan and recorded model responses from `samples/replay/`, no keys, labelled as recorded output.
+- `make demo`: no keys, no GPU. Builds a memory from a recorded real scan (`samples/replay/`, geometry and labels only, no photos) through the real ingest code, then serves the API on `localhost:8000` with Muse Spark Open's recorded replies; every answer is labelled `replay:muse-spark-open (recorded)`, and the command prints questions to try. `make record` re-records it with real calls.
 - `make live`: real Meta model calls with the keys from `.env`. The minimum is one Meta Model API key from [dev.meta.ai](https://dev.meta.ai) with `LLM_PROVIDER=meta`; the demo video uses Muse Spark Open on Baseten (`LLM_PROVIDER=baseten_spark_open`); the local privacy mode uses Muse Glimmer in LM Studio (`LLM_PROVIDER=lmstudio`).
+- **Home Memory agent (A2A) with `make live`:** its check runs on Muse Spark Open with the Baseten key (`SCREEN_PROVIDER=baseten_spark_open`, the default) or on Glimmer in LM Studio (`SCREEN_PROVIDER=lmstudio`); no other key is needed.
 - `make test`, `make lint`, `make lint-imports`: tests, ruff and ESLint, and the architecture rule (domain ← application ← adapters).
 
-### 4. iPhone and Watch (planned, phases 1 and 3)
+### 4. iPhone app (Watch planned, phase 3)
 
-- XcodeGen generates the project (`apps/ios/project.yml`); it needs an iPhone with LiDAR and a free Apple ID for signing.
-- The phone talks only to the backend through a Cloudflare Tunnel URL set in `Config/Debug.xcconfig`; no keys in the app.
+- XcodeGen generates the project (`cd apps/ios && xcodegen generate`); it needs an iPhone with LiDAR running iOS 26 and a free Apple ID for signing.
+- In the app's Settings, enter the Mac's address (the API on your network, a Tailscale HTTPS address or a Cloudflare Tunnel URL) and the device key from `.env`. No other keys live on the phone.
+- Tabs:
+  - **Devices** (first; the app still opens on Find): where Recall runs. The iPhone is available now; Apple Watch Ultra 4 support is coming next and Meta AI glasses are planned, each labelled as such.
+  - **Find**: ask "where are my keys?" by typing or speaking (Muse Voice Transcribe on the Mac), hear the answer, then **Take me there**. The phone relocalises in the saved room map, the Mac plans a route, and the phone speaks clock-face turns with the compass point and distance ("At 2 o'clock, north-east, 3 metres"), with a tick when you face the right way and a blue arrow over the thing in the camera view for a sighted helper. Without a map match it says the landmark and which way it lies, and ticks when you face it.
+  - **Scans**: record a room, led by voice, with a step card, a top-down mini-map and the room-map state on screen; then upload it.
+  - **Found**: check what Recall found and correct the name, colour or height.
+  - **Settings**: the Mac's address and key, and Appearance (automatic, light or dark, plus high contrast in black, white and yellow).
 
 ### 5. Hosted version (optional)
 
@@ -243,7 +249,7 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
 
 ### 6. Environment variables
 
-- `.env.example` lists every key with an empty value; `.env` is never committed.
+- Keys live in `.env` at the repo root, which is never committed: `META_MUSE_API_KEY` (Meta Model API), `BASETEN_API_KEY` (Muse Spark Open on Baseten) and `RECALL_DEVICE_KEY` (any long random string; the phone pairs with it).
 - `make demo` needs none. `make live` needs the Meta Model API key and, for the demo setup, the Baseten key; the Glimmer, LM Studio, A2A and R2 settings are optional.
 
 ## Not in this submission
@@ -257,9 +263,9 @@ Planned next, not built or not working yet (updated before submission; removed i
 
 ## Contributing
 
-- Until Nov 4, 2026 this is a solo hackathon entry (Indie track), so pull requests will wait until judging ends.
+- Recall is a solo entry in the Meta Global AI Developer Hackathon (Indie track); pull requests open after the results on Nov 9, 2026.
 - After that, issues and pull requests are welcome. Please:
-  1. read `CLAUDE.md` (rules, architecture, conventions) and `docs/hackathon-rules.md`;
+  1. read `CLAUDE.md` (rules, architecture, conventions);
   2. keep the dependency rule: domain code imports nothing from adapters or frameworks;
   3. use Conventional Commits, small and frequent;
   4. keep `make test`, `make lint` and the Playwright suite green;

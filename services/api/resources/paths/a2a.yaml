@@ -1,0 +1,43 @@
+home_memory:
+  post:
+    tags: [a2a]
+    operationId: homeMemoryA2A
+    summary: The Home Memory agent (A2A 1.0, JSON-RPC 2.0); off unless HOME_MEMORY_A2A_ENABLED, robot key
+    description: >
+      Request and response bodies are defined by the A2A 1.0 specification (https://a2a-protocol.org/v1.0.0/specification/),
+      served by the a2a-sdk. One skill, find_object: send a message with one data part {"object": "<name>"} (schema
+      resources/agents/find-object.input.schema.json); free text is refused. The name is then checked by a Meta model
+      (Muse Spark Open, or Glimmer); invalid JSON, a timeout or "injection" refuses (it fails closed). The answer is a
+      message with a sentence and a data part.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {type: object, description: "A2A JSON-RPC request (method SendMessage)"}
+    responses:
+      "200":
+        description: A2A JSON-RPC response
+        content:
+          application/json:
+            schema: {type: object}
+      "401":
+        description: Missing or wrong robot key
+        content:
+          application/json:
+            schema: {$ref: ../schemas/Error.yaml}
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound
+home_memory_card:
+  get:
+    tags: [a2a]
+    operationId: homeMemoryAgentCard
+    summary: The Home Memory Agent Card (A2A 1.0); 404 while sharing is off
+    security: []
+    responses:
+      "200":
+        description: Agent Card (source of truth resources/agents/home-memory.card.json)
+        content:
+          application/json:
+            schema: {type: object}
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound

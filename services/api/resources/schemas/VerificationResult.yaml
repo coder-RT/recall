@@ -1,0 +1,8 @@
+type: object
+required: [outcome, say]
+properties:
+  outcome: {type: string, enum: [confirmed, found_nearby, uncertain, not_here]}
+  say: {type: string}
+  distance_cm: {type: [number, "null"]}
+  sam_score: {type: [number, "null"]}
+  position: {type: [array, "null"], items: {type: number}}

@@ -62,7 +62,7 @@ export function CookieNotice() {
               </span>
             </p>
             <div className="mt-4 flex justify-end gap-3">
-              <a href="#privacy" className="btn btn-ghost">
+              <a href="/privacy" className="btn btn-ghost">
                 {t.privacy}
               </a>
               <button type="button" onClick={dismiss} className="btn btn-blue">

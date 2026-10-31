@@ -1,0 +1,9 @@
+type: object
+description: "What the user fixes after a scan. Send only the fields to change; null clears a field back to the measured value. The user's values win over measurements and later scans never overwrite them."
+additionalProperties: false
+properties:
+  name: {type: [string, "null"], maxLength: 40, description: "The user's own name for it, e.g. work bag"}
+  color: {type: [string, "null"], enum: [black, white, grey, red, orange, yellow, green, blue, purple, pink, brown, beige, null]}
+  height_m: {type: [number, "null"], minimum: 0, maximum: 3, description: Height above the floor in metres}
+  note: {type: [string, "null"], maxLength: 200}
+  confirmed: {type: boolean, description: The user checked it is right; it then counts as certain}

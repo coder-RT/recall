@@ -1,0 +1,6 @@
+type: object
+required: [number, size, sha256]
+properties:
+  number: {type: integer}
+  size: {type: integer}
+  sha256: {type: string}

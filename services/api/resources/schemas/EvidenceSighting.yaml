@@ -1,0 +1,48 @@
+type: object
+required:
+- observation_id
+- object_id
+- label
+- position
+- confidence
+- seen_at
+- current
+- scan
+properties:
+  observation_id:
+    type: string
+  object_id:
+    type: string
+  label:
+    type: string
+  position:
+    type: array
+    items:
+      type: number
+    minItems: 3
+    maxItems: 3
+  confidence:
+    type: number
+  seen_at:
+    type: string
+    format: date-time
+  current:
+    type: boolean
+    description: Still where the thing is now (not set aside by a later scan)
+  keyframe_index:
+    type:
+    - integer
+    - 'null'
+  box:
+    type:
+    - array
+    - 'null'
+    items:
+      type: number
+  crop_url:
+    type:
+    - string
+    - 'null'
+    description: 'GET it with the device key: the camera''s view of the thing'
+  scan:
+    $ref: EvidenceScan.yaml

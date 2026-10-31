@@ -13,6 +13,8 @@ log = logging.getLogger("recall_api.safety")
 
 
 class PromptGuardViaPipeline:
+    name = "prompt-guard"
+
     def __init__(self, url: str, device_key: str | None, timeout: float = 10) -> None:
         self.url = url.rstrip("/")
         self.headers = {"x-device-key": device_key} if device_key else {}

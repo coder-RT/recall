@@ -9,7 +9,9 @@ from zoneinfo import ZoneInfo
 
 from recall_api.adapters.outbound.llm.openai_compatible import from_settings as llm_from_settings
 from recall_api.adapters.outbound.persistence.sqlite import SqliteHomes, SqliteObjects, SqliteScans
+from recall_api.adapters.outbound.safety.fallback import FirstAvailable
 from recall_api.adapters.outbound.safety.prompt_guard_pipeline import PromptGuardViaPipeline
+from recall_api.adapters.outbound.safety.spark_screen_meta_api import SparkScreener
 from recall_api.adapters.outbound.storage.local_disk import LocalDiskBlobStore
 from recall_api.adapters.outbound.storage.zip_unpacker import ZipEpisodeUnpacker
 from recall_api.adapters.outbound.vision.sam31_meta_api import Sam31MetaApi
@@ -86,9 +88,13 @@ class Container:
         return PlanGuidance(self.homes, self.scans, self.objects, self.blobs, new_id)
 
     @cached_property
-    def screener(self) -> PromptGuardViaPipeline:
+    def screener(self) -> FirstAvailable:
+        """Llama Prompt Guard when its weights are there, else Muse Spark as the judge; neither: refuse."""
         key = self.settings.device_key.get_secret_value() if self.settings.device_key else None
-        return PromptGuardViaPipeline(self.settings.pipeline_server, key)
+        screens = [PromptGuardViaPipeline(self.settings.pipeline_server, key)]
+        if self.settings.meta_muse_api_key is not None:
+            screens.append(SparkScreener(self.settings.meta_muse_api_key.get_secret_value()))
+        return FirstAvailable(*screens)
 
     @cached_property
     def answer_external_query(self) -> AnswerExternalQuery:

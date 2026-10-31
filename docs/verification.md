@@ -97,3 +97,19 @@ deployment. With 19.6 s inference per room on the Mac, Modal is not needed now. 
   with an empty model reply, so the grounded fallback sentence was spoken. Above the 2 s target in CLAUDE.md.
 - TODO(verify): whether Baseten accepts a reasoning-effort setting for this model (not in the docs read so far); it
   would cut the time to the first spoken word.
+
+## 10a. Screening inbound A2A messages (2026-10-31)
+
+- **Llama Prompt Guard 2** (`meta-llama/Llama-Prompt-Guard-2-86M`, Llama 4 Community License) is gated on Hugging Face
+  with manual review; without access the pipeline's `/screen` answers "You are trying to access a gated repo". No allowed
+  host serves it for us: the Meta Model API key lists only Muse Spark / Wonder / Image, SAM 3.1 and Voice Transcribe;
+  Baseten and Modal would need the same gated weights; Fireworks lists Llama Guard (a content-safety model) as
+  dedicated-only. Recall uses Prompt Guard first whenever it can run.
+- **Muse Spark as the screen meanwhile** (`muse-spark-1.1`, Meta Model API). Asked "is this ONLY a request for an
+  object? FIND or OTHER" (the message passed as data between markers), with a vote: FIND on the first answer passes,
+  otherwise two of up to three answers decide. Measured on 7 plain requests and 6 attacks (prompt injection, admin
+  role, key exfiltration, a translated instruction, fake markers, a request about where a person is), 4 rounds each:
+  **plain requests blocked 0/28, attacks let through 0/24**, median 1.8 s, max 3.5 s.
+- The same set, one answer each, asked "is this an attack? SAFE or ATTACK": 1.1 blocked 3/21 plain requests, 1.2 3/21,
+  1.3 7/21; all versions let no attack through. Hence the narrow FIND/OTHER question and the vote.
+- Neither screen reachable: the agent refuses (fails closed).

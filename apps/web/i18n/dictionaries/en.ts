@@ -314,7 +314,7 @@ export const en = {
     source: "Source code",
     linkedin: "LinkedIn",
     github: "GitHub",
-    fineprint: "Built by {author} during the {event}. Not affiliated with or endorsed by Meta.",
+    fineprint: "Built by {author} during the {event}. Not affiliated with or endorsed by Meta. Built with Llama.",
   },
 
   cookie: {

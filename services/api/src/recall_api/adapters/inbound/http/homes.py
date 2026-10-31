@@ -33,11 +33,15 @@ def get_room(home_id: str, c=Depends(container)) -> RoomModel:
     )
 
 
-def _location(obj: TrackedObject, home: Home) -> ObjectLocation | None:
+def _location(obj: TrackedObject, home: Home, scans=None) -> ObjectLocation | None:
+    """`scans` (the scan repository) gives a thing that isn't near any furniture the room it was scanned in."""
     where = obj.where()
     if where is None:
         return None
     rel = relate(where.position, home.landmarks)
+    room = rel.landmark.room if rel.landmark else None
+    if room is None and scans is not None and (scan := scans.get(where.scan_id)) is not None:
+        room = scan.room
     shelves = [lm.bbox.top_z for lm in home.landmarks if lm.label == "shelf" and rel.landmark is lm]
     c = obj.corrections
     return ObjectLocation(
@@ -45,7 +49,7 @@ def _location(obj: TrackedObject, home: Home) -> ObjectLocation | None:
         label=obj.label,
         position=list(where.position.as_tuple()),
         height_band=rel.band.value,
-        room=rel.landmark.room if rel.landmark else None,
+        room=room,
         landmark=rel.landmark.label if rel.landmark else None,
         relation=rel.kind,
         shelf_level=shelf_level(where.position.z, shelves) if shelves else None,
@@ -71,7 +75,7 @@ def _home(c, home_id: str) -> Home:
 @router.get("/homes/{home_id}/objects", response_model=list[ObjectLocation])
 def list_objects(home_id: str, c=Depends(container)) -> list[ObjectLocation]:
     home = _home(c, home_id)
-    return [loc for obj in c.objects.list_for_home(home_id) if (loc := _location(obj, home))]
+    return [loc for obj in c.objects.list_for_home(home_id) if (loc := _location(obj, home, c.scans))]
 
 
 @router.patch("/homes/{home_id}/objects/{object_id}", response_model=ObjectLocation)
@@ -84,7 +88,7 @@ def correct_object(home_id: str, object_id: str, body: ObjectCorrection, c=Depen
         obj = c.correct_object.update(home_id, object_id, CorrectionInput(**sent))
     except CorrectionError as e:
         raise HTTPException(e.status, {"error": e.code, "detail": e.message}) from e
-    loc = _location(obj, home)
+    loc = _location(obj, home, c.scans)
     if loc is None:
         raise HTTPException(404, {"error": "not_found", "detail": "This object has no sighting left."})
     return loc

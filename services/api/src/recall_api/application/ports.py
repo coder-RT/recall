@@ -100,8 +100,8 @@ class Screening:
     """A screener's verdict. `safe` only when the screen ran and found no attack: unavailable means not safe."""
 
     safe: bool
-    reason: str  # "ok", "attack", or "unavailable"
-    by: str | None = None  # which screen decided ("prompt-guard", "muse-spark"), for the audit log
+    reason: str  # "ok", "injection", "invalid" (no valid verdict), "unavailable", or "structure" (schema)
+    by: str | None = None  # which check decided ("schema", "muse-spark-open", "glimmer"), for the audit log
 
 
 class AuditLog(Protocol):
@@ -122,6 +122,6 @@ class OwnerSettings(Protocol):
 
 
 class PromptScreener(Protocol):
-    """Llama Prompt Guard: screens every message from outside before any tool runs."""
+    """A Meta model (Muse Spark Open or Glimmer) checks an object name from outside before any tool runs."""
 
     def screen(self, text: str) -> Screening: ...

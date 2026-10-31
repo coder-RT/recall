@@ -7,13 +7,11 @@ Library versions are pinned in the lockfiles (`pnpm-lock.yaml`, `uv.lock`).
 
 | What | Used for | Runs on | Terms |
 |---|---|---|---|
-| Muse Spark Open (`meta-models/muse-spark-open-1026`) | Guide agent | Baseten | TODO(verify): model licence, link |
+| Muse Spark Open (`meta-models/muse-spark-open-1026`) | Guide agent; the Home Memory agent's check on object names from other agents | Baseten | TODO(verify): model licence, link |
 | Muse Glimmer | Guide agent, local privacy mode | LM Studio on the Mac | TODO(verify): licence on the Hugging Face model card, link |
 | Muse Spark (hosted) and Muse Spark 1.1 | Guide fallback; Verifier tie-break | Meta Model API | Meta developer terms. TODO(verify): link |
 | SAM 3.1 | Objects and furniture in frames; arrival check | Meta Model API | Meta developer terms. TODO(verify): link; weights licence if self-hosted |
 | Muse Voice Transcribe (`muse-voice-transcribe-1.0`) | All speech input (app and the landing page's "Ask by voice", server route `apps/web/app/api/voice/transcribe/route.ts`; the key never reaches the browser) | Meta Model API | Meta developer terms. Audio is forwarded for transcription and not stored by Recall. |
-| Llama Prompt Guard 2 22M (`meta-llama/Llama-Prompt-Guard-2-22M`) | First screen on every message other agents send to the Home Memory agent | Mac (in the pipeline's warm server; downloaded with the owner's own Hugging Face token, not in this repo) | Llama 4 Community License (gated). Requires "Built with Llama" in the product documentation (README) and use within the [Acceptable Use Policy](https://llama.com/llama4/use-policy). Llama 4 is licensed under the Llama 4 Community License, Copyright © Meta Platforms, Inc. All Rights Reserved. |
-| Muse Spark 1.1 (Meta Model API) as a screen | Second screen: is the message only a request for an object? | Meta Model API | Meta developer terms |
 | MapAnything (`facebookresearch/map-anything` @ `3d10cf7`), weights `facebook/map-anything-apache` @ `00f9c24` | 3D reconstruction; produced the sample room in `apps/web/public/samples/demo-flat/` | Mac | Code Apache-2.0; weights Apache-2.0 (see `docs/verification.md`) |
 
 ## Our own artwork

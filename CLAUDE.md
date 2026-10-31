@@ -32,8 +32,8 @@ The full rule list, each with its source and level, is `docs/private/hackathon-r
    - Medical advice → describe Recall as independence and accessibility, never health or vision care.
 5. **No secrets in git.** `.env` is gitignored. The key list (`.env.example`) is kept locally in `docs/private/`, not committed.
 6. **Privacy.** Never commit raw walkthrough video or frames. `samples/` holds only processed, reviewed data with nothing personal.
-7. **Never invent APIs.** For Meta APIs, Muse Spark Open, Muse Glimmer, SAM 3.1, Prompt Guard, MapAnything, Baseten, Modal, Fireworks, LM Studio, R2 and ARKit, check official docs or model cards. If unverifiable, stop and ask, or leave `TODO(verify): ...` and report it.
-8. **Meta models only at runtime** (organizer ruling). Every model the product calls at runtime is a Meta model: hosted on the Meta Model API, or open weights run by us on the Mac, Modal, Fireworks or Baseten. OS and browser features that are not model calls are fine (ARKit, LiDAR, haptics, VoiceOver, AVSpeechSynthesizer, Web Speech). **No non-Meta model anywhere, and no TTS model of any kind.** Fine-tuning Meta models is allowed; any weights we present as ours must be public.
+7. **Never invent APIs.** For Meta APIs, Muse Spark Open, Muse Glimmer, SAM 3.1, MapAnything, Baseten, Modal, Fireworks, LM Studio, R2 and ARKit, check official docs or model cards. If unverifiable, stop and ask, or leave `TODO(verify): ...` and report it.
+8. **Meta models only at runtime** (organizer ruling). Every model the product calls at runtime is a Meta model: hosted on the Meta Model API, or open weights run by us on the Mac, Modal, Fireworks or Baseten. OS and browser features that are not model calls are fine (ARKit, LiDAR, haptics, VoiceOver, AVSpeechSynthesizer, Web Speech). **No non-Meta model anywhere, and no TTS model of any kind.** Which models count as Meta models follows the organizer rulings in `docs/private/hackathon-rules.md` (rule 1.2, Oct 31): check it before adding any model. Fine-tuning Meta models is allowed; any weights we present as ours must be public.
 
 ## 3. Stack
 
@@ -45,7 +45,7 @@ The full rule list, each with its source and level, is `docs/private/hackathon-r
 | Guide LLM, `LLM_PROVIDER=meta` (fallback) | Muse Spark, hosted | **Meta Model API** |
 | Verifier vision tie-break | **Muse Spark 1.1** (multimodal); may only downgrade a result to `uncertain` | Meta Model API |
 | Segmentation | **SAM 3.1** (objects **and** furniture by text prompt) | **Meta Model API** by default; optional self-hosted adapter on **Modal** for batch scan processing |
-| Prompt screening | **Llama Prompt Guard** (open weights) behind the `PromptScreener` port; every inbound A2A message is screened before any tool runs | Mac |
+| Inbound screening | **Schema validation** (one object name: letters, digits, spaces, hyphens, max 40) then **Muse Spark Open** (or Glimmer) behind the `PromptScreener` port, strict JSON verdict, fails closed; every inbound A2A request, before any tool runs. | Baseten (LM Studio for Glimmer) |
 | Speech to text | **Muse Voice Transcribe** only, using its turn detection (no Apple on-device speech recognition) | Meta Model API |
 | Speech out | **AVSpeechSynthesizer** (iOS), **Web Speech `speechSynthesis`** (web): OS features, not models | device / browser |
 | Fine-tuning (stretch only, not now) | Glimmer LoRA; the adapter is published if ever used | Modal |
@@ -106,7 +106,7 @@ domain  ←  application  ←  adapters (inbound + outbound)
 - **API `domain/ports.py`** (one repository per aggregate): `HomeRepository`, `ScanRepository`, `TrackedObjectRepository`.
 - **API `application/ports.py`** (needs of use cases): `LlmProvider`, `VisionProvider` (Muse Spark 1.1, tie-break only), `Transcriber`, `BlobStore`,
   `PipelineTrigger`, `Clock`, `Segmenter` (SAM 3.1 over HTTP on the Meta API, for the Verifier), `ArrivalVerifier`,
-  `PromptScreener` (Llama Prompt Guard, local).
+  `PromptScreener` (Muse Spark Open or Glimmer, after schema validation).
 - **Pipeline `application/ports.py`**: `Reconstructor`, `Segmenter`, `EpisodeSource` (reads from R2 or disk), `ResultSink` (posts to the API).
   **torch and local models live only in the pipeline**; the API reaches vision models over HTTP only.
 
@@ -156,7 +156,8 @@ Grounding rules (system prompt **and** enforced in code):
   It is an API use case, so its memory updates (self-healing) keep the one-writer rule. Reached through the `ArrivalVerifier`
   port: **in-process by default and in the live demo**; over **A2A** optional (`VERIFIER_TRANSPORT`).
 - **Home Memory agent** exposes read-only skills to external agents over **A2A**, off by default, never the user's live position.
-  Every inbound message passes the `PromptScreener` port (**Llama Prompt Guard**, open weights on the Mac) before any tool runs.
+  Inbound input is structured only (one object name, validated against `resources/agents/find-object.input.schema.json`; free
+  text never reaches a model or a tool), then the `PromptScreener` port (**Muse Spark Open** or Glimmer, strict JSON, fails closed).
 
 ### Room model (`pipeline/domain/room_model.py`, no Apple room scanning)
 
@@ -289,7 +290,7 @@ recall/
 │   │   │   │   └── outbound/
 │   │   │   │       ├── agents/     verifier_a2a_client.py, verifier_inprocess.py
 │   │   │   │       ├── vision/     sam31_meta_api.py, spark_vision_meta_api.py (HTTP only)
-│   │   │   │       ├── safety/     prompt_guard_local.py (Llama Prompt Guard)
+│   │   │   │       ├── safety/     meta_model_screen.py (Muse Spark Open or Glimmer, strict JSON verdict)
 │   │   │   │       ├── llm/        openai_compatible.py (+ baseten_spark_open, glimmer_hosted, lmstudio, meta configs)
 │   │   │   │       ├── replay/     recorded_llm.py, recorded_segmenter.py (make demo)
 │   │   │   │       ├── voice/      muse_transcribe.py
@@ -349,7 +350,7 @@ recall/
 
 - `demo`: replay from `samples/replay/`, no keys, output labelled as recorded. `live`: real Meta model calls with `.env`.
 - `probes`: one small real call per external model or service (Meta Model API, Baseten Spark Open, Muse Voice Transcribe, SAM 3.1,
-  Prompt Guard, R2) that prints what worked and appends the result to `docs/verification.md`; needs `.env`; never run in CI.
+  R2) that prints what worked and appends the result to `docs/verification.md`; needs `.env`; never run in CI.
 - `rerun EPISODE=<path>`: replay a stored episode into the Rerun viewer (`RERUN=1`); dev only, never needed for tests or `make demo`.
 
 ## 8. Definition of done (every task)
@@ -367,7 +368,7 @@ recall/
 | 1 Scan spike + iPhone Scan | Oct 30 to Nov 1 | Full iPhone Scan feature (plain ARKit episode capture, SpeedCoach, metrics, scan report, upload, professional UI); one room episode with ARKit inputs → plane fitting → `room.json` + 3D objects in metres | Objects within ~20 cm of reality on an ARKit-input run (**go/no-go**). Runs alongside phase 2; about 8 to 11 h of iOS work |
 | 2 Memory + agent | Oct 31 to Nov 1 | Memory, spatial relations, Guide agent (Spark Open) with tools | 30-question eval runs; answers only from tool output |
 | 3 Guidance | Nov 1 to 2 | Find, ask, live ARKit guidance, voice; Watch; **Verifier (in-process)** | Walk to an object with eyes closed; arrival confirmed on camera |
-| 4 Proof | Nov 2 to 3 | Viewer, real output on landing page, eval results, sample scan, `samples/replay/`; **A2A servers + Prompt Guard + `home_robot.py` demo** | `make demo` works without GPU or keys; verifier precision ≥ 0.9 on 20 frames |
+| 4 Proof | Nov 2 to 3 | Viewer, real output on landing page, eval results, sample scan, `samples/replay/`; **A2A servers + schema validation and Meta-model screening + `home_robot.py` demo** | `make demo` works without GPU or keys; verifier precision ≥ 0.9 on 20 frames |
 | 5 Ship | Nov 3 to 4 | README ("What runs where"), 3-minute video, X post, submission, rehearsal | Submitted before Nov 4 evening Warsaw; tag `submission` |
 
 **Schedule:** phases keep their dates; we work overtime (evenings) to finish each one on time rather than cut scope.
@@ -394,7 +395,7 @@ link in `docs/verification.md`. **Rachit**: items marked "You" need accounts or 
 | 8 | MapAnything: repo, licence, installs on macOS with Apple GPU, input size, metric scale output, **time and memory per room on M5 Pro** | ✅ | `docs/verification.md`: 63 frames → 19.6 s inference, 14.8 GB peak on MPS; images-only scale ~23 % too large (fails 20 cm), shape OK → go/no-go needs a run with ARKit inputs | VGGT; Modal; Baseten custom deployment |
 | 9 | ~~Modal credits~~ ✅ Rachit has Modal credits (2026-10-29) | You | n/a | Baseten for MapAnything |
 | 10 | R2 multipart: part size limits, presigned URL expiry, max parts | Claude Code | Cloudflare docs | Local disk + tus-style resume |
-| 10a | Llama Prompt Guard: model id, licence terms and attribution, runs on the Mac (size, latency per message) | Claude Code | Model card | Keyword screen + rate limit (no model) |
+| 10a | ✅ Inbound screening: schema validation + Muse Spark Open strict-JSON verdict on Baseten; measured in `docs/verification.md` | Claude Code | Live run | Glimmer on LM Studio |
 | 10b | **Plane fitting gives walls within 10 cm on the first real scan** (ARKit-input run) | You + Claude Code | Tape-measure two walls vs `room.json` | Floor only; walls from the occupancy grid |
 
 ### Devices
@@ -418,13 +419,13 @@ link in `docs/verification.md`. **Rachit**: items marked "You" need accounts or 
 
 | # | Check | Who | How | If it fails |
 |---|---|---|---|---|
-| 18 | Licences: Muse Spark Open, Glimmer, Muse Spark 1.1 (hosted terms), SAM 3.1, Prompt Guard, ~~MapAnything~~ (✅ code and `map-anything-apache` weights Apache-2.0), VGGT, Atkinson Hyperlegible font; new libraries before first use: rerun-sdk, Shapely, opencv-python-headless, `@react-three/drei`, `postprocessing` (~~GSAP~~ ✅ checked) | Claude Code | Model cards, licence files | Replace the component |
+| 18 | Licences: Muse Spark Open, Glimmer, Muse Spark 1.1 (hosted terms), SAM 3.1, ~~MapAnything~~ (✅ code and `map-anything-apache` weights Apache-2.0), VGGT, Atkinson Hyperlegible font; new libraries before first use: rerun-sdk, Shapely, opencv-python-headless, `@react-three/drei`, `postprocessing` (~~GSAP~~ ✅ checked) | Claude Code | Model cards, licence files | Replace the component |
 | 19 | Samples and media contain nothing personal (documents, screens, addresses, people) | You | Manual review before every commit to `samples/` or `docs/media/` | Blur or drop |
 
 ### Multi-agent and A2A
 
 See `docs/private/agents.md` section 8 (items A1 to A7): `a2a-sdk` API, Agent Card discovery path and required fields in spec 1.0,
-SAM 3.1 single-frame latency, Muse Spark 1.1 image input, mounting A2A routes in FastAPI, Prompt Guard screening.
+SAM 3.1 single-frame latency, Muse Spark 1.1 image input, mounting A2A routes in FastAPI, inbound screening.
 
 ### Tooling versions
 

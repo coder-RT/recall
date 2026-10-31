@@ -27,7 +27,6 @@ Indie track · Theme: <strong>Build for Your World</strong></p>
   <img src="https://img.shields.io/badge/Muse_Spark_Open-Meta_model-0467df?logo=meta&logoColor=white" alt="Muse Spark Open">
   <img src="https://img.shields.io/badge/Muse_Glimmer-Meta_model-0467df?logo=meta&logoColor=white" alt="Muse Glimmer">
   <img src="https://img.shields.io/badge/Muse_Voice_Transcribe-Meta_model-0467df?logo=meta&logoColor=white" alt="Muse Voice Transcribe">
-  <img src="https://img.shields.io/badge/Llama_Prompt_Guard-Meta_model-0467df?logo=meta&logoColor=white" alt="Llama Prompt Guard">
 </p>
 
 <p align="center">
@@ -100,7 +99,7 @@ The landing page. No image of anyone's home is in this repo: the 3D viewer shows
 
 - **Guide** is the only agent on the live question path. It calls four tools (`find_object`, `describe_location`, `localize`, `plan_route`) and phrases the answer. It never states a place, distance or time that no tool returned. Target: first spoken words within 2 seconds.
 - **Verifier** runs once, on arrival: one camera frame, SAM 3.1 plus the LiDAR depth, and a yes or no on whether the object is really there. Muse Spark 1.1 can only lower confidence. If the object isn't there, the memory heals itself and the Guide says when it was last seen. The Guide calls it in-process by default and in the live demo; A2A between the two is optional.
-- **Home Memory** is the house's face to other agents (a robot, a pair of glasses, another assistant) over the open A2A 1.0 protocol: read-only, off by default, never the user's live position, and every incoming message is screened by Llama Prompt Guard and Muse Spark first. Every request is in the owner's audit log.
+- **Home Memory** is the house's face to other agents (a robot, a pair of glasses, another assistant) over the open A2A 1.0 protocol: read-only, off by default, never the user's live position. It accepts only structured input (one object name, checked against a schema), and a Meta model (Muse Spark Open, or Glimmer) checks that name before any tool runs. Every request is in the owner's audit log.
 - One rule: every agent has a job no other agent does. Complexity is not the goal; the three jobs are different.
 
 ## How it works: the Meta models
@@ -116,8 +115,7 @@ The landing page. No image of anyone's home is in this repo: the 3D viewer shows
 | SAM 3.1 | Objects and furniture in every frame, by text prompt; the arrival check | Meta Model API (optional self-hosted on Modal) | `services/pipeline/.../sam31_meta_api.py`, `services/api/.../sam31_meta_api.py` |
 | MapAnything (`facebook/map-anything-apache`) | Metric 3D reconstruction from the frames, depth and poses | Mac (Apple GPU); Modal if too slow | `services/pipeline/.../mapanything_local.py` |
 | Muse Voice Transcribe | Speech to text with turn detection | Meta Model API | `services/api/.../voice/muse_transcribe.py`, `apps/web/app/api/voice/transcribe/` |
-| Llama Prompt Guard 2 22M | First screen on every message other agents send to the home memory (classic injections, about 15 ms) | Mac | `services/pipeline/.../adapters/prompt_guard.py`, called by `services/api/.../safety/prompt_guard_pipeline.py` |
-| Muse Spark 1.1 as a screen | Second screen: is the message only a request for an object? | Meta Model API | `services/api/.../safety/spark_screen_meta_api.py` |
+| Muse Spark Open (or Muse Glimmer) as a screen | Checks the object name other agents send the home memory, after the schema; strict JSON verdict, fails closed | Baseten (LM Studio for Glimmer) | `services/api/.../safety/meta_model_screen.py` |
 | Muse Spark (hosted), in the demo client | A "home robot" agent that asks Recall over A2A | Meta Model API | `examples/a2a-client/home_robot.py` |
 
 **The scan path** (minutes, in the background)
@@ -157,7 +155,7 @@ The landing page. No image of anyone's home is in this repo: the 3D viewer shows
   5. One or two short sentences: landmark first, then shelf and height, then time.
   6. At most 6 agent steps; on failure, the best grounded partial answer.
 - **The Verifier can only downgrade.** The vision model may turn a result into "uncertain"; only SAM plus geometry can confirm.
-- **Two Meta screens on the door.** Every message from an external agent passes Llama Prompt Guard (classic injections and jailbreaks) and then Muse Spark (is it only a request for an object?) before any tool runs; if neither can run, the message is refused. Measured on 28 plain requests and 24 attacks: none blocked, none let through.
+- **Two checks on the door.** Another agent can send only one object name (letters, digits, spaces and hyphens, at most 40 characters, `resources/agents/find-object.input.schema.json`); free text is refused and never reaches a model or a tool. Then Muse Spark Open (or Glimmer) must answer `{"verdict": "safe", ...}` in strict JSON; anything else, a timeout or "injection" refuses. Measured: 21 ordinary names allowed, 18 instruction-like names refused, none wrong.
 - **Privacy.** No scan of anyone's home is in the repo or on the hosted site: raw video, frames and point clouds stay on the Mac that made them, and the viewer reads your own export from a gitignored folder. Voice clips are sent for transcription and not stored. The phone holds no API keys and talks only to our backend. In local privacy mode the agent runs on the Mac. Vercel Speed Insights: cookieless page-speed measurements, no personal data.
 - **Honesty.** Sample and recorded data are labelled as such in the UI and the docs; the demo shows only what was built.
 - **Rules.** Only Meta models at runtime; no non-Meta model anywhere, and no TTS model of any kind.
@@ -230,7 +228,7 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
 - `make setup`: Python 3.12 with uv, both services, the web app.
 - `make demo`: will replay a recorded sample scan and recorded model responses from `samples/replay/`, no keys, labelled as recorded output. Not built yet: until recordings of real runs exist it says so and exits. It never uses the Home Memory agent or its screens, so it never needs a Hugging Face token.
 - `make live`: real Meta model calls with the keys from `.env`. The minimum is one Meta Model API key from [dev.meta.ai](https://dev.meta.ai) with `LLM_PROVIDER=meta`; the demo video uses Muse Spark Open on Baseten (`LLM_PROVIDER=baseten_spark_open`); the local privacy mode uses Muse Glimmer in LM Studio (`LLM_PROVIDER=lmstudio`).
-- **Home Memory agent (A2A) with `make live`:** its first screen, Llama Prompt Guard 2, is gated. Request access on the [model card](https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-22M) (Llama 4 Community License) and put a Hugging Face read token in `.env` as `HF_TOKEN`; the weights download to your Mac on first use. Without it, Muse Spark still screens every message and the log says Prompt Guard was skipped; set `PROMPT_GUARD_REQUIRED=true` to refuse every message instead.
+- **Home Memory agent (A2A) with `make live`:** its check runs on Muse Spark Open with the Baseten key (`SCREEN_PROVIDER=baseten_spark_open`, the default) or on Glimmer in LM Studio (`SCREEN_PROVIDER=lmstudio`); no other key is needed.
 - `make test`, `make lint`, `make lint-imports`: tests, ruff and ESLint, and the architecture rule (domain ← application ← adapters).
 
 ### 4. iPhone app (Watch planned, phase 3)
@@ -252,7 +250,7 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
 ### 6. Environment variables
 
 - Keys live in `.env` at the repo root, which is never committed: `META_MUSE_API_KEY` (Meta Model API), `BASETEN_API_KEY` (Muse Spark Open on Baseten) and `RECALL_DEVICE_KEY` (any long random string; the phone pairs with it).
-- `make demo` needs none. `make live` needs the Meta Model API key and, for the demo setup, the Baseten key; the Glimmer, LM Studio, A2A and R2 settings are optional. `HF_TOKEN` (with the Llama 4 Community License accepted for Prompt Guard) is needed only for the Home Memory agent's first screen.
+- `make demo` needs none. `make live` needs the Meta Model API key and, for the demo setup, the Baseten key; the Glimmer, LM Studio, A2A and R2 settings are optional.
 
 ## Not in this submission
 
@@ -289,5 +287,3 @@ Planned next, not built or not working yet (updated before submission; removed i
 ---
 
 <p align="center">Built by <a href="https://www.linkedin.com/in/rachit-thariani/">Rachit Thariani</a> · <a href="https://github.com/coder-RT">GitHub</a></p>
-
-Built with Llama: the Home Memory agent's first screen is Llama Prompt Guard 2 (Llama 4 Community License).

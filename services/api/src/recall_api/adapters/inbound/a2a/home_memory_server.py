@@ -8,7 +8,7 @@ import asyncio
 import json
 from pathlib import Path
 
-from a2a.helpers import get_data_parts, get_message_text, new_data_part, new_message, new_text_part
+from a2a.helpers import get_data_parts, new_data_part, new_message, new_text_part
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events import EventQueue
 from a2a.server.request_handlers import DefaultRequestHandler
@@ -33,11 +33,9 @@ class HomeMemoryExecutor(AgentExecutor):
         self.answer, self.home_id = answer, home_id
 
     async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
-        text = get_message_text(context.message).strip()
-        if not text:  # a data part {"object": "keys"} works too
-            data = next((d for d in get_data_parts(context.message.parts) if isinstance(d, dict)), {})
-            text = str(data.get("object") or data.get("name") or "")
-        result = await asyncio.to_thread(self.answer, self.home_id, text)
+        # structured input only: the first data part; text parts are never read (free text reaches no model or tool)
+        payload = next(iter(get_data_parts(context.message.parts)), None)
+        result = await asyncio.to_thread(self.answer, self.home_id, payload)
         parts = [new_text_part(result.text, media_type="text/plain")]
         if result.data:
             parts.append(new_data_part(result.data, media_type="application/json"))

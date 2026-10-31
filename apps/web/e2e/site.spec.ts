@@ -57,7 +57,6 @@ test("the footer links to the code and says it is not affiliated with Meta", asy
   const footer = page.locator("footer");
   await expect(footer.getByRole("link", { name: en.footer.source })).toHaveAttribute("href", site.repo);
   await expect(footer).toContainText("Not affiliated with or endorsed by Meta");
-  await expect(footer).toContainText("Built with Llama"); // Llama 4 Community License: Prompt Guard 2
   // 2009 layout: copyright left, links right, the author's profiles after the separator
   await expect(footer).toContainText(`${site.name} © 2026`);
   await expect(footer).toContainText(`Built by ${site.author.name}`);

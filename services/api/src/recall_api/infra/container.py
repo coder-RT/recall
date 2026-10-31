@@ -15,9 +15,7 @@ from recall_api.adapters.outbound.persistence.sqlite import (
     SqliteOwnerSettings,
     SqliteScans,
 )
-from recall_api.adapters.outbound.safety.fallback import Layered
-from recall_api.adapters.outbound.safety.prompt_guard_pipeline import PromptGuardViaPipeline
-from recall_api.adapters.outbound.safety.spark_screen_meta_api import SparkScreener
+from recall_api.adapters.outbound.safety.meta_model_screen import MetaModelScreener
 from recall_api.adapters.outbound.storage.local_disk import LocalDiskBlobStore
 from recall_api.adapters.outbound.storage.zip_unpacker import ZipEpisodeUnpacker
 from recall_api.adapters.outbound.vision.sam31_meta_api import Sam31MetaApi
@@ -103,13 +101,14 @@ class Container:
         )
 
     @cached_property
-    def screener(self) -> Layered:
-        """Llama Prompt Guard, then Muse Spark: each one that can run must pass; none can run: refuse."""
-        key = self.settings.device_key.get_secret_value() if self.settings.device_key else None
-        screens = [PromptGuardViaPipeline(self.settings.pipeline_server, key)]
-        if self.settings.meta_muse_api_key is not None:
-            screens.append(SparkScreener(self.settings.meta_muse_api_key.get_secret_value()))
-        return Layered(*screens, required=("prompt-guard",) if self.settings.prompt_guard_required else ())
+    def screener(self) -> MetaModelScreener:
+        """The Meta-model check after the schema: Muse Spark Open on Baseten, or Glimmer on LM Studio."""
+        s = self.settings
+        if s.screen_provider == "lmstudio":
+            return MetaModelScreener(s.lmstudio_base_url, None, s.lmstudio_model or "", "glimmer")
+        key = s.baseten_api_key.get_secret_value() if s.baseten_api_key else None
+        return MetaModelScreener(s.baseten_base_url or "https://inference.baseten.co/v1", key, s.baseten_model,
+                                 "muse-spark-open")  # fmt: skip
 
     @cached_property
     def answer_external_query(self) -> AnswerExternalQuery:

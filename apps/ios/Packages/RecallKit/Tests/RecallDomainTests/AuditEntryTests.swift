@@ -16,8 +16,12 @@ struct AuditEntryTests {
         #expect(entry("home_memory.query", "robot", "ok", ["asked": "keys", "found": "true"]).summary == "A robot asked for keys: answered")
         #expect(entry("home_memory.query", "robot", "ok", ["asked": "passport", "found": "false"]).summary
                 == "A robot asked for passport: not found")
-        #expect(entry("home_memory.query", "robot", "refused", ["screen": "attack"]).summary
-                == "A robot sent a message that looked like an attack: refused")
+        #expect(entry("home_memory.query", "robot", "refused", ["screen": "injection"]).summary
+                == "A robot sent a name that looked like an instruction: refused")
+        #expect(entry("home_memory.query", "robot", "refused", ["screen": "structure"]).summary
+                == "A robot sent something other than an object name: refused")
+        #expect(entry("home_memory.query", "robot", "refused", ["screen": "unavailable"]).summary
+                == "A robot asked, but the safety check couldn't run: refused")
         #expect(entry("auth.refused", "unknown", "refused", ["why": "wrong key", "path": "/a2a/home-memory"]).summary
                 == "Refused: wrong key (/a2a/home-memory)")
     }

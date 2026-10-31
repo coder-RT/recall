@@ -31,8 +31,12 @@ public struct AuditEntry: Sendable, Equatable, Identifiable {
             return actor == "owner" ? "You exported the robot map" : "A robot read the map of \(detail["room"] ?? "the room")"
         case "home_memory.query":
             if refused {
-                return detail["screen"] == "attack" ? "\(who) sent a message that looked like an attack: refused"
-                    : "\(who) asked while robot access was off: refused"
+                switch detail["screen"] {
+                case "structure": return "\(who) sent something other than an object name: refused"
+                case "injection": return "\(who) sent a name that looked like an instruction: refused"
+                case "invalid", "unavailable": return "\(who) asked, but the safety check couldn't run: refused"
+                default: return "\(who) asked while robot access was off: refused"
+                }
             }
             let what = detail["asked"] ?? "something"
             return detail["found"] == "true" ? "\(who) asked for \(what): answered" : "\(who) asked for \(what): not found"

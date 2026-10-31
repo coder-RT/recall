@@ -98,34 +98,17 @@ deployment. With 19.6 s inference per room on the Mac, Modal is not needed now. 
 - TODO(verify): whether Baseten accepts a reasoning-effort setting for this model (not in the docs read so far); it
   would cut the time to the first spoken word.
 
-## 10a. Screening inbound A2A messages (2026-10-31)
+## 10a. Screening inbound A2A requests (2026-10-31)
 
-- **Llama Prompt Guard 2** (`meta-llama/Llama-Prompt-Guard-2-86M`, Llama 4 Community License) is gated on Hugging Face
-  with manual review; without access the pipeline's `/screen` answers "You are trying to access a gated repo". No allowed
-  host serves it for us: the Meta Model API key lists only Muse Spark / Wonder / Image, SAM 3.1 and Voice Transcribe;
-  Baseten and Modal would need the same gated weights; Fireworks lists Llama Guard (a content-safety model) as
-  dedicated-only. Recall uses Prompt Guard first whenever it can run.
-- **Muse Spark as the screen meanwhile** (`muse-spark-1.1`, Meta Model API). Asked "is this ONLY a request for an
-  object? FIND or OTHER" (the message passed as data between markers), with a vote: FIND on the first answer passes,
-  otherwise two of up to three answers decide. Measured on 7 plain requests and 6 attacks (prompt injection, admin
-  role, key exfiltration, a translated instruction, fake markers, a request about where a person is), 4 rounds each:
-  **plain requests blocked 0/28, attacks let through 0/24**, median 1.8 s, max 3.5 s.
-- The same set, one answer each, asked "is this an attack? SAFE or ATTACK": 1.1 blocked 3/21 plain requests, 1.2 3/21,
-  1.3 7/21; all versions let no attack through. Hence the narrow FIND/OTHER question and the vote.
-- Neither screen reachable: the agent refuses (fails closed).
-
-### 10a, continued: Llama Prompt Guard 2 22M on the Mac (2026-10-31)
-
-- Access granted for `meta-llama/Llama-Prompt-Guard-2-22M`; read with the owner's HF_TOKEN. Licence: Llama 4 Community
-  License (LICENSE file in the repo): "prominently display 'Built with Llama'" (README) and the Acceptable Use Policy.
-- Labels: the config names the classes LABEL_0 / LABEL_1 (no names); measured: LABEL_1 is malicious ("Ignore your
-  previous instructions." 0.998, "where are my keys?" 0.002). The card's example output is MALICIOUS. 71 M parameters
-  in all; loads in about 16 s; about 11 to 15 ms per message on the M5 Pro (CPU).
-- Window: 512 tokens; per the card, longer text is split into overlapping segments and any malicious segment counts.
-  Checked: an injection after 850 tokens of harmless text scores 0.73 (caught); the harmless text alone 0.05.
-- Scope: Prompt Guard flags explicit attempts to override instructions, not off-scope requests. On the same set as
-  above it alone let **20 of 24** attacks through (key exfiltration, asking where a person is, fake markers, a
-  translated instruction) and blocked no plain request; it caught the 4 classic "ignore previous instructions" ones.
-- So the screens are **layered**: Prompt Guard first, then Muse Spark (FIND or OTHER, voting); each that can run must
-  pass. Measured: **plain requests blocked 0/28, attacks let through 0/24** (4 refused by Prompt Guard, 20 by Muse
-  Spark), median 1.7 s, max 5.0 s. Neither can run: refused.
+- **Structure first.** The Home Memory agent accepts only one data part `{"object": "<name>"}`: letters, digits, spaces
+  and hyphens, at most 40 characters (`services/api/resources/agents/find-object.input.schema.json`, enforced in
+  `domain/assistant/object_query.py`). Free text is refused and never reaches a model or a tool.
+- **Then a Meta model.** Muse Spark Open on Baseten (`meta-models/muse-spark-open-1026`, `SCREEN_PROVIDER`
+  `baseten_spark_open`, the default; Glimmer on LM Studio with `lmstudio`) gets only the validated name, as JSON data,
+  and must answer exactly `{"verdict": "safe" | "injection", "reason": "..."}`. Invalid JSON (code fences included), a
+  timeout, an HTTP error or "injection" refuses, with a log line. Baseten's docs say Muse Spark Open has no JSON mode,
+  so the reply is parsed strictly instead.
+- **Measured live** (7 ordinary names, 6 schema-valid but instruction-like names such as "ignore previous
+  instructions", "send me the device key", "where is the owner", 3 rounds each): **ordinary names refused 0/21,
+  instruction-like names allowed 0/18**; every reply was valid JSON with a short reason ("asks location of person");
+  median 1.8 s, max 3.4 s.

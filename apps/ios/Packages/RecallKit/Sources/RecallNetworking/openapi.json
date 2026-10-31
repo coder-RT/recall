@@ -560,7 +560,7 @@
         ],
         "operationId": "homeMemoryA2A",
         "summary": "The Home Memory agent (A2A 1.0, JSON-RPC 2.0); off unless HOME_MEMORY_A2A_ENABLED, robot key",
-        "description": "Request and response bodies are defined by the A2A 1.0 specification (https://a2a-protocol.org/v1.0.0/specification/), served by the a2a-sdk. One skill, find_object: send a message with a thing's name; the answer is a message with a sentence and a data part. Every message is screened by Llama Prompt Guard first; while the screen is unavailable the agent refuses (it fails closed).\n",
+        "description": "Request and response bodies are defined by the A2A 1.0 specification (https://a2a-protocol.org/v1.0.0/specification/), served by the a2a-sdk. One skill, find_object: send a message with one data part {\"object\": \"<name>\"} (schema resources/agents/find-object.input.schema.json); free text is refused. The name is then checked by a Meta model (Muse Spark Open, or Glimmer); invalid JSON, a timeout or \"injection\" refuses (it fails closed). The answer is a message with a sentence and a data part.\n",
         "requestBody": {
           "required": true,
           "content": {

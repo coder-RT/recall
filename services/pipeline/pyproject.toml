@@ -15,7 +15,6 @@ dependencies = [
   "opencv-python-headless>=4.10",
   "torch>=2.5",
   "mapanything @ git+https://github.com/facebookresearch/map-anything@3d10cf7",
-  "transformers>=4.46",
 ]
 
 [project.scripts]

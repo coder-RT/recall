@@ -63,7 +63,7 @@ def _client(tmp_path):
     app = create_app(s)
     c = app.state.container
     c.__dict__["export_for_robot"] = _exporter(tmp_path)[0]
-    ask, _ = agent(Screening(True, "ok", by="muse-spark"))
+    ask, _ = agent(Screening(True, "ok", by="muse-spark-open"))
     ask.audit = c.auditor
     c.__dict__["answer_external_query"] = ask
     return TestClient(app), c
@@ -75,7 +75,7 @@ def test_the_actions_that_matter_are_recorded_by_who_did_them(tmp_path):
     client.put("/sharing", json={"robot_access": True}, headers=OWNER)
     client.get("/homes/flat/robot-export", headers=ROBOT)
     client.get("/homes/flat/robot-export", headers={"Authorization": "Bearer guess-1234"})
-    c.answer_external_query("flat", "where are my keys?")
+    c.answer_external_query("flat", {"object": "keys"})
     events = client.get("/audit", headers=OWNER).json()
     got = [(e["action"], e["actor"], e["outcome"]) for e in reversed(events)]
     assert got == [
@@ -86,7 +86,7 @@ def test_the_actions_that_matter_are_recorded_by_who_did_them(tmp_path):
         ("home_memory.query", "robot", "ok"),
     ]
     query = events[0]
-    assert query["detail"]["screened_by"] == "muse-spark" and query["detail"]["asked"] == "keys"
+    assert query["detail"]["screened_by"] == "muse-spark-open" and query["detail"]["asked"] == "keys"
     assert query["detail"]["found"] is True and query["target_type"] == "object"
     assert all(e["request_id"] for e in events[1:])  # the HTTP ones carry the request id
     assert "guess-1234" not in str(events)  # a wrong key is never stored

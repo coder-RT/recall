@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 RUNS = ROOT / "data" / "test-runs"
 SIM = os.environ.get("IOS_SIMULATOR", "6B268129-3A24-4646-BC3B-85D6D308C694")
 IOS = ROOT / "apps" / "ios"
+WATCH_SIM = os.environ.get("WATCH_SIMULATOR", "259C80D4-4128-41F3-8E00-3F6FAE56C600")  # Apple Watch Ultra 4
 XCODE_FLAGS = ["-destination", f"id={SIM}", "-skipPackagePluginValidation", "-skipMacroValidation"]
 
 # name -> (working directory, command, how to read the counts)
@@ -34,6 +35,9 @@ SUITES: dict[str, tuple[Path, list[str], str]] = {
     "ios-unit": (IOS / "Packages/RecallKit", ["xcodebuild", "test", "-scheme", "RecallKit-Package", *XCODE_FLAGS],
                  "swift-testing"),
     "ios-ui": (IOS, ["xcodebuild", "test", "-project", "Recall.xcodeproj", "-scheme", "Recall", *XCODE_FLAGS], "xctest"),
+    "watch-build": (IOS, ["xcodebuild", "build", "-project", "Recall.xcodeproj", "-scheme", "RecallWatch", "-destination",
+                          f"platform=watchOS Simulator,id={WATCH_SIM}", "-skipPackagePluginValidation",
+                          "-skipMacroValidation"], "build"),
 }  # fmt: skip
 XCODE_DONE = re.compile(r"\*\* (TEST SUCCEEDED|TEST FAILED|BUILD FAILED) \*\*")
 

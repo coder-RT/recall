@@ -13,6 +13,11 @@ public protocol HomeMemory: Sendable {
 }
 
 /// Each room's map, with the things in it, for the owner's own screens (not recorded as a robot export).
+/// Directions by compass for the Watch, from where the room's scan began (the Mac plans them).
+public protocol CompassRoutes: Sendable {
+    func compassRoute(home: String, thing: String) async throws -> CompassRoute
+}
+
 /// The owner's trust level, kept on the Mac.
 public protocol TrustSettings: Sendable {
     func trustLevel() async throws -> TrustLevel

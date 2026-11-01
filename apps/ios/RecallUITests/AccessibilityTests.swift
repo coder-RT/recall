@@ -196,11 +196,11 @@ final class AccessibilityTests: XCTestCase {
         // swipe the cards: the icon row follows
         card("glasses").swipeRight()
         XCTAssertTrue(app.buttons["Apple Watch Ultra 4"].wait(for: \.isSelected, toEqual: true, timeout: 3))
-        XCTAssertTrue(card("watch").label.hasPrefix("Apple Watch Ultra 4. Coming next."), card("watch").label)
+        XCTAssertTrue(card("watch").label.hasPrefix("Apple Watch Ultra 4. Preview."), card("watch").label)
         shot("ios-devices")
         try auditBothEnds(app)
         for _ in 0..<5 { app.swipeUp() }  // the very end: the buttons and the honest footnote
-        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'Only the iPhone app works today'"))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'The iPhone app works today'"))
             .firstMatch.exists)
         shot("ios-devices-end")
         try audit(app, edgesRechecked: true)

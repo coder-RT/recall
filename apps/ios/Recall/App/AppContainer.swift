@@ -32,6 +32,7 @@ final class AppContainer {
     let scans: ScansModel
     let roomMaps: RoomMapsModel
     let trust: TrustModel
+    private var watch: WatchRelay?
 
     init() {
         let store: any ConnectionStore = UITestSamples.enabled ? UITestSamples.Connections() : DefaultsConnectionStore()
@@ -45,6 +46,13 @@ final class AppContainer {
                            processing: server, settings: settings, things: things, speech: speech, clock: clock)
         roomMaps = RoomMapsModel(source: UITestSamples.enabled ? UITestSamples.Maps() : server, settings: settings)
         trust = TrustModel(source: UITestSamples.enabled ? UITestSamples.Trust() : server)
+        if !UITestSamples.enabled {
+            // the Watch asks through the phone: the same connection, key and trust level as Find
+            let settings = settings
+            watch = WatchRelay(answer: AnswerWatch(memory: server, guide: server, transcriber: server, routes: server),
+                               home: { await MainActor.run { settings.connection.homeId } })
+            watch?.start()
+        }
         if UITestSamples.logSpeech {
             speech.onSay = { line in UITestSamples.SpokenLog.shared.lines.append(line) }
         }
@@ -116,7 +124,7 @@ struct SystemClock: Clock {
 /// The Mac, as every Mac-facing port, reached with the current connection settings. Changing Settings swaps the
 /// client underneath; a call made before setup throws the setup issue, in words.
 final class LiveServer: HomeMemory, GuideService, Transcriber, ScanProcessing, ConnectionCheck, ScanServer, RobotSharing,
-    RoomMaps, RobotPackages, TrustSettings, PrivacySource, EvidenceSource, @unchecked Sendable {
+    RoomMaps, RobotPackages, CompassRoutes, TrustSettings, PrivacySource, EvidenceSource, @unchecked Sendable {
     private let lock = NSLock()
     private var api: RecallAPI?
     private var issue: SetupIssue = .nothingSet
@@ -155,6 +163,9 @@ final class LiveServer: HomeMemory, GuideService, Transcriber, ScanProcessing, C
     }
     func robotPackage(home: String, room: String?) async throws -> Data {
         try await current().robotPackage(home: home, room: room)
+    }
+    func compassRoute(home: String, thing: String) async throws -> CompassRoute {
+        try await current().compassRoute(home: home, thing: thing)
     }
     func trustLevel() async throws -> TrustLevel { try await current().trustLevel() }
     func setTrustLevel(_ level: TrustLevel) async throws -> TrustLevel { try await current().setTrustLevel(level) }

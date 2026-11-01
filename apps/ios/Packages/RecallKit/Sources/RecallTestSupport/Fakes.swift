@@ -285,3 +285,27 @@ public final class FakeRoomMaps: RoomMaps, @unchecked Sendable {
         return map
     }
 }
+
+/// Hears what it's told to: `text` (or throws `error`).
+public final class FakeWords: Transcriber, @unchecked Sendable {
+    public var text: String
+    public var error: Error?
+    public init(_ text: String = "where are my keys", error: Error? = nil) { self.text = text; self.error = error }
+    public func transcribe(wav: Data) async throws -> String {
+        if let error { throw error }
+        return text
+    }
+}
+
+/// A one-leg route to whatever is asked for (or throws `error`).
+public final class FakeCompassRoutes: CompassRoutes, @unchecked Sendable {
+    public var error: Error?
+    public private(set) var asked: [String] = []
+    public init(error: Error? = nil) { self.error = error }
+    public func compassRoute(home: String, thing: String) async throws -> CompassRoute {
+        asked.append(thing)
+        if let error { throw error }
+        return CompassRoute(thingId: thing, label: "keys", color: "red", start: "where you started the scan of Living room",
+                            place: "on the desk, at waist height", legs: [CompassLeg(bearing: 90, metres: 3)])
+    }
+}

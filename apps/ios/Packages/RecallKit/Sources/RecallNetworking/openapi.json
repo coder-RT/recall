@@ -975,6 +975,42 @@
         }
       }
     },
+    "/homes/{home_id}/objects/{object_id}/compass-route": {
+      "get": {
+        "tags": [
+          "guidance"
+        ],
+        "operationId": "getCompassRoute",
+        "summary": "Directions to a thing by compass bearing and metres, from where the room's scan began (for the Watch)",
+        "description": "For walking without the phone's camera: the route starts where the scan of the thing's room began (usually the doorway) and is given as legs of a magnetic compass bearing and a distance, using the north the phone measured while scanning. 409 no_compass when that scan had no reliable compass; 409 no_path when no route is wide enough for a person.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/home_id"
+          },
+          {
+            "$ref": "#/components/parameters/object_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The route",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompassRoute"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
     "/ask": {
       "post": {
         "tags": [
@@ -2770,6 +2806,63 @@
           },
           "room_model": {
             "$ref": "#/components/schemas/RoomModel"
+          }
+        }
+      },
+      "CompassRoute": {
+        "type": "object",
+        "description": "A walk to a thing from where its room's scan began, as compass legs (for a watch with no camera)",
+        "required": [
+          "object_id",
+          "label",
+          "start",
+          "place",
+          "legs"
+        ],
+        "properties": {
+          "object_id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string",
+            "description": "e.g. keys"
+          },
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "start": {
+            "type": "string",
+            "description": "Where to stand first, in words, e.g. where you started the scan of Living room"
+          },
+          "place": {
+            "type": "string",
+            "description": "Where the thing is, in words, e.g. near the desk, at knee height"
+          },
+          "legs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "bearing_deg",
+                "metres"
+              ],
+              "properties": {
+                "bearing_deg": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 360,
+                  "description": "Magnetic bearing, clockwise from north"
+                },
+                "metres": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              }
+            }
           }
         }
       },

@@ -347,6 +347,36 @@ extension RecallAPI: EvidenceSource {
     }
 }
 
+// MARK: CompassRoutes
+
+extension RecallAPI: CompassRoutes {
+    public func compassRoute(home: String, thing: String) async throws -> CompassRoute {
+        let req = request("homes/\(home)/objects/\(thing)/compass-route", method: "GET", contentType: "application/json",
+                          body: Data())
+        let (data, response) = try await URLSession.shared.data(for: req)
+        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+        guard code == 200 else {
+            // the Mac's reason, in words ("This room was scanned without a reliable compass; scan it again.")
+            let detail = (json["detail"] as? [String: Any])?["detail"] as? String ?? json["detail"] as? String
+            throw detail.map { RecallError.server($0) } ?? RecallError.status(code)
+        }
+        return try Self.compassRoute(json)
+    }
+
+    static func compassRoute(_ j: [String: Any]) throws -> CompassRoute {
+        guard let id = j["object_id"] as? String, let label = j["label"] as? String, let start = j["start"] as? String,
+              let place = j["place"] as? String, let legs = j["legs"] as? [[String: Any]] else {
+            throw RecallError.server("The Mac sent a route this app can't read. Update the app.")
+        }
+        return CompassRoute(thingId: id, label: label, color: j["color"] as? String, start: start, place: place,
+                            legs: legs.compactMap { leg in
+                                guard let b = leg["bearing_deg"] as? Double, let m = leg["metres"] as? Double else { return nil }
+                                return CompassLeg(bearing: b, metres: m)
+                            })
+    }
+}
+
 // MARK: RobotPackages
 
 extension RecallAPI: RobotPackages {

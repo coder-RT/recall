@@ -1,7 +1,7 @@
 import RecallDesign
 import SwiftUI
 
-/// Where Recall runs: the iPhone today; the Apple Watch and Meta's AI glasses next. Every card says plainly whether it
+/// Where Recall runs: the iPhone today; the Apple Watch and robots in preview; Meta's AI glasses planned. Every card says plainly whether it
 /// works yet (a word and an icon, never colour alone), so nothing planned reads as finished. No other company's logos,
 /// only their product names.
 struct DevicesView: View {
@@ -43,7 +43,7 @@ struct DevicesView: View {
                                 .buttonStyle(SolidPillStyle(fill: Tokens.card, text: Tokens.accent, edge: Tokens.line))
                                 .accessibilityHint("Opens Scans, to record a room.")
                         }
-                        Text("Only the iPhone app works today; the Watch and glasses are being built, and robots can use the shared map in a preview. Recall is an independent project, not affiliated with Apple or Meta.")
+                        Text("The iPhone app works today; the Watch and robots are in preview, and the glasses are planned. Recall is an independent project, not affiliated with Apple or Meta.")
                             .font(.footnote).foregroundStyle(Tokens.muted)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -184,11 +184,11 @@ struct Device: Identifiable {
                points: ["Scan a room with LiDAR, led step by step by voice",
                         "Ask out loud; hear clock-face turns with compass points",
                         "A blue arrow over the thing on the camera, for a helper"]),
-        Device(id: "watch", name: "Apple Watch Ultra 4", short: "Watch", systemImage: "applewatch", status: .next,
+        Device(id: "watch", name: "Apple Watch Ultra 4", short: "Watch", systemImage: "applewatch", status: .preview,
                pitch: "Directions you can feel, with the phone in your pocket.",
-               points: ["A tap on the wrist for each turn, a buzz when you arrive",
-                        "Ask from your wrist and hear the answer",
-                        "Hands free for a cane or a guide dog"]),
+               points: ["Say what to find, or turn the crown to pick it",
+                        "A tap on the wrist for each turn, a click each metre, a buzz when you arrive",
+                        "Walks by its compass from where the room's scan began"]),
         Device(id: "glasses", name: "Meta AI glasses", short: "Glasses", systemImage: "eyeglasses", status: .planned,
                pitch: "Ask hands-free and be guided by what the glasses see.",
                points: ["Ask through the glasses; hear the answer in their speakers",

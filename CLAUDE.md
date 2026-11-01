@@ -154,7 +154,7 @@ Grounding rules (system prompt **and** enforced in code):
 - **Guide** (above) is the lead agent and the only one on the live question path.
 - **Verifier** confirms arrival from one camera frame: SAM 3.1 + geometry decide; **Muse Spark 1.1** (hosted, multimodal) is asked only as a tie-break and may only downgrade to `uncertain`, never confirm.
   It is an API use case, so its memory updates (self-healing) keep the one-writer rule. Reached through the `ArrivalVerifier`
-  port: **in-process by default and in the live demo**; over **A2A** optional (`VERIFIER_TRANSPORT`).
+  port: **in-process** (`VERIFIER_TRANSPORT=inprocess`, the only transport built; A2A for the Verifier is optional and not built).
 - **Home Memory agent** exposes read-only skills to external agents over **A2A**, off by default, never the user's live position.
   Inbound input is structured only (one object name, validated against `resources/agents/find-object.input.schema.json`; free
   text never reaches a model or a tool), then the `PromptScreener` port (**Muse Spark Open** or Glimmer, strict JSON, fails closed).
@@ -172,7 +172,9 @@ models are banned):
    into 3D per frame, then **`cluster_dbscan` per label** merges the sightings, so one mug seen in 30 frames becomes one object with
    one centroid and one confidence.
 4. **2D geometry (Shapely):** floor outline polygon, wall segments and furniture footprints, used for `room.json` and the occupancy grid.
-5. **Later scans:** global registration (FPFH + RANSAC) then ICP into the first scan's frame, with Open3D, never hand-rolled.
+5. **Later scans:** the phone relocalises against the room's saved ARWorldMap (ARKit, not a model), so a rescan's poses are
+   already in the first scan's frame (`aligned_to`); if it doesn't relocalise, memory starts fresh and says so. Point-cloud
+   registration (Open3D FPFH + ICP) is **not built** (ADR-037); never hand-roll it.
    Umeyama stays for ARKit ↔ MapAnything poses.
 
 Result: `room.json` = floor polygon, wall segments, furniture boxes, validated against `schemas/RoomModel.yaml`; written by
@@ -207,7 +209,7 @@ feeds it the ARKit intrinsics, poses and LiDAR depth. Its output is then already
 - If any view has a pose, the first view must too.
 - **Umeyama** similarity transform (ARKit vs MapAnything camera centres) is the **check and fallback**: it measures drift,
   and aligns an images-only run if ARKit inputs are missing.
-- Later scans align to the first with Open3D (global registration, then ICP).
+- Later scans share the first scan's frame through ARWorldMap relocalisation (FPFH + ICP not built, ADR-037).
 
 ## 5. Scan episodes and upload
 
@@ -286,9 +288,9 @@ recall/
 │   │   │   │   └── tools.py        tool registry, validated against resources/tools.json
 │   │   │   ├── adapters/
 │   │   │   │   ├── inbound/http/   FastAPI routers: mapping only, no logic
-│   │   │   │   ├── inbound/a2a/    verifier_server.py, home_memory_server.py
+│   │   │   │   ├── inbound/a2a/    home_memory_server.py
 │   │   │   │   └── outbound/
-│   │   │   │       ├── agents/     verifier_a2a_client.py, verifier_inprocess.py
+│   │   │   │       ├── agents/     verifier_inprocess.py (ArrivalVerifier)
 │   │   │   │       ├── vision/     sam31_meta_api.py, spark_vision_meta_api.py (HTTP only)
 │   │   │   │       ├── safety/     meta_model_screen.py (Muse Spark Open or Glimmer, strict JSON verdict)
 │   │   │   │       ├── llm/        openai_compatible.py (+ baseten_spark_open, glimmer_hosted, lmstudio, meta configs)
@@ -308,7 +310,7 @@ recall/
 │       └── src/recall_pipeline/
 │           ├── domain/             Episode, Frame, Pose, arkit_to_opencv(), align.py (Umeyama check/fallback), room_model.py (planes, Shapely 2D geometry), merge.py (per-label clustering), blur.py
 │           ├── application/        process_episode.py, ports.py (Reconstructor, Segmenter, EpisodeSource, ResultSink)
-│           └── adapters/           mapanything_local.py, mapanything_remote.py, sam31_meta_api.py, sam31_modal.py (optional), open3d_geometry.py (clean-up, segment_plane, DBSCAN, FPFH+ICP), rerun_log.py, storage, api_client.py
+│           └── adapters/           mapanything_local.py, mapanything_remote.py, sam31_meta_api.py, sam31_modal.py (optional), open3d_geometry.py (clean-up, segment_plane, DBSCAN), rerun_log.py, storage, api_client.py
 ├── deploy/
 │   ├── baseten/README.md           Spark Open: hosted endpoint, key only
 │   ├── modal/glimmer/              Glimmer serving (TODO(verify) Modal API); fireworks/ alternative
@@ -321,7 +323,7 @@ recall/
 │   ├── run.py
 │   ├── verifier.yaml               20 arrival frames: 10 right spot, 10 wrong spot
 │   └── results.md                  dated accuracy table
-├── examples/a2a-client/home_robot.py  external agent asking Recall over A2A (Muse Spark)
+├── examples/ros2-robot/            a ROS 2 robot loading Recall's export (GET /homes/{id}/robot-package)
 ├── samples/replay/                 recorded scan + recorded model responses for `make demo` (labelled as recorded)
 └── docs/                           (docs/private/ is gitignored: planning docs, ADRs, progress notes, the key list)
     ├── architecture.md             hexagon diagram + both paths (mermaid)
@@ -370,7 +372,7 @@ recall/
 | 1 Scan spike + iPhone Scan | Oct 30 to Nov 1 | Full iPhone Scan feature (plain ARKit episode capture, SpeedCoach, metrics, scan report, upload, professional UI); one room episode with ARKit inputs → plane fitting → `room.json` + 3D objects in metres | Objects within ~20 cm of reality on an ARKit-input run (**go/no-go**). Runs alongside phase 2; about 8 to 11 h of iOS work |
 | 2 Memory + agent | Oct 31 to Nov 1 | Memory, spatial relations, Guide agent (Spark Open) with tools | 30-question eval runs; answers only from tool output |
 | 3 Guidance | Nov 1 to 2 | Find, ask, live ARKit guidance, voice; Watch; **Verifier (in-process)** | Walk to an object with eyes closed; arrival confirmed on camera |
-| 4 Proof | Nov 2 to 3 | Viewer, real output on landing page, eval results, sample scan, `samples/replay/`; **A2A servers + schema validation and Meta-model screening + `home_robot.py` demo** | `make demo` works without GPU or keys; verifier precision ≥ 0.9 on 20 frames |
+| 4 Proof | Nov 2 to 3 | Viewer, real output on landing page, eval results, sample scan, `samples/replay/`; **A2A Home Memory server + schema validation and Meta-model screening + robot export demo** | `make demo` works without GPU or keys; verifier precision ≥ 0.9 on 20 frames |
 | 5 Ship | Nov 3 to 4 | README ("What runs where"), 3-minute video, X post, submission, rehearsal | Submitted before Nov 4 evening Warsaw; tag `submission` |
 
 **Schedule:** phases keep their dates; we work overtime (evenings) to finish each one on time rather than cut scope.

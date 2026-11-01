@@ -308,6 +308,7 @@ final class AccessibilityTests: XCTestCase {
         q.typeText("Where are my keys?")
         app.buttons["Ask"].tap()
         XCTAssertTrue(app.buttons["Why?"].waitForExistence(timeout: 5))
+        shot("ios-find-answer")
         app.buttons["Why?"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["sighting-ob1"].waitForExistence(timeout: 5))
         shot("ios-evidence")

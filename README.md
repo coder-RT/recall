@@ -4,8 +4,12 @@
 
 <h1 align="center">RECALL</h1>
 
-<p align="center"><strong>Recall remembers where you put things, and walks you back to them.</strong><br>
-<em>“Where did I put my keys?”</em></p>
+<p align="center"><strong>Recall remembers where you put things, and walks you back to them.</strong></p>
+
+<p align="center"><em>“Where did I put my keys?”</em> · <em>“Have you seen my reading glasses?”</em><br>
+<em>“Where's my grey bag?”</em> · <em>“Why do you think so?”</em></p>
+
+<p align="center">…then tap <strong>Take me there</strong>, and the camera checks it's really there when you arrive.</p>
 
 <p align="center"><strong>Built during the Meta Global AI Developer Hackathon, Oct 26 to Nov 4, 2026. Pre-existing work: none.</strong><br>
 Indie track · Theme: <strong>Build for Your World</strong></p>
@@ -30,39 +34,52 @@ Indie track · Theme: <strong>Build for Your World</strong></p>
 </p>
 
 <p align="center">
-  <a href="#how-to-run-it">Run it</a> ·
-  <a href="#how-it-works-the-meta-models">How it works</a> ·
+  <a href="#3-backend-pipeline-and-demo">Try it (no keys)</a> ·
+  <a href="#architecture-in-brief">Architecture</a> ·
+  <a href="#api">API</a> ·
+  <a href="docs/privacy.md">Privacy</a> ·
   <a href="#results-so-far">Results</a> ·
   <a href="https://www.linkedin.com/in/rachit-thariani/">LinkedIn</a> ·
   <a href="https://github.com/coder-RT">GitHub</a>
 </p>
 
-> Status: in progress during the hackathon. This README is updated as each part starts working; anything not yet
-> working is listed under [Not in this submission](#not-in-this-submission).
+> What isn't finished yet is listed under [Not in this submission](#not-in-this-submission).
 
 ---
 
 ## Contents
 
 1. [What it is](#what-it-is)
-2. [Why I built it](#why-i-built-it)
-3. [Recall's three agents](#recalls-three-agents)
-4. [Sharing with robots](#sharing-with-robots)
-5. [How it works: the Meta models](#how-it-works-the-meta-models)
-6. [Guardrails](#guardrails)
-7. [Algorithms](#algorithms)
-8. [Results so far](#results-so-far)
-9. [How to run it](#how-to-run-it)
-10. [Not in this submission](#not-in-this-submission)
-11. [Contributing](#contributing)
-12. [Built during the hackathon](#built-during-the-hackathon)
-13. [Licence](#licence)
+2. [What's in this repo](#whats-in-this-repo)
+3. [Why I built it](#why-i-built-it)
+4. [Recall's three agents](#recalls-three-agents)
+5. [Sharing with robots](#sharing-with-robots)
+6. [How it works: the Meta models](#how-it-works-the-meta-models)
+7. [Architecture in brief](#architecture-in-brief)
+8. [API](#api)
+9. [Guardrails](#guardrails)
+10. [Algorithms](#algorithms)
+11. [Results so far](#results-so-far)
+12. [How to run it](#how-to-run-it)
+13. [Not in this submission](#not-in-this-submission)
+14. [Contributing](#contributing)
+15. [Built during the hackathon](#built-during-the-hackathon)
+16. [Licence](#licence)
 
 ## Screenshots
 
-The landing page. No image of anyone's home is in this repo: the 3D viewer shows only a room you scan yourself.
+No image of anyone's home is in this repo: the 3D viewer shows only a room you scan yourself.
 
 ![The landing page hero](docs/media/hero.png)
+
+The iPhone app, shown with sample data, not a real home:
+
+<p align="center">
+  <img src="docs/media/app-find.png" width="200" alt="Find: the question 'Where are my keys?' and the answer 'Your keys are near the desk in the Living room, at waist height', with Take me there and Why? buttons">
+  <img src="docs/media/app-why.png" width="200" alt="Why Recall thinks so: the answer, 'Phrased by Muse Spark Open from 1 sighting, in 2.3 seconds', and the sighting: seen in the Living room scan, 92% sure, found by SAM 3.1, placed by MapAnything">
+  <img src="docs/media/app-robots.png" width="200" alt="Robot Access: the switch to share the home map with robots, off; a preview of the room map for robots; and what robots receive">
+  <img src="docs/media/app-privacy.png" width="200" alt="Privacy: your home's memory lives on your own computer; right now scan photos go to SAM 3.1 and your question as text to Muse Spark Open on Baseten; robot access is off">
+</p>
 
 ## What it is
 
@@ -70,7 +87,7 @@ The landing page. No image of anyone's home is in this repo: the 3D viewer shows
 - A voice-first 3D memory of your home for blind and low-vision people.
 - Walk through a room once with an iPhone. Recall rebuilds the room in metres and remembers what it saw and where.
 - Ask "where are my keys?" and hear the answer: which surface, which shelf level, how high, when it was last seen.
-- Say "guide me there" and get clock-face steps as you walk, and a camera check on arrival. Ask "why?" and hear what the camera saw. (Apple Watch taps are planned.)
+- Tap **Take me there** and get clock-face steps as you walk, and a camera check on arrival. Ask "why?" and hear what the camera saw. (Apple Watch taps are planned.)
 
 **Why**
 - Finding small things is a daily, tiring problem when you can't see where they are.
@@ -88,6 +105,21 @@ The landing page. No image of anyone's home is in this repo: the 3D viewer shows
 - Reconstruction pipeline: Python, MapAnything on the Mac's GPU, NumPy and SciPy for the geometry.
 - iPhone: Swift 6, SwiftUI, ARKit, SceneKit, AVSpeechSynthesizer, Accelerate (the Apple Watch app is planned).
 - Models: Meta Model API, Baseten (Muse Spark Open), Modal or LM Studio for open weights.
+
+## What's in this repo
+
+| What | Where | Status |
+|---|---|---|
+| iPhone app (Swift 6, SwiftUI, ARKit; VoiceOver first) | `apps/ios` (build with XcodeGen) | Works on an iPhone with LiDAR, iOS 26 |
+| The API on your computer: the Guide, the arrival check, memory, privacy, robots | `services/api` | Works (`make live`) |
+| The pipeline: 3D reconstruction, furniture and things, the room model | `services/pipeline` | Works (`make worker`) |
+| A recorded real run you can try with no keys | `make demo` | Works; the recording is added after a privacy review |
+| Website and 3D viewer of your own scan | `apps/web` | Works (`pnpm dev`) |
+| API spec (OpenAPI 3.1, Swagger UI) and the A2A Agent Card | `services/api/resources/` | See [API](#api) |
+| Architecture, decisions, privacy note, measurements | [`docs/`](docs) | [architecture](docs/architecture.md) · [decisions](docs/decisions.md) · [privacy](docs/privacy.md) · [verification](docs/verification.md) |
+| Tests and CI: API, pipeline, website, iPhone (unit, integration, accessibility, usability) | `services/*/tests`, `apps/web/e2e`, `apps/ios/RecallUITests`, `.github/workflows` | Green |
+| A usability session plan for a blind or low-vision tester | `evals/usability/` | Ready |
+| The 3-minute demo video | | Coming |
 
 ## Why I built it
 
@@ -115,7 +147,7 @@ runs its software or its models; every model Recall itself calls is a Meta model
 
 - **Off by default.** The owner turns it on in the app (Devices → Home robots → Robot Access); the switch is kept on
   the Mac. Robots use their own read-only key (`RECALL_ROBOT_KEY`), never the phone's.
-- **Robot export** (`GET /homes/{home}/robot-export`, `make robot-export`, or "Export map for robots" on the phone as
+- **Robot export** (`GET /homes/{home_id}/robot-export`, `make robot-export`, or "Export map for robots" on the phone as
   a .zip):
   - `map.pgm` + `map.yaml` for the Nav2 map server (the PGM is tested to read back the way Nav2 reads it);
   - `objects.json`: things in the map frame, with when each was last seen;
@@ -157,7 +189,7 @@ runs its software or its models; every model Recall itself calls is a Meta model
 1. The phone sends a spoken question to the Mac, and Muse Voice Transcribe turns it into text (typed questions skip this).
 2. The phone says what it is looking for at once ("Looking for your keys.").
 3. The Guide calls `find_object`, which returns each match with its room, landmark, relation ("on the desk"), shelf level, height band and when it was seen; one call usually answers. The answer is logged with the sightings behind it, and **Why?** reads them out.
-4. "Guide me there": `localize` from the phone's ARKit pose, `plan_route` over an occupancy grid, clock-face steps spoken as you walk.
+4. **Take me there**: `localize` from the phone's ARKit pose, `plan_route` over an occupancy grid, clock-face steps spoken as you walk.
 5. On arrival the Verifier checks the camera frame; if the thing is nearby, memory moves it.
 
 **OS and browser features (not model calls)**
@@ -174,6 +206,45 @@ runs its software or its models; every model Recall itself calls is a Meta model
 | SceneKit | The arrow over the thing in the camera view, for a sighted helper | iPhone |
 | WebGL | The 3D viewer | Browser |
 
+## Architecture in brief
+
+- **Phone captures, your computer remembers.** The iPhone records frames, LiDAR depth and ARKit poses and uploads them
+  in resumable parts. A queue runs the pipeline one room at a time, and one API serves the phone, the website and
+  robots.
+- **Geometry decides; Meta's models understand, see, map and listen.** Places, heights and distances come from the 3D
+  map. Muse Spark Open chooses the tools and words the answer, SAM 3.1 finds things, MapAnything builds the map, and
+  Muse Voice Transcribe listens.
+- **One writer.** Only the API writes memory; the pipeline posts its results.
+- **Hexagonal, enforced in CI.** The domain and use cases never import a framework or a model client, so each Meta
+  model or store is swapped by config.
+- **Every answer is traceable, and your memory stays on your own computer.**
+
+![Recall's six layers: the iPhone captures; a resumable upload brings episodes to your computer; the pipeline turns them into a room model through the API; one API serves the iPhone, the Watch (next) and robots, and the website's viewer reads exported files. Privacy, lineage, quality checks and spend limits run across every layer.](docs/diagrams/six-layers.svg)
+
+More: [docs/architecture.md](docs/architecture.md) (every layer, both paths, latency tiers, why each choice) ·
+[docs/decisions.md](docs/decisions.md) (28 decisions, each with what was rejected) · [docs/privacy.md](docs/privacy.md)
+· [docs/verification.md](docs/verification.md) (every measurement, dated).
+
+## API
+
+Spec-first: [`services/api/resources/openapi.yaml`](services/api/resources/openapi.yaml) (OpenAPI 3.1) is the source of
+truth. The server's models and the iPhone's Swift client are generated from it, and contract tests check that the
+routes match it. While `make demo` or `make live` runs, **Swagger UI** is at `http://localhost:8000/docs`.
+
+| Route | What it does |
+|---|---|
+| `POST /ask` | Ask where something is; the answer comes with an `answer_id` |
+| `GET /answers/{answer_id}/evidence` | Why: the tool steps, the sightings, their scans and the models behind an answer |
+| `POST /transcribe` | Speech to text through Muse Voice Transcribe |
+| `POST /scans`, `PUT /scans/{scan_id}/parts/{part_number}`, `POST /scans/{scan_id}/complete` | Resumable scan upload |
+| `DELETE /scans/{scan_id}` | Erase a scan from your computer, with what only it found |
+| `GET /homes/{home_id}/objects`, `GET /homes/{home_id}/room` | What Recall found, and the room model |
+| `POST /guidance/sessions`, `POST /guidance/sessions/{session_id}/verify` | Directions, and the arrival check |
+| `GET /privacy`, `GET /audit` | What is sent where right now; who did what |
+| `GET /homes/{home_id}/robot-export`, `/a2a/home-memory` | For robots: the Nav2 map, and the Home Memory agent ([Agent Card](services/api/resources/agents/home-memory.card.json)) |
+
+Every route except `/health` needs a key: the owner's device key, or a robot's own read-only key for the robot routes. The Agent Card is public while Robot Access is on, as A2A expects, so agents can discover it.
+
 ## Guardrails
 
 - **Geometry decides, the model phrases.** No location, distance or time is ever inferred by a language model; they come from tool results computed on the 3D map.
@@ -184,7 +255,7 @@ runs its software or its models; every model Recall itself calls is a Meta model
   4. If tracking is limited, give landmark directions only, and say so.
   5. One or two short sentences: landmark first, then shelf and height, then time.
   6. At most 6 agent steps; on failure, the best grounded partial answer.
-- **Every answer is traceable.** Sightings are append-only. Every answer is logged with its model and tool steps and the sightings it rests on, and **Why?** on the phone (or `GET /answers/{id}/evidence`, or asking the Guide "why?") leads back to the camera's view, the scan and the models that made it. An answer that names a place with no sighting behind it is never said.
+- **Every answer is traceable.** Sightings are append-only. Every answer is logged with its model and tool steps and the sightings it rests on, and **Why?** on the phone (or `GET /answers/{answer_id}/evidence`, or asking the Guide "why?") leads back to the camera's view, the scan and the models that made it. An answer that names a place with no sighting behind it is never said.
 - **The Verifier can only downgrade.** The vision model may turn a result into "uncertain"; only SAM plus geometry can confirm.
 - **Two checks on the door.** A robot or outside app can send only one object name (letters, digits, spaces and hyphens, at most 40 characters, `services/api/resources/agents/find-object.input.schema.json`); free text is refused and never reaches a model or a tool. Then Muse Spark Open (or Glimmer) must answer `{"verdict": "safe", ...}` in strict JSON; anything else, a timeout or "injection" refuses. Measured: 21 ordinary names allowed, 18 instruction-like names refused, none wrong.
 - **Privacy.** The home's memory lives on the owner's own computer (a Mac today); there is no Recall server. Scan photos go to SAM 3.1 on the Meta Model API, voice clips to Muse Voice Transcribe, and questions (no photos) to Muse Spark Open, or stay on the Mac with Glimmer in private mode. Deleting a scan on the phone erases it from the Mac too. No scan of anyone's home is in the repo or on the hosted site. Full note: [docs/privacy.md](docs/privacy.md), the same as the app's Settings → Privacy and the site's `/privacy`.

@@ -375,7 +375,6 @@ export const en = {
       { value: "3", label: "security surfaces audited side by side" },
       { value: "28", label: "security findings checked in the code and fixed" },
     ],
-    honest: "Its sandbox couldn't run the iOS Simulator or open network ports, so some red results were sandbox-only; on the Mac every suite passes.",
     more: "How Muse Code tested Recall",
   },
 

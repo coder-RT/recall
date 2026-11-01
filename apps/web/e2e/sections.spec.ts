@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
@@ -271,8 +272,13 @@ test("the Muse Code section shows its three tiers, the counts and the public wri
 test("the browser tab shows Recall's mark, not the framework's", async ({ page, request }) => {
   await open(page, "/");
   const icons = await page.locator("link[rel~='icon']").evaluateAll((els) => els.map((e) => e.getAttribute("href") ?? ""));
-  expect(icons.some((h) => h.startsWith("/icon.svg"))).toBe(true);
-  expect(icons.some((h) => h.includes("favicon.ico"))).toBe(false);
-  const svg = await (await request.get(icons.find((h) => h.startsWith("/icon.svg"))!)).text();
-  expect(svg).toContain("Braille cell for R");
+  const svgHref = icons.find((h) => h.startsWith("/icon.svg"));
+  expect(svgHref).toBeTruthy();
+  expect(await (await request.get(svgHref!)).text()).toContain("Braille cell for R");
+  // browsers also fetch /favicon.ico on their own: it must be ours, never create-next-app's default "N"
+  const ico = await request.get("/favicon.ico");
+  expect(ico.status()).toBe(200);
+  const sha = createHash("sha256").update(await ico.body()).digest("hex");
+  expect(sha.startsWith("c28fdd2a4f31e2dc")).toBe(false);
+  expect((await request.get("/apple-icon.png")).status()).toBe(200);
 });

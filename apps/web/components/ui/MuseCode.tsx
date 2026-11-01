@@ -35,9 +35,6 @@ export function MuseCode() {
             </div>
           ))}
         </dl>
-        <p data-reveal className="mt-6 max-w-3xl text-base leading-relaxed text-muted">
-          {t.honest}
-        </p>
         <p className="mt-6 text-lg">
           <a href={`${site.repo}/blob/main/docs/muse.md#part-b-how-muse-code-tested-recall`} className="font-bold text-fb-blue-dark underline">
             {t.more}

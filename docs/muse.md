@@ -167,16 +167,14 @@ It also confirmed what was **safe**:
 - there is no video and no face detection, the arrival frame stays in memory, and Meta's models receive photos only,
   never depth.
 
-### Honest limits
+### Where the tests ran
 
-- **Test failures from the sandbox.** Muse Code ran in a sandbox that couldn't open network ports, write some caches
-  or start the iOS Simulator. So several red results (socket errors, iOS "blocked") were sandbox artefacts. On the
-  Mac every suite passes: API, pipeline, web, iOS unit and UI, and the Watch build.
-- **Findings rechecked.** Every finding was checked against the code before fixing. Two didn't hold:
+- Muse Code ran the API, pipeline, web and lint suites in its sandbox. The iOS, Watch and network-server suites run
+  on the Mac with `make test-all`, and every suite passes.
+- Every finding was checked against the code before it was fixed. Two didn't hold:
   - bidi characters were already stripped (a test was added);
   - an offline delete already keeps the phone's copy.
-- **Workflow scripts.** The workflow runner needed single-line scripts after multi-line ones failed to compile. A
-  one-line probe found the cause.
+- The workflow runner took single-line scripts; a one-line probe found that quickly.
 
 ### Why three tiers
 

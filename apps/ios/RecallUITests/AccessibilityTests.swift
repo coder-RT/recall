@@ -394,6 +394,32 @@ final class AccessibilityTests: XCTestCase {
         XCTAssertTrue(button.waitForExistence(timeout: 3))
     }
 
+    /// Before every scan: the plan, each step with what to do, why, when it's done and how high to hold the phone.
+    func testEveryScanStartsWithThePlan() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-UITestSampleThings"]
+        app.launch()
+        openScans(app)
+        app.buttons["Start a scan"].tap()
+        let name = field(app, "roomName")
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap()
+        name.typeText("Living room")
+        app.navigationBars.buttons["Start"].tap()
+        let any = app.descendants(matching: .any)
+        let walls = any["plan-step-2"]
+        XCTAssertTrue(walls.waitForExistence(timeout: 5))
+        XCTAssertTrue(walls.label.hasPrefix("Step 3: Walk along the walls. Now walk along the walls, about a metre away"), walls.label)
+        XCTAssertTrue(walls.label.contains("Why: About 1 metre is where the LiDAR and camera see best"))
+        XCTAssertTrue(walls.label.hasSuffix("Phone at Chest height, 1.1 to 1.5 m."))
+        XCTAssertTrue(any["plan-step-3"].label.contains("Waist height, 0.8 to 1.1 m"))
+        try auditBothEnds(app)
+        for _ in 0..<4 where !any["plan-start"].isHittable { app.swipeUp() }
+        any["plan-start"].tap()
+        // the simulator has no LiDAR: past the plan comes the "needs an iPhone with LiDAR" screen
+        XCTAssertFalse(any["plan-start"].waitForExistence(timeout: 2))
+    }
+
     private func dayMonth(_ seconds: TimeInterval) -> String {
         Date(timeIntervalSince1970: seconds).formatted(.dateTime.day().month())
     }
@@ -518,6 +544,11 @@ extension AccessibilityTests {
         openScans(app)
         app.buttons["Start a scan"].tap()
         app.buttons["Kitchen"].tap()
+        // the plan comes first, every time
+        let start = app.descendants(matching: .any)["plan-start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 5))
+        for _ in 0..<4 where !start.isHittable { app.swipeUp() }
+        start.tap()
         XCTAssertTrue(app.staticTexts["Scanning needs an iPhone with LiDAR"].waitForExistence(timeout: 5))
         shot("ios-scan-unsupported")
         try audit(app)

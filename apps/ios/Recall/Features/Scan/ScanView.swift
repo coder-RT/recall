@@ -17,6 +17,17 @@ struct ScanView: View {
 
     var body: some View {
         Group {
+            if model.showingPlan {
+                ScanPlanView(room: model.room, rescan: model.isRescan, readAloud: model.readPlan, start: model.begin,
+                             cancel: close)
+            } else {
+                phase
+            }
+        }
+    }
+
+    @ViewBuilder private var phase: some View {
+        Group {
             switch model.phase {
             case .unsupported:
                 Unsupported(close: close)
@@ -28,7 +39,6 @@ struct ScanView: View {
                 Failed(message: message, close: close)
             }
         }
-        .onAppear { model.start() }
     }
 
     private var capture: some View {
@@ -39,7 +49,21 @@ struct ScanView: View {
             LiveLook(session: model.capture.session, look: model.look)
             VStack(spacing: 12) {
                 StepCard(update: model.update, time: time)
-                LookChips(look: $model.look)
+                HStack(spacing: 8) {
+                    LookChips(look: $model.look)
+                    Button { model.showGrid.toggle() } label: {
+                        Label("Grid", systemImage: "square.grid.3x3").font(.footnote.weight(.semibold))
+                            .padding(.horizontal, 12).frame(minHeight: 44)
+                            .foregroundStyle(model.showGrid ? Color.black : Color.white)
+                            .background(model.showGrid ? Color(red: 0.49, green: 0.98, blue: 1.0) : Color.black.opacity(0.55),
+                                        in: Capsule())
+                    }
+                    .buttonStyle(.plainTap)
+                    .accessibilityLabel("Zone grid")
+                    .accessibilityValue(model.showGrid ? "On" : "Off")
+                    .accessibilityHint("Neon lines for each metre of floor and each height: knee, waist, chest, head. Zones the scan has seen glow.")
+                    .accessibilityIdentifier("grid-toggle")
+                }
                 if let cue = model.cue { CueBanner(cue) }
                 Spacer()
                 // the panels keep their own solid fill; only the buttons are glass (see hudRim)
@@ -79,42 +103,120 @@ struct ScanView: View {
     }
 }
 
-/// The current voice step, the room map's state and the time, for a helper (all of it is also spoken).
+/// The current step for a helper and for anyone who wants to read along: which of the 5 it is, what to do, a meter
+/// for how far along it is, how high to hold the phone (measured), the distance to the wall on the walls step, and
+/// why the step matters. All of it is also spoken.
 private struct StepCard: View {
     let update: CaptureUpdate
     let time: String
+    @State private var showingWhy = false
 
     private var number: Int { min(max(update.step.rawValue + 1, 0), 5) }
+    private let white = Color.white
+    private let amber = Color(red: 0.95, green: 0.7, blue: 0.24)
+    private let green = Color(red: 0.55, green: 0.85, blue: 0.45)
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .center, spacing: 8) {
                 Text(update.step == .finish ? "Last step" : update.step == .recognise ? "Scanning again" : "Step \(number) of 5")
-                    .font(.footnote.weight(.semibold)).foregroundStyle(.white)
-                Text(update.step.title).font(.title3.weight(.bold)).foregroundStyle(.white)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 6) {
+                    .font(.footnote.weight(.semibold)).foregroundStyle(white)
+                StepDots(current: update.step, done: Set(update.stepsDone.filter(\.completed).map(\.step)))
+                Spacer(minLength: 4)
                 Label(update.mapStatus == .mapped ? "Map ready" : "Mapping",
                       systemImage: update.mapStatus == .mapped ? "checkmark.circle.fill" : "circle.dashed")
-                    .font(.footnote.weight(.bold))
-                    .foregroundStyle(update.mapStatus == .mapped ? Tokens.blueDeep : .white)
-                    .padding(.horizontal, 10).padding(.vertical, 6)
-                    .background(update.mapStatus == .mapped ? Tokens.amber : .white.opacity(0.18), in: .capsule)
-                Text(time).font(.headline).monospacedDigit().foregroundStyle(.white)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(update.mapStatus == .mapped ? Tokens.blueDeep : white)
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(update.mapStatus == .mapped ? Tokens.amber : white.opacity(0.18), in: .capsule)
+                Text(time).font(.subheadline.weight(.semibold)).monospacedDigit().foregroundStyle(white)
+            }
+            Text(update.step.title).font(.title3.weight(.bold)).foregroundStyle(white)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(update.step.instruction).font(.subheadline).foregroundStyle(white.opacity(0.92))
+                .fixedSize(horizontal: false, vertical: true)
+            if let p = update.stepProgress {
+                VStack(alignment: .leading, spacing: 4) {
+                    ProgressView(value: p.fraction).tint(green)
+                    Text(p.text).font(.footnote.weight(.semibold)).foregroundStyle(white)
+                }
+            }
+            HStack(spacing: 8) {
+                chip(heightText, colour: heightColour)
+                if update.step == .alongWalls, let d = update.centreDistance { chip(wallText(d), colour: wallColour(d)) }
+                Spacer(minLength: 0)
+                Button(showingWhy ? "Hide why" : "Why?") { withAnimation(.snappy) { showingWhy.toggle() } }
+                    .font(.footnote.weight(.bold)).foregroundStyle(white)
+                    .padding(.horizontal, 10).frame(minHeight: 44)
+                    .accessibilityHint("Shows why this step matters.")
+            }
+            if showingWhy {
+                Text(update.step.why + " " + update.step.doneWhen).font(.footnote).foregroundStyle(white.opacity(0.9))
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(16)
+        .padding(14)
         .background(Tokens.blueDeep.opacity(0.92), in: .rect(cornerRadius: 22))
         .hudRim(RoundedRectangle(cornerRadius: 22))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(update.step == .recognise ? "Scanning again: \(update.step.title). \(time)."
-                            : "Step \(number): \(update.step.title). \(update.mapStatus.spoken). \(time).")
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(spoken)
+        .accessibilityAction(named: "Why this step") { UIAccessibility.post(notification: .announcement, argument: update.step.why) }
+        .accessibilityIdentifier("step-card")
+    }
+
+    private func chip(_ text: String, colour: Color) -> some View {
+        Text(text).font(.caption.weight(.bold)).foregroundStyle(.black)
+            .padding(.horizontal, 8).padding(.vertical, 4).background(colour, in: .capsule)
+    }
+
+    private var heightText: String {
+        guard let h = update.phoneHeight else { return "Phone height: measuring…" }
+        let c = HeightCoach.check(h, for: update.step)
+        let mark = c == .good ? "✓" : c == .tooLow ? "raise" : "lower"
+        return String(format: "Phone %.2f m %@", h, mark)
+    }
+
+    private var heightColour: Color {
+        guard let h = update.phoneHeight else { return white.opacity(0.7) }
+        return HeightCoach.check(h, for: update.step) == .good ? green : amber
+    }
+
+    private func wallText(_ d: Double) -> String {
+        switch ScanGuide.wallDistance(d) {
+        case .good: String(format: "%.1f m from the wall ✓", d)
+        case .tooClose: String(format: "Too close: %.1f m", d)
+        case .tooFar: String(format: "Too far: %.1f m", d)
+        }
+    }
+
+    private func wallColour(_ d: Double) -> Color { ScanGuide.wallDistance(d) == .good ? green : amber }
+
+    private var spoken: String {
+        let head = update.step == .recognise ? "Scanning again: \(update.step.title)." : "Step \(number) of 5: \(update.step.title)."
+        let progress = update.stepProgress.map { " \($0.text)." } ?? ""
+        let height = update.phoneHeight.map { String(format: " Phone at %.1f metres, target %@.", $0, update.step.heightLabel) } ?? ""
+        return "\(head) \(update.step.instruction)\(progress)\(height) \(update.mapStatus.spoken). \(time)."
     }
 }
 
-/// A top-down sketch of the scan: floor the LiDAR saw (white squares), where the person walked (amber line), and
+/// The 5 steps as dots: done (filled with a tick), the current one (ringed), the rest (faint).
+private struct StepDots: View {
+    let current: ScanGuide.Step
+    let done: Set<Int>
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(0..<5, id: \.self) { i in
+                Circle()
+                    .fill(done.contains(i) ? Color.white : i == current.rawValue ? Color.white.opacity(0.5) : Color.white.opacity(0.2))
+                    .frame(width: 8, height: 8)
+                    .overlay(Circle().stroke(Color.white, lineWidth: i == current.rawValue ? 1.5 : 0).padding(-2))
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
 /// which sides have had a wall in view (ticks round the edge).
 private struct MiniMap: View {
     let surfaces: SurfaceCoverage
@@ -228,7 +330,7 @@ private struct Readouts: View {
         let fast = ScanSpeed.isTooFast(update.speed)
         HStack(spacing: 0) {
             cell("AHEAD", update.centreDistance.map { String(format: "%.1f m", $0) } ?? "–")
-            cell("POINTS", points >= 1000 ? "\(points / 1000) k" : "\(points)")
+            cell("ZONES", "\(update.zones.zonesSeen)/\(update.zones.zonesTotal)")
             cell("PHOTOS", "\(update.keyframes)")
             cell("BLURRY", "\(update.droppedBlurry)")
             cell("SPEED", ScanSpeed.text(update.speed), warn: fast)
@@ -254,7 +356,8 @@ private struct Readouts: View {
 
     private func spoken(_ fast: Bool) -> String {
         let ahead = update.centreDistance.map { String(format: "%.1f metres ahead", $0) } ?? "nothing in range ahead"
-        return "\(ahead), \(points) points, \(update.keyframes) photos kept, \(update.droppedBlurry) blurry"
+        let weak = update.zones.weakestBand.map { ", least seen at \($0) height" } ?? ""
+        return "\(ahead), zones seen \(update.zones.zonesSeen) of \(update.zones.zonesTotal)\(weak), \(update.keyframes) photos kept, \(update.droppedBlurry) blurry"
             + (fast ? ", walking too fast" : "")
     }
 }

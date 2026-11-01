@@ -20,6 +20,12 @@ final class ScanModel {
     let paint = PointPaint()
     /// Camera · LiDAR · Edges.
     var look = CameraLook.camera
+    /// The neon zone grid over the camera (on unless switched off).
+    var showGrid = true { didSet { paint.showGrid(update.zones, floorY: update.floorY, visible: showGrid) } }
+    /// "How to scan well" comes first, every time; Start begins the scan.
+    private(set) var showingPlan = true
+    var isRescan: Bool { rescan != nil }
+    private var heightCoach = HeightCoach()
     /// Stop was pressed before the room map was ready; the next press stops anyway.
     private(set) var confirmingStop = false
     private var lastSpokenDirections = 0
@@ -39,6 +45,19 @@ final class ScanModel {
         self.room = room; self.rescan = rescan; self.scans = scans; self.files = files; self.compass = compass; self.speech = speech
         self.haptics = haptics
         if !CaptureSession.isSupported { phase = .unsupported }
+    }
+
+    /// The plan was read: start scanning.
+    func begin() {
+        showingPlan = false
+        start()
+    }
+
+    /// Every step's what, why and done-when, read aloud (the plan's "Read the steps aloud").
+    func readPlan() {
+        let steps = ScanGuide.Step.allCases.filter { $0 != .recognise || isRescan }
+        speech.say(steps.map { "\($0.title). \($0.instruction) \($0.why) \($0.doneWhen) Phone at \($0.heightLabel)." }
+            .joined(separator: " "), interrupt: true)
     }
 
     func start() {
@@ -61,6 +80,7 @@ final class ScanModel {
         let stepChanged = u.step != update.step
         update = u
         paint.add(u.newPoints)
+        paint.showGrid(u.zones, floorY: u.floorY, visible: showGrid)
         // a problem first (it is about right now), then the next step
         switch u.signal {
         case .cue(_, let text):
@@ -75,6 +95,11 @@ final class ScanModel {
         if let line = u.guideLine {
             speech.say(line, interrupt: u.signal == nil)
             if stepChanged || u.mapReady { haptics.success() }
+        }
+        // too low or too high for this step, for a while: one gentle reminder (no other line is being said)
+        if u.guideLine == nil, u.signal == nil,
+           let line = heightCoach.update(t: u.elapsed, height: u.phoneHeight, step: u.step) {
+            speech.say(line, interrupt: false)
         }
         // while turning round, a progress line every 3 new directions
         if u.step == .turnAround, u.directionsCovered >= lastSpokenDirections + 3 {
@@ -114,7 +139,8 @@ final class ScanModel {
             scans.add(scan)
             phase = .done(scan, m)
             let grade = m.grade == .good ? "good" : m.grade == .usable ? "usable" : "a redo"
-            speech.say("Scan saved. Quality: \(grade). \(ScanGrade.reason(for: m))", interrupt: true)
+            let tip = ScanTips.make(m).first.map { " Next time: \($0)" } ?? ""
+            speech.say("Scan saved. Quality: \(grade). \(ScanGrade.reason(for: m))\(tip)", interrupt: true)
         } catch {
             files.delete(scan: scanId)
             phase = .failed(error.localizedDescription)

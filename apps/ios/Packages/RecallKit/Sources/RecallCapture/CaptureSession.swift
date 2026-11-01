@@ -28,6 +28,14 @@ public struct CaptureUpdate: Sendable, Equatable {
     /// LiDAR points sampled so far, and the newest ones (ARKit world) to paint on the camera; empty between samples.
     public var pointsCaptured = 0
     public var newPoints: [SIMD3<Float>] = []
+    /// The current step's meter ("Wall sides seen 5 of 9"), and the steps finished so far.
+    public var stepProgress: ScanGuide.StepProgress?
+    /// The phone's height above the floor, metres (nil until the LiDAR has found the floor).
+    public var phoneHeight: Double?
+    /// The floor's height (ARKit world) and which column-and-height zones the LiDAR has seen, for the grid.
+    public var floorY: Float?
+    public var zones = ZoneCoverage()
+    public var stepsDone: [ScanGuide.StepRecord] = []
 
     public init(elapsed: Double, directionsCovered: Int, keyframes: Int, droppedBlurry: Int, tracking: TrackingState,
                 signal: ScanSignals.Event? = nil, lightLux: Double, sectors: Set<Int> = [],
@@ -68,6 +76,7 @@ public final class CaptureSession: NSObject, ARSessionDelegate, @unchecked Senda
     private var lastPosition: simd_float3?
     private var centreDepth: Double?
     private var pointsCaptured = 0
+    private var zones = ZoneCoverage()
     private var freshPoints: [SIMD3<Float>] = []
     private var highConfidence: Double?
     private var keptSharpness: [Float] = []
@@ -96,7 +105,7 @@ public final class CaptureSession: NSObject, ARSessionDelegate, @unchecked Senda
         queue.sync {
             self.writer = writer
             self.heading = heading
-            startedAt = Date(); dropped = 0; keptSharpness = []; pointsCaptured = 0; freshPoints = []
+            startedAt = Date(); dropped = 0; keptSharpness = []; pointsCaptured = 0; freshPoints = []; zones = ZoneCoverage()
             alignTo = map == nil ? nil : rescan?.scanId
             recognising = alignTo != nil
             recogniseStarted = nil; alignedTo = nil
@@ -134,14 +143,16 @@ public final class CaptureSession: NSObject, ARSessionDelegate, @unchecked Senda
         return try queue.sync {
             guard let writer, writer.frameCount > 0 else { throw CaptureError.noFrames }
             let compass = calibration.summary
+            let duration = Date().timeIntervalSince(startedAt)
             let metrics = CaptureMetrics(
                 directionsCovered: coverage.directionsCovered, keyframesKept: writer.frameCount,
                 keyframesDroppedBlurry: dropped, trackingNormalRatio: coverage.trackingNormalRatio,
                 meanSpeedMps: coverage.meanSpeed, peakSpeedMps: coverage.peakSpeed, slowDownCues: signals.cues,
                 areaWalkedM2: coverage.areaWalked, meanLightLux: coverage.meanLight,
                 wallsCovered: surfaces.wallsCovered, floorSeenM2: (surfaces.floorSeenM2 * 100).rounded() / 100,
-                mapStatus: mapStatus, loopClosed: guide.loopClosed, compassSpreadDeg: compass?.spreadDeg)
-            let duration = Date().timeIntervalSince(startedAt)
+                mapStatus: mapStatus, loopClosed: guide.loopClosed, compassSpreadDeg: compass?.spreadDeg,
+                durationS: duration.rounded(), points: pointsCaptured, steps: guide.records,
+                zonesSeen: zones.zonesSeen, zonesTotal: zones.zonesTotal)
             self.writer = nil
             return try writer.finish(worldMap: mapData, metrics: metrics, compass: compass, alignedTo: alignedTo,
                                      duration: duration, device: device, appVersion: appVersion, createdAt: startedAt)
@@ -202,6 +213,7 @@ public final class CaptureSession: NSObject, ARSessionDelegate, @unchecked Senda
             surfaces.add(samples: s.points, camera: position)
             pointsCaptured += s.points.count
             freshPoints = s.points
+            if let floor = surfaces.floorY { zones.add(s.points, floorY: floor) }
         }
 
         if tracking == .normal, t - lastBlurCheck >= selector.minInterval, selector.qualifies(pose, at: t),
@@ -244,6 +256,11 @@ public final class CaptureSession: NSObject, ARSessionDelegate, @unchecked Senda
             live.centreDistance = centreDepth
             live.pointsCaptured = pointsCaptured
             live.newPoints = freshPoints
+            live.stepProgress = ScanGuide.progress(of: guide.step, progress)
+            live.phoneHeight = surfaces.floorY.map { Double(position.y - $0) }
+            live.floorY = surfaces.floorY
+            live.zones = zones
+            live.stepsDone = guide.records
             freshPoints = []
             pendingSignal = nil
             pendingLine = nil

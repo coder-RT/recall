@@ -16,6 +16,13 @@ public struct CaptureMetrics: Codable, Sendable, Equatable {
     public var mapStatus: MapStatus?
     public var loopClosed: Bool?
     public var compassSpreadDeg: Double?
+    /// How long the scan took, the LiDAR samples taken, and how each step went (newer scans only).
+    public var durationS: Double?
+    public var points: Int?
+    public var steps: [ScanGuide.StepRecord]?
+    /// Column-and-height zones the LiDAR saw, of those in the columns the scan reached.
+    public var zonesSeen: Int?
+    public var zonesTotal: Int?
     public var grade: ScanGrade
 
     enum CodingKeys: String, CodingKey {
@@ -25,12 +32,16 @@ public struct CaptureMetrics: Codable, Sendable, Equatable {
         case areaWalkedM2 = "area_walked_m2", meanLightLux = "mean_light_lux", grade
         case wallsCovered = "walls_covered", floorSeenM2 = "floor_seen_m2", mapStatus = "map_status"
         case loopClosed = "loop_closed", compassSpreadDeg = "compass_spread_deg"
+        case durationS = "duration_s", points, steps, zonesSeen = "zones_seen", zonesTotal = "zones_total"
     }
 
     public init(directionsCovered: Int, keyframesKept: Int, keyframesDroppedBlurry: Int, trackingNormalRatio: Double,
                 meanSpeedMps: Double, peakSpeedMps: Double, slowDownCues: Int, areaWalkedM2: Double, meanLightLux: Double,
                 wallsCovered: Int? = nil, floorSeenM2: Double? = nil, mapStatus: MapStatus? = nil,
-                loopClosed: Bool? = nil, compassSpreadDeg: Double? = nil) {
+                loopClosed: Bool? = nil, compassSpreadDeg: Double? = nil, durationS: Double? = nil, points: Int? = nil,
+                steps: [ScanGuide.StepRecord]? = nil, zonesSeen: Int? = nil, zonesTotal: Int? = nil) {
+        self.durationS = durationS; self.points = points; self.steps = steps
+        self.zonesSeen = zonesSeen; self.zonesTotal = zonesTotal
         self.directionsCovered = directionsCovered; self.keyframesKept = keyframesKept
         self.keyframesDroppedBlurry = keyframesDroppedBlurry; self.trackingNormalRatio = trackingNormalRatio
         self.meanSpeedMps = meanSpeedMps; self.peakSpeedMps = peakSpeedMps; self.slowDownCues = slowDownCues

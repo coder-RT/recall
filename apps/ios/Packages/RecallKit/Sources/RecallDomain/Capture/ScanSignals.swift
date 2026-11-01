@@ -130,6 +130,35 @@ public struct ScanGuide: Sendable {
             }
         }
 
+        /// Why the step matters, in one sentence: shown before the scan and on the step card.
+        public var why: String {
+            switch self {
+            case .recognise: "This scan then shares the last one's map, so Recall can tell what moved."
+            case .start: "The door is where the Watch's directions start, and a steady start lets tracking lock on."
+            case .turnAround: "One full turn shows the whole room from one spot, so nothing is missed between views."
+            case .alongWalls: "About 1 metre is where the LiDAR and camera see best: closer, the edges are missed and photos blur; further, small things are too small to find."
+            case .sweepDown: "Your things are on tables, shelves and the floor; this is where SAM 3.1 looks for them."
+            case .returnToStart: "Ending where you began closes the loop, so the room's shape lines up and doesn't drift."
+            case .finish: "The room map lets your iPhone recognise the room later, to guide you there."
+            }
+        }
+
+        /// How you know the step is done (it also moves on after a while, so nobody gets stuck).
+        public var doneWhen: String {
+            switch self {
+            case .recognise: "Done when the room is recognised, or after 25 seconds."
+            case .start: "Done when you have held still for a few seconds."
+            case .turnAround: "Done when 11 of 12 directions are seen."
+            case .alongWalls: "Done when walls are seen on 9 of 12 sides."
+            case .sweepDown: "Done when enough floor and table tops are seen."
+            case .returnToStart: "Done when you are back within 1 metre of the start."
+            case .finish: "Done when the room map says ready; then press Stop."
+            }
+        }
+
+        /// What to do, as shown on the step card: the spoken line.
+        public var instruction: String { spoken }
+
         public var spoken: String {
             switch self {
             case .recognise: "Scanning again. Point the phone slowly around the room so I can recognise it."
@@ -160,7 +189,28 @@ public struct ScanGuide: Sendable {
         }
     }
 
+    /// One step as it went: how long, and whether it was done or moved on after its time ran out.
+    public struct StepRecord: Sendable, Equatable, Codable {
+        public let step: Int  // Step.rawValue
+        public let seconds: Double
+        public let completed: Bool
+        public let detail: String
+        public init(step: Int, seconds: Double, completed: Bool, detail: String) {
+            self.step = step; self.seconds = seconds; self.completed = completed; self.detail = detail
+        }
+        public var title: String { Step(rawValue: step)?.title ?? "Step" }
+    }
+
+    /// Where a step stands right now, for the card's meter: "Wall sides 5 of 9".
+    public struct StepProgress: Sendable, Equatable {
+        public let value: Double
+        public let target: Double
+        public let text: String
+        public var fraction: Double { target > 0 ? min(1, value / target) : 0 }
+    }
+
     public private(set) var step: Step
+    public private(set) var records: [StepRecord] = []
     public private(set) var loopClosed = false
     public private(set) var mapReady = false
     private var stepStarted = 0.0
@@ -180,29 +230,120 @@ public struct ScanGuide: Sendable {
     /// Steps the scan on; returns a line to say when something changed (a new step, or the map becoming ready).
     public mutating func update(_ p: Progress) -> String? {
         let inStep = p.elapsed - stepStarted
-        let done: Bool = switch step {
-        case .recognise: false  // ended by endRecognise
+        let met: Bool = switch step {
+        case .recognise, .finish: false  // ended by endRecognise / by Stop
         case .start: inStep >= 4
-        case .turnAround: p.directions >= 11 || inStep > 60
-        case .alongWalls: p.walls >= 9 || inStep > 120
-        case .sweepDown: p.floorSeenM2 >= max(2.5, 0.5 * p.areaWalkedM2) || inStep > 90
-        case .returnToStart: (p.walkedM > 3 && p.fromStartM < 1.0) || inStep > 60
-        case .finish: false
+        case .turnAround: p.directions >= 11
+        case .alongWalls: p.walls >= 9
+        case .sweepDown: p.floorSeenM2 >= Self.floorTarget(p)
+        case .returnToStart: p.walkedM > 3 && p.fromStartM < 1.0
         }
-        if step == .returnToStart, done, p.fromStartM < 1.0 { loopClosed = true }
-        if done, let next = Step(rawValue: step.rawValue + 1) {
+        let timedOut: Bool = switch step {
+        case .turnAround: inStep > 60
+        case .alongWalls: inStep > 120
+        case .sweepDown: inStep > 90
+        case .returnToStart: inStep > 60
+        default: false
+        }
+        if step == .returnToStart, met { loopClosed = true }
+        if met || timedOut, let next = Step(rawValue: step.rawValue + 1) {
+            let now = Self.progress(of: step, p)
+            records.append(StepRecord(step: step.rawValue, seconds: inStep.rounded(), completed: met, detail: now.text))
+            let missed = met || step == .start ? "" : "Moving on: \(now.text.prefix(1).lowercased() + now.text.dropFirst()). "
             step = next
             stepStarted = p.elapsed
             if next == .finish, p.map == .mapped {
                 mapReady = true
-                return "Room map ready. Double tap Stop."
+                return missed + "Room map ready. Double tap Stop."
             }
-            return next.spoken
+            return missed + next.spoken
         }
         if step == .finish, !mapReady, p.map == .mapped {
             mapReady = true
             return "Room map ready. Double tap Stop."
         }
         return nil
+    }
+}
+
+
+public extension ScanGuide {
+    /// Floor and table tops to see in the sweep: 2.5 m², or half the area walked in a big room.
+    static func floorTarget(_ p: Progress) -> Double { max(2.5, 0.5 * p.areaWalkedM2) }
+
+    /// The meter for a step: what's measured against what's needed, in words.
+    static func progress(of step: Step, _ p: Progress) -> StepProgress {
+        switch step {
+        case .recognise: return StepProgress(value: 0, target: 1, text: "Looking for the room")
+        case .start: return StepProgress(value: min(p.elapsed, 4), target: 4, text: "Hold still")
+        case .turnAround:
+            return StepProgress(value: Double(p.directions), target: 11, text: "Directions seen \(min(p.directions, 12)) of 11")
+        case .alongWalls:
+            return StepProgress(value: Double(p.walls), target: 9, text: "Wall sides seen \(min(p.walls, 12)) of 9")
+        case .sweepDown:
+            let target = floorTarget(p)
+            return StepProgress(value: p.floorSeenM2, target: target,
+                                text: String(format: "Floor and tops seen %.1f of %.1f m²", p.floorSeenM2, target))
+        case .returnToStart:
+            // full when within a metre of the start; the meter fills as you come back
+            return StepProgress(value: max(0, 4 - p.fromStartM), target: 3,
+                                text: p.fromStartM < 1 ? "Back at the start" : String(format: "%.1f m from the start", p.fromStartM))
+        case .finish:
+            return StepProgress(value: p.map == .mapped ? 1 : p.map == .extending ? 0.6 : 0.3, target: 1,
+                                text: p.map.spoken)
+        }
+    }
+
+    /// The walls step's distance check: about 1 m from the wall is right.
+    enum WallDistance: Equatable { case good, tooClose, tooFar }
+    static func wallDistance(_ metres: Double) -> WallDistance {
+        metres < 0.7 ? .tooClose : metres > 1.6 ? .tooFar : .good
+    }
+}
+
+/// How high to hold the phone in each step, measured (camera height above the floor the LiDAR found), so nobody is
+/// asked their own height: chest height for looking round and along the walls, waist height to sweep tables and floor.
+public extension ScanGuide.Step {
+    var phoneHeight: ClosedRange<Double> {
+        switch self {
+        case .sweepDown: 0.8...1.1
+        default: 1.1...1.5
+        }
+    }
+
+    /// "Chest height, 1.1 to 1.5 m"
+    var heightLabel: String {
+        let r = phoneHeight
+        let name = self == .sweepDown ? "Waist height" : "Chest height"
+        return String(format: "%@, %.1f to %.1f m", name, r.lowerBound, r.upperBound)
+    }
+}
+
+/// Says "raise" or "lower" only after the phone has been out of the step's band for a while, and not too often.
+public struct HeightCoach: Sendable {
+    public enum Check: Equatable { case good, tooLow, tooHigh }
+
+    public var after: Double = 3  // seconds out of the band before saying anything
+    public var gap: Double = 12  // seconds between reminders
+    private var outSince: Double?
+    private var lastSaid = -Double.infinity
+
+    public init() {}
+
+    public static func check(_ height: Double, for step: ScanGuide.Step) -> Check {
+        let r = step.phoneHeight
+        return height < r.lowerBound ? .tooLow : height > r.upperBound ? .tooHigh : .good
+    }
+
+    /// The line to say now, if any. `height` nil: the floor isn't measured yet, so nothing to say.
+    public mutating func update(t: Double, height: Double?, step: ScanGuide.Step) -> String? {
+        guard let height, step != .recognise else { outSince = nil; return nil }
+        let c = Self.check(height, for: step)
+        guard c != .good else { outSince = nil; return nil }
+        outSince = outSince ?? t
+        guard t - outSince! >= after, t - lastSaid >= gap else { return nil }
+        lastSaid = t
+        let place = step == .sweepDown ? "waist height" : "chest height"
+        return c == .tooLow ? "Raise the phone to \(place)." : "Lower the phone to \(place)."
     }
 }

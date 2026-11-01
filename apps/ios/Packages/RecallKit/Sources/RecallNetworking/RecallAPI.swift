@@ -58,6 +58,7 @@ extension RecallAPI: HomeMemory {
         switch r {
         case .ok(let ok): return try ok.body.json.map(Thing.init)
         case .notFound: return []  // no scan of this home processed yet
+        case .unauthorized: throw RecallError.status(401)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
     }
@@ -74,6 +75,7 @@ extension RecallAPI: HomeMemory {
         switch r {
         case .noContent: return
         case .notFound: throw RecallError.server("The Mac doesn't know this thing any more.")
+        case .unauthorized: throw RecallError.status(401)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
     }
@@ -89,6 +91,7 @@ extension RecallAPI: GuideService, Transcriber {
             let a = try ok.body.json
             return Answer(text: a.text, thingId: a.objectId, grounded: a.grounded, answerId: a.answerId)
         case .serviceUnavailable: throw RecallError.server("The Guide isn't available right now. Try again in a moment.")
+        case .unauthorized: throw RecallError.status(401)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
     }
@@ -107,6 +110,7 @@ extension RecallAPI: GuideService, Transcriber {
                          target: g.targetArkit.flatMap { $0.count == 3 ? SIMD3($0[0], $0[1], $0[2]) : nil },
                          bearingDeg: g.bearingDeg, floorY: g.floorYArkit)
         case .notFound(let e): throw RecallError.server(((try? e.body.json.detail) ?? nil) ?? "The Mac can't plan a route yet.")
+        case .unauthorized: throw RecallError.status(401)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
     }
@@ -160,6 +164,7 @@ extension RecallAPI: PrivacySource {
             return PrivacyStatus(storedOn: p.storedOn,
                                  sent: p.sent.map { DataFlow(what: $0.what, to: $0.to, when: $0.when, onThisMac: $0.onThisMac ?? false) },
                                  robotAccess: p.robotAccess, auditDays: p.auditDays)
+        case .unauthorized: throw RecallError.status(401)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
     }
@@ -181,6 +186,7 @@ extension RecallAPI: ConnectionCheck, ScanProcessing, ScanServer {
         case .noContent, .notFound: return  // gone already is fine
         case .conflict(let e):
             throw RecallError.server(try e.body.json.detail ?? "The Mac is still processing this scan.")
+        case .unauthorized: throw RecallError.status(401)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
     }
@@ -197,6 +203,7 @@ extension RecallAPI: ConnectionCheck, ScanProcessing, ScanServer {
             return ScanReport(ScanStatus(rawValue: s.status.rawValue) ?? .failed, detail: s.detail, changes: changes,
                               fresh: s.fresh ?? false, workerAlive: s.workerAlive)
         case .notFound: throw RecallError.server("The Mac doesn't know this scan.")
+        case .unauthorized: throw RecallError.status(401)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
     }
@@ -209,6 +216,7 @@ extension RecallAPI: ConnectionCheck, ScanProcessing, ScanServer {
         case .ok(let ok):
             return UploadPlan(parts: try ok.body.json.parts.map { .init(number: $0.number, path: $0.url, received: $0.received) })
         case .unprocessableContent(let e): throw RecallError.server(try e.body.json.detail ?? "The scan was refused.")
+        case .unauthorized: throw RecallError.status(401)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
     }
@@ -234,6 +242,7 @@ extension RecallAPI: ConnectionCheck, ScanProcessing, ScanServer {
         case .ok: return
         case .notFound: throw RecallError.server("The Mac doesn't know this scan.")
         case .unprocessableContent(let e): throw RecallError.server(try e.body.json.detail ?? "The manifest was refused.")
+        case .unauthorized: throw RecallError.status(401)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
     }
@@ -246,6 +255,7 @@ extension RecallAPI: ConnectionCheck, ScanProcessing, ScanServer {
             return (ScanStatus(rawValue: s.status.rawValue) ?? .failed, s.detail)
         case .notFound: throw RecallError.server("The Mac doesn't know this scan.")
         case .conflict(let e): throw RecallError.server(try e.body.json.detail ?? "The scan isn't ready to complete.")
+        case .unauthorized: throw RecallError.status(401)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
     }
@@ -332,6 +342,7 @@ extension RecallAPI: EvidenceSource {
             return Evidence(question: e.answer.question, text: e.answer.text, model: e.answer.model,
                             latencyMs: e.answer.latencyMs, tools: e.steps.compactMap(\.tool), sightings: sightings)
         case .notFound: throw RecallError.server("The Mac no longer has this answer's evidence.")
+        case .unauthorized: throw RecallError.status(401)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
     }
@@ -342,6 +353,7 @@ extension RecallAPI: EvidenceSource {
         switch r {
         case .ok(let ok): return try await Data(collecting: ok.body.jpeg, upTo: 5 * 1024 * 1024)
         case .notFound: throw RecallError.server("No camera view is kept for this sighting.")
+        case .unauthorized: throw RecallError.status(401)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
     }

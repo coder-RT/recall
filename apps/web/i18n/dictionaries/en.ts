@@ -369,6 +369,7 @@ export const en = {
       { id: "never-guesses", title: "Geometry decides", body: "Places, distances and times come from the 3D map. Meta's language model understands your question, picks the tools that look them up and words the answer, so it never has to guess a location. Ask why, and it tells you what the camera saw and when." },
       { id: "private", title: "Your home stays yours", body: "Your scans and memory live on your own computer (a Mac today), not on a Recall server. Delete a scan and it is erased everywhere it was kept.", link: { text: "What is sent where", href: "/privacy" } },
       { id: "honest", title: "Honest when unsure", body: "If something has not been seen, or was seen long ago, Recall says so and suggests which room to walk through." },
+      { id: "secure", title: "Locked to your phone", body: "Your phone and your Mac share one key, checked on every call that touches your home; a pairing link asks before it changes anything. The calls that reach a model are rate-limited, uploads are size-checked, and every change and refusal is written to an append-only activity log on your Mac. No account, no password to leak, no Recall server." },
     ],
     more: "What is sent where",
   },

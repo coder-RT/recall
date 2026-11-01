@@ -28,11 +28,11 @@ export function ModelCards() {
             <div className="flex items-start justify-between gap-4">
               <h3 className="text-2xl font-extrabold text-fb-blue-dark">{m.name}</h3>
               <span className="rounded-full bg-fb-blue-pale px-3 py-1 font-classic text-xs font-bold text-fb-blue-dark">
-                {t.models.planned}
+                {t.models.working}
               </span>
             </div>
             <p className="mt-3 text-lg leading-relaxed text-ink">{m.role}</p>
-            <p className="mt-4 font-mono text-sm text-muted">{m.path}</p>
+            <p className="mt-4 break-all font-mono text-sm text-muted">{m.path}</p>
           </li>
         ))}
       </ul>

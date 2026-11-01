@@ -139,8 +139,8 @@ export const en = {
       },
       {
         title: "Hear the way there",
-        body: "Step-by-step directions from where you stand, as clock-face turns and steps, with an optional tap pattern on your Apple Watch.",
-        meta: "Live guidance · haptics",
+        body: "Step-by-step directions from where you stand, as clock-face turns and steps. When you arrive, the camera checks it's really there.",
+        meta: "Live guidance · arrival check",
       },
     ],
   },
@@ -250,7 +250,7 @@ export const en = {
   directions: {
     eyebrow: "Directions",
     title: "Spoken like a clock face.",
-    intro: "Turns are clock positions from where you face, distances are steps. A tap pattern on your wrist can confirm each turn.",
+    intro: "Turns are clock positions from where you face, distances are steps. The phone ticks when you face the right way.",
     note: "Illustrative route, not a real home.",
     // `clock` is the hour the hand points to for that step
     steps: [
@@ -264,13 +264,13 @@ export const en = {
   models: {
     eyebrow: "Built on Meta’s models",
     title: "Open models for seeing, mapping, listening and talking.",
-    status: "Status: planned. These are being wired up during the event; nothing on this page is their output yet.",
-    planned: "planned",
+    status: "Working today in the app. The examples on this page are illustrative; measured results are in the README.",
+    working: "Working today",
     items: [
-      { name: "SAM 3.1", kind: "see" as ModelKind, role: "Finds and outlines everyday objects in every frame of the walkthrough.", path: "services/pipeline/segment.py" },
-      { name: "MapAnything", kind: "map" as ModelKind, role: "Turns the walkthrough into a metric 3D map with camera poses and depth.", path: "services/pipeline/reconstruct.py" },
-      { name: "Muse Spark Open", kind: "talk" as ModelKind, role: "The agent that calls tools and phrases the answer (Muse Glimmer as the open-weights alternative). Geometry decides the facts.", path: "services/api/agent/" },
-      { name: "Muse Voice Transcribe", kind: "listen" as ModelKind, role: "Turns your spoken question into text.", path: "services/api/voice/" },
+      { name: "SAM 3.1", kind: "see" as ModelKind, role: "Finds furniture and everyday things in every frame of the walkthrough, and checks the thing is really there when you arrive.", path: "services/pipeline/src/recall_pipeline/adapters/sam31_meta_api.py" },
+      { name: "MapAnything", kind: "map" as ModelKind, role: "Turns the walkthrough into a metric 3D map, fed the phone's own depth and poses.", path: "services/pipeline/src/recall_pipeline/adapters/mapanything_local.py" },
+      { name: "Muse Spark Open", kind: "talk" as ModelKind, role: "Understands your question, chooses the tools that look up the 3D map and words the answer; it also checks every request a robot sends. Muse Glimmer is the open-weights alternative.", path: "services/api/src/recall_api/application/ask_where_is.py" },
+      { name: "Muse Voice Transcribe", kind: "listen" as ModelKind, role: "Turns your spoken question into text.", path: "services/api/src/recall_api/adapters/outbound/voice/muse_transcribe.py" },
     ],
     glyph: {
       label: "mug",
@@ -279,12 +279,51 @@ export const en = {
     },
   },
 
+  devices: {
+    eyebrow: "Where Recall runs",
+    title: "One memory, wherever you are.",
+    intro: "The same memory of your home on your phone today, on your wrist and your face next, and for the robot that goes and fetches it.",
+    status: { available: "Available now", next: "Coming next", planned: "Planned", preview: "Preview" },
+    items: [
+      {
+        id: "iphone",
+        name: "iPhone",
+        status: "available",
+        pitch: "The whole of Recall today, by voice and without looking.",
+        points: ["Scan a room with LiDAR, led step by step by voice", "Ask out loud; hear clock-face turns with compass points", "A blue arrow over the thing on the camera, for a helper"],
+      },
+      {
+        id: "watch",
+        name: "Apple Watch Ultra 4",
+        status: "next",
+        pitch: "Directions you can feel, with the phone in your pocket.",
+        points: ["A tap on the wrist for each turn, a buzz when you arrive", "Ask from your wrist and hear the answer", "Hands free for a cane or a guide dog"],
+      },
+      {
+        id: "glasses",
+        name: "Meta AI glasses",
+        status: "planned",
+        pitch: "Ask hands-free and be guided by what the glasses see.",
+        points: ["Ask through the glasses; hear the answer in their speakers", "Guidance from the glasses' own camera view", "Nothing to hold, nothing to look at"],
+      },
+      {
+        id: "robots",
+        name: "Home robots",
+        status: "preview",
+        pitch: "Your robot can use the same memory to go and find it.",
+        points: ["Shares your home's map and where things are; never photos", "A Nav2 map or the A2A protocol; off until you share it", "Finds the thing; picking it up is the robot's own skill"],
+      },
+    ] as { id: string; name: string; status: "available" | "next" | "planned" | "preview"; pitch: string; points: string[] }[],
+    robotsPrivacy: "What robots receive and never receive",
+    note: "Only the iPhone app works today; the Watch and glasses are being built, and robots can use the shared map in a preview. Recall is an independent project, not affiliated with Apple or Meta.",
+  },
+
   principles: {
     eyebrow: "Accessibility & privacy",
     title: "Built to be trusted without looking.",
     items: [
       { title: "VoiceOver first", body: "Every screen works without sight. Every control has a spoken label. Nothing depends on colour alone." },
-      { title: "Geometry decides", body: "Places, distances and times come from the 3D map. Meta's language model understands your question, picks the tools that look them up and words the answer, so it never has to guess a location." },
+      { title: "Geometry decides", body: "Places, distances and times come from the 3D map. Meta's language model understands your question, picks the tools that look them up and words the answer, so it never has to guess a location. Ask why, and it tells you what the camera saw and when." },
       { title: "Your home stays yours", body: "Your scans and memory live on your own computer (a Mac today), not on a Recall server. Delete a scan and it is erased everywhere it was kept." },
       { title: "Honest when unsure", body: "If something has not been seen, or was seen long ago, Recall says so and suggests which room to walk through." },
     ],
@@ -298,7 +337,15 @@ export const en = {
         q: "Who is Recall for?",
         a: "Blind and low-vision people who want to find everyday things at home on their own, without asking someone or searching by touch.",
       },
-      { q: "Do I need special hardware?", a: "An iPhone with LiDAR for the walkthrough. An Apple Watch is optional, for tap-pattern directions." },
+      { q: "Do I need special hardware?", a: "An iPhone with LiDAR. Apple Watch support is coming next." },
+      {
+        q: "Does it work with Meta AI glasses?",
+        a: "Not yet. It's planned: ask through the glasses and hear the answer in their speakers. Today Recall runs on the iPhone.",
+      },
+      {
+        q: "Can a home robot use it?",
+        a: "In a preview, and off until you turn it on. A robot you connect gets the map and where things are, as a Nav2 map or over A2A, but never photos, your own notes or anyone's position. Recall finds the thing; picking it up is the robot's own skill. No physical robot has been tested yet.",
+      },
       {
         q: "What happens when I move something?",
         a: "Recall only knows what it last saw. Walk through the room again and it updates. If a sighting is old, Recall tells you how old.",

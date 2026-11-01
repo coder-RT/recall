@@ -6,11 +6,12 @@ required: [id, at, actor, action, outcome, detail]
 properties:
   id: {type: string}
   at: {type: string, format: date-time}
-  actor: {type: string, enum: [owner, robot, pipeline, unknown]}
+  actor: {type: string, enum: [owner, robot, pipeline, system, unknown]}
   action:
     type: string
-    enum: [robot_access.changed, robot_export.read, home_memory.query, auth.refused, object.corrected,
-           object.forgotten, scan.ingested, scan.erased, arrival.verified]
+    enum: [robot_access.changed, trust.changed, robot_export.read, home_memory.query, auth.refused, object.corrected,
+           object.forgotten, scan.created, scan.uploaded, scan.failed, scan.ingested, scan.erased, arrival.verified,
+           guide.answered, voice.transcribed, audit.pruned]
   outcome: {type: string, enum: [ok, refused, failed]}
   target_type: {type: [string, "null"]}
   target_id: {type: [string, "null"]}

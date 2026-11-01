@@ -31,9 +31,12 @@ from recall_api.application.erase_scan import EraseScan
 from recall_api.application.explain_answer import ExplainAnswer
 from recall_api.application.export_for_robot import ExportForRobot
 from recall_api.application.ingest_scan import IngestScan
+from recall_api.application.list_things import ListThings
 from recall_api.application.plan_guidance import PlanGuidance
 from recall_api.application.robot_access import RobotAccess
 from recall_api.application.tools import Tools
+from recall_api.application.transcribe_speech import TranscribeSpeech
+from recall_api.application.trust import TrustPolicy
 from recall_api.application.upload_scan import UploadScan
 from recall_api.application.verify_arrival import VerifyArrival
 from recall_api.config.settings import REPO_ROOT, Settings
@@ -84,7 +87,8 @@ class Container:
             trigger = QueuedPipelineTrigger()
         else:
             trigger = SubprocessPipelineTrigger(self.settings.pipeline_command, REPO_ROOT, self.settings.log_dir)
-        return UploadScan(self.scans, self.homes, self.blobs, ZipEpisodeUnpacker(self.blobs), trigger, self.clock)
+        return UploadScan(self.scans, self.homes, self.blobs, ZipEpisodeUnpacker(self.blobs), trigger, self.clock,
+                          audit=self.auditor)  # fmt: skip
 
     @cached_property
     def ingest_scan(self) -> IngestScan:
@@ -104,18 +108,28 @@ class Container:
 
     @cached_property
     def correct_object(self) -> CorrectObject:
-        return CorrectObject(self.objects, audit=self.auditor)
+        return CorrectObject(self.objects, self.homes, self.clock, new_id, audit=self.auditor)
 
     @cached_property
     def guidance(self) -> PlanGuidance:
-        return PlanGuidance(self.homes, self.scans, self.objects, self.blobs, new_id)
+        return PlanGuidance(self.homes, self.scans, self.objects, self.blobs, new_id, trust=self.trust)
+
+    @cached_property
+    def owner_settings(self) -> SqliteOwnerSettings:
+        return SqliteOwnerSettings(self.engine)
 
     @cached_property
     def robot_access(self) -> RobotAccess:
         s = self.settings
-        return RobotAccess(
-            SqliteOwnerSettings(self.engine), s.robot_export_enabled, s.home_memory_a2a_enabled, audit=self.auditor
-        )
+        return RobotAccess(self.owner_settings, s.robot_export_enabled, s.home_memory_a2a_enabled, audit=self.auditor)
+
+    @cached_property
+    def trust(self) -> TrustPolicy:
+        return TrustPolicy(self.owner_settings, audit=self.auditor)
+
+    @cached_property
+    def list_things(self) -> ListThings:
+        return ListThings(self.homes, self.objects, self.scans, self.trust)
 
     @cached_property
     def screener(self) -> MetaModelScreener:
@@ -141,12 +155,12 @@ class Container:
 
     @cached_property
     def export_for_robot(self) -> ExportForRobot:
-        return ExportForRobot(self.homes, self.scans, self.objects, self.blobs, self.clock)
+        return ExportForRobot(self.homes, self.scans, self.objects, self.blobs, self.clock, trust=self.trust)
 
     @cached_property
     def tools(self) -> Tools:
         return Tools(self.homes, self.objects, self.clock, self.guidance, ZoneInfo(self.settings.home_timezone),
-                     scans=self.scans)  # fmt: skip
+                     scans=self.scans, trust=self.trust)  # fmt: skip
 
     @cached_property
     def answer_log(self) -> SqliteAnswerLog:
@@ -157,10 +171,14 @@ class Container:
         return ExplainAnswer(self.answer_log, self.objects, self.scans, self.blobs)
 
     @cached_property
+    def transcribe(self) -> TranscribeSpeech:
+        return TranscribeSpeech(self.transcriber, audit=self.auditor)
+
+    @cached_property
     def ask(self) -> AskWhereIs:
         schemas = json.loads((API_ROOT / "resources" / "tools.json").read_text())
         return AskWhereIs(self.llm, self.tools, schemas, self.homes, self.answer_log, self.clock, new_id,
-                          self.settings.llm_provider)  # fmt: skip
+                          self.settings.llm_provider, audit=self.auditor)  # fmt: skip
 
     @cached_property
     def llm(self):

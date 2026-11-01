@@ -51,16 +51,18 @@ def process_scan(name: str, scan_id: str, episode_dir: str, task=None) -> None:
     if code == 0:
         return
     if task is None or task.retries == 0:  # last attempt: tell the phone
+        from recall_api.domain.audit import Action, Actor, Outcome
+        from recall_api.domain.memory import ScanStatus
         from recall_api.infra.container import Container
 
-        scans = Container(settings).scans
-        scan = scans.get(scan_id)
+        c = Container(settings)
+        scan = c.scans.get(scan_id)
         if scan is not None:
-            from recall_api.domain.memory import ScanStatus
-
             scan.status = ScanStatus.FAILED
             scan.detail = f"Processing failed (exit {code}). The Mac's log is data/logs/{name}.log."
-            scans.save(scan)
+            c.scans.save(scan)
+            c.auditor(Action.SCAN_FAILED, Actor.PIPELINE, Outcome.FAILED, target_type="scan", target_id=scan_id,
+                      room=scan.room, exit=code)  # fmt: skip
     raise RuntimeError(f"pipeline exited {code} for {name}")
 
 

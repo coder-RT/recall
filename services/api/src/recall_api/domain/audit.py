@@ -16,6 +16,7 @@ class Actor(StrEnum):
     ROBOT = "robot"  # a robot or other agent, with the robot key
     PIPELINE = "pipeline"  # the Mac's scan processing
     UNKNOWN = "unknown"  # no valid key
+    SYSTEM = "system"  # the Mac's own housekeeping (dropping events past the retention period)
 
 
 class Outcome(StrEnum):
@@ -26,14 +27,21 @@ class Outcome(StrEnum):
 
 class Action(StrEnum):
     ROBOT_ACCESS_CHANGED = "robot_access.changed"
+    TRUST_CHANGED = "trust.changed"
     ROBOT_EXPORT_READ = "robot_export.read"
     HOME_MEMORY_QUERY = "home_memory.query"
     AUTH_REFUSED = "auth.refused"
     OBJECT_CORRECTED = "object.corrected"
     OBJECT_FORGOTTEN = "object.forgotten"
+    SCAN_CREATED = "scan.created"  # an upload started
+    SCAN_UPLOADED = "scan.uploaded"  # the upload checked out (or didn't) and processing started
+    SCAN_FAILED = "scan.failed"  # processing gave up
     SCAN_INGESTED = "scan.ingested"
     SCAN_ERASED = "scan.erased"
     ARRIVAL_VERIFIED = "arrival.verified"
+    GUIDE_ANSWERED = "guide.answered"  # a question went to the Guide's model; the words stay in the answer log
+    VOICE_TRANSCRIBED = "voice.transcribed"  # audio went to Muse Voice Transcribe; never the words
+    AUDIT_PRUNED = "audit.pruned"  # events past the retention period were dropped: how many, up to when
 
 
 SECRET_WORDS = ("key", "token", "password", "secret", "authorization")

@@ -10,12 +10,14 @@ from .model import (
     Observation,
     Pose,
     Position,
+    Rejection,
     RoomModel,
     Scan,
     ScanChange,
     ScanStatus,
     SetAside,
     TrackedObject,
+    Trust,
     WallSegment,
 )
 
@@ -30,10 +32,12 @@ __all__ = [
     "SetAside",
     "Pose",
     "Position",
+    "Rejection",
     "RoomModel",
     "Scan",
     "ScanChange",
     "ScanStatus",
     "TrackedObject",
+    "Trust",
     "WallSegment",
 ]

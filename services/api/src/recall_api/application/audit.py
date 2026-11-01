@@ -35,9 +35,20 @@ class Auditor:
             self.store.record(event)
             self._written += 1
             if self._written % 500 == 1:  # now and then, drop events past the retention period
-                self.store.prune(self.clock.now() - self.retention)
+                self.prune()
         except Exception:  # noqa: BLE001 - the audit must never break what it records
             log.exception("audit event not written: %s", action)
+
+    def prune(self) -> int:
+        """Drops events past the retention period, and records that it did: a gap in the log is always explained."""
+        before = self.clock.now() - self.retention
+        dropped = self.store.prune(before)
+        if dropped:
+            detail = clean({"dropped": dropped, "before": before.isoformat()})
+            event = AuditEvent(self.new_id("ev"), self.clock.now(), Actor.SYSTEM, Action.AUDIT_PRUNED, Outcome.OK,
+                               detail=detail)  # fmt: skip
+            self.store.record(event)
+        return dropped
 
 
 class NoAudit:

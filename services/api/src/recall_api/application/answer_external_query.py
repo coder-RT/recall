@@ -75,7 +75,7 @@ class AnswerExternalQuery:
         facts = self.tools.describe_location(ctx, oid)
         ctx.outputs = [json.dumps({**facts, "name": None, "note": None})]  # the user's own words stay on the Mac
         obj = self.objects.get(oid)
-        where = obj.where()
+        where = obj.where(self.tools.trust.level)  # find_object only matched trusted things
         scan = self.scans.get(where.scan_id)
         data = {
             "found": True,

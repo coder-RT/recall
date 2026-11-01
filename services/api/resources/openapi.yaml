@@ -62,6 +62,8 @@ paths:
     $ref: paths/objects.yaml#/objects
   /sharing:
     $ref: paths/sharing.yaml#/sharing
+  /trust:
+    $ref: paths/trust.yaml#/trust
   /audit:
     $ref: paths/audit.yaml#/audit
   /privacy:

@@ -14,7 +14,8 @@ import numpy as np
 
 from recall_api.application import scan_geometry
 from recall_api.application.ports import BlobStore, Clock
-from recall_api.domain.memory import ScanStatus, TrackedObject
+from recall_api.application.trust import TrustPolicy
+from recall_api.domain.memory import ScanStatus, TrackedObject, Trust
 from recall_api.domain.navigation import NavConfig, OccupancyMap
 from recall_api.domain.ports import HomeRepository, ScanRepository, TrackedObjectRepository
 
@@ -62,9 +63,10 @@ class ExportForRobot:
         clock: Clock,
         cfg: NavConfig | None = None,
         voxel_m: float = 0.05,
+        trust: TrustPolicy | None = None,
     ) -> None:
         self.homes, self.scans, self.objects, self.blobs, self.clock = homes, scans, objects, blobs, clock
-        self.cfg, self.voxel_m = cfg or NavConfig(), voxel_m
+        self.cfg, self.voxel_m, self.trust = cfg or NavConfig(), voxel_m, trust or TrustPolicy()
 
     def __call__(self, home_id: str, room: str | None = None) -> RobotExport:
         home = self.homes.get(home_id)
@@ -91,22 +93,25 @@ class ExportForRobot:
                 rooms[sid] = s.room if s else None
             return rooms[sid]
 
-        things = [o for o in self.objects.list_for_home(home_id) if o.where() is not None and room_of(o) == scan.room]
+        level = self.trust.level  # robots and the owner's map show only what the owner's level trusts
+        things = [
+            o for o in self.objects.list_for_home(home_id) if o.where(level) is not None and room_of(o) == scan.room
+        ]
         return RobotExport(
             home_id=home_id,
             room=scan.room,
             scan_id=scan.id,
             generated_at=self.clock.now(),
             map=occupancy,
-            objects=[_object(o) for o in sorted(things, key=lambda o: o.id)],
+            objects=[_object(o, level) for o in sorted(things, key=lambda o: o.id)],
             landmarks=[_landmark(lm) for lm in home.landmarks if lm.room == scan.room],
             room_model=home.room_model.to_dict(),
             cloud=voxel_downsample(cloud, self.voxel_m),
         )
 
 
-def _object(o: TrackedObject) -> dict:
-    w = o.where()
+def _object(o: TrackedObject, level: Trust) -> dict:
+    w = o.where(level)
     return {
         "id": o.id,
         "label": o.label,

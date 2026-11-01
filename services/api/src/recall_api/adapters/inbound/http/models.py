@@ -358,8 +358,18 @@ class ObjectLocation(BaseModel):
         list[float] | None, Field(description="Bounding box x, y, z in metres", max_length=3, min_length=3)
     ] = None
     corrections: ObjectCorrection | None = None
+    photos: Annotated[
+        int | None,
+        Field(description="How many of the scan's photos showed it (null for sightings kept before this was recorded)"),
+    ] = None
+    trusted: Annotated[
+        bool | None,
+        Field(
+            description="Seen in enough photos for the owner's trust level (or confirmed): the Guide, Find, room maps and robots use it"
+        ),
+    ] = None
     needs_review: Annotated[
-        bool | None, Field(description="The models were unsure (confidence under 0.7) and the user hasn't confirmed it")
+        bool | None, Field(description="Unconfirmed and either unsure (confidence under 0.7) or not trusted yet")
     ] = None
 
 
@@ -374,23 +384,51 @@ class SharingUpdate(BaseModel):
     robot_access: bool
 
 
+class Level(StrEnum):
+    careful = "careful"
+    balanced = "balanced"
+    everything = "everything"
+
+
+class Trust(BaseModel):
+    level: Annotated[Level, Field(description="careful: 3 photos; balanced: 2 (default); everything: 1")]
+    min_photos: Annotated[
+        int, Field(description="Photos a thing must be seen in, at this level (a confirmed thing always counts)", ge=1)
+    ]
+
+
+class TrustUpdate(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    level: Level
+
+
 class Actor(StrEnum):
     owner = "owner"
     robot = "robot"
     pipeline = "pipeline"
+    system = "system"
     unknown = "unknown"
 
 
 class Action(StrEnum):
     robot_access_changed = "robot_access.changed"
+    trust_changed = "trust.changed"
     robot_export_read = "robot_export.read"
     home_memory_query = "home_memory.query"
     auth_refused = "auth.refused"
     object_corrected = "object.corrected"
     object_forgotten = "object.forgotten"
+    scan_created = "scan.created"
+    scan_uploaded = "scan.uploaded"
+    scan_failed = "scan.failed"
     scan_ingested = "scan.ingested"
     scan_erased = "scan.erased"
     arrival_verified = "arrival.verified"
+    guide_answered = "guide.answered"
+    voice_transcribed = "voice.transcribed"
+    audit_pruned = "audit.pruned"
 
 
 class Outcome(StrEnum):

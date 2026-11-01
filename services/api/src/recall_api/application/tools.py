@@ -8,6 +8,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from recall_api.application.ports import Clock
+from recall_api.application.trust import TrustPolicy
 from recall_api.domain.assistant import spoken_when
 from recall_api.domain.memory import Home
 from recall_api.domain.ports import HomeRepository, ScanRepository, TrackedObjectRepository
@@ -34,8 +35,10 @@ class Tools:
         guidance=None,
         tz: ZoneInfo | None = None,
         scans: ScanRepository | None = None,
+        trust: TrustPolicy | None = None,
     ) -> None:
         self.homes, self.objects, self.clock, self.guidance, self.scans = homes, objects, clock, guidance, scans
+        self.trust = trust or TrustPolicy()  # the Guide only names what the owner's level trusts
         self.tz = tz or ZoneInfo("Europe/Warsaw")
 
     def run(self, ctx: ToolContext, name: str, args: dict[str, Any]) -> str:
@@ -61,8 +64,9 @@ class Tools:
         matches = []
         home = self.homes.get(ctx.home_id)
         found = []
+        level = self.trust.level
         for o in self.objects.list_for_home(ctx.home_id):
-            last = o.where()
+            last = o.where(level)
             if last is not None and o.matches(name):
                 found.append((last.seen_at, o, last))
         if not found:
@@ -102,9 +106,9 @@ class Tools:
     def describe_location(self, ctx: ToolContext, object_id: str) -> dict:
         obj = self.objects.get(object_id)
         home: Home | None = self.homes.get(ctx.home_id)
-        if obj is None or home is None or obj.where() is None:
+        last = obj.where(self.trust.level) if obj else None
+        if obj is None or home is None or last is None:
             return {"result": "not_found"}
-        last = obj.where()
         ctx.found_object = object_id
         ctx.observation_ids.append(last.id)
         return {
@@ -123,10 +127,10 @@ class Tools:
     def explain(self, ctx: ToolContext, object_id: str) -> dict:
         """Why Recall thinks it is where it says: the sightings behind it, each with its scan and the models used."""
         obj = self.objects.get(object_id)
-        if obj is None or obj.home_id != ctx.home_id or obj.where() is None:
+        newest = obj.where(self.trust.level) if obj and obj.home_id == ctx.home_id else None
+        if newest is None:
             return {"result": "not_found"}
         current = [o for o in obj.observations if obj.is_current(o)]
-        newest = obj.where()
         scan = self.scans.get(newest.scan_id) if self.scans else None
         prov = (scan.provenance or {}) if scan else {}
         ctx.found_object = object_id

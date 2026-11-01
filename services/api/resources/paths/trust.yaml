@@ -1,0 +1,27 @@
+trust:
+  get:
+    tags: [homes]
+    operationId: getTrust
+    summary: How sure Recall must be before it tells you about a thing
+    responses:
+      "200":
+        description: The trust level
+        content:
+          application/json:
+            schema: {$ref: ../schemas/Trust.yaml}
+  put:
+    tags: [homes]
+    operationId: setTrust
+    summary: Set how sure Recall must be (the owner's device key only)
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: ../schemas/TrustUpdate.yaml}
+    responses:
+      "200":
+        description: The trust level after the change
+        content:
+          application/json:
+            schema: {$ref: ../schemas/Trust.yaml}
+      "422": {$ref: ../schemas/Responses.yaml#/Invalid}

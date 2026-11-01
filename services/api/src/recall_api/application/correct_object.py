@@ -3,12 +3,14 @@ Their values win over measurements and later scans never overwrite them."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from recall_api.application.audit import NoAudit
+from recall_api.application.ports import Clock
 from recall_api.domain.audit import Action, Actor
-from recall_api.domain.memory import COLOR_NAMES, TrackedObject
-from recall_api.domain.ports import TrackedObjectRepository
+from recall_api.domain.memory import COLOR_NAMES, Rejection, TrackedObject
+from recall_api.domain.ports import HomeRepository, TrackedObjectRepository
 
 _UNSET = object()
 
@@ -31,8 +33,11 @@ class CorrectionInput:
 
 
 class CorrectObject:
-    def __init__(self, objects: TrackedObjectRepository, audit=None) -> None:
-        self.objects = objects
+    def __init__(
+        self, objects: TrackedObjectRepository, homes: HomeRepository, clock: Clock, new_id: Callable[[str], str],
+        audit=None,
+    ) -> None:  # fmt: skip
+        self.objects, self.homes, self.clock, self.new_id = objects, homes, clock, new_id
         self.audit = audit or NoAudit()
 
     def _get(self, home_id: str, object_id: str) -> TrackedObject:
@@ -69,7 +74,13 @@ class CorrectObject:
         return obj
 
     def remove(self, home_id: str, object_id: str) -> None:
+        """ "Not there, forget it": the thing goes, and later scans won't bring the same mistake back."""
         obj = self._get(home_id, object_id)
+        where = obj.where()
+        home = self.homes.get(home_id)
+        if where is not None and home is not None:
+            home.rejections.append(Rejection(self.new_id("rej"), obj.label, where.position, self.clock.now()))
+            self.homes.save(home)
         self.objects.delete(object_id)
         self.audit(Action.OBJECT_FORGOTTEN, Actor.OWNER, target_type="object", target_id=object_id, label=obj.label)
 

@@ -1,0 +1,5 @@
+type: object
+required: [level]
+additionalProperties: false
+properties:
+  level: {type: string, enum: [careful, balanced, everything]}

@@ -7,7 +7,9 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
+from recall_api.application.audit import NoAudit
 from recall_api.application.ports import BlobStore, Clock, EpisodeUnpacker, PipelineTrigger
+from recall_api.domain.audit import Action, Actor, Outcome
 from recall_api.domain.memory import Home, Scan, ScanStatus
 from recall_api.domain.ports import HomeRepository, ScanRepository
 
@@ -52,6 +54,7 @@ class UploadScan:
         unpacker: EpisodeUnpacker,
         trigger: PipelineTrigger,
         clock: Clock,
+        audit=None,
     ) -> None:
         self.scans, self.homes, self.blobs, self.unpacker, self.trigger, self.clock = (
             scans,
@@ -61,6 +64,7 @@ class UploadScan:
             trigger,
             clock,
         )
+        self.audit = audit or NoAudit()
 
     def create(self, scan_id: str, home_id: str, room: str, size: int, sha256: str, part_size: int) -> UploadPlan:
         scan = self.scans.get(scan_id)
@@ -78,6 +82,7 @@ class UploadScan:
                 created_at=self.clock.now(),
             )
             self.scans.save(scan)
+            self.audit(Action.SCAN_CREATED, Actor.OWNER, target_type="scan", target_id=scan.id, room=room, bytes=size)
             self.trigger.warm()  # the model loads while the parts upload
         elif (scan.archive_size, scan.archive_sha256, scan.part_size) != (size, sha256, part_size):
             raise UploadError("archive_changed", "This scan id was started with a different archive.", 409)
@@ -137,18 +142,14 @@ class UploadScan:
             digest.update(part)
             chunks.append(part)
         if digest.hexdigest() != scan.archive_sha256:
-            scan.status, scan.detail = ScanStatus.FAILED, "The uploaded archive does not match its checksum."
-            self.scans.save(scan)
-            return scan
+            return self._failed(scan, "The uploaded archive does not match its checksum.")
         self.blobs.put(keys["archive"], b"".join(chunks))
         files = {f.path: f for f in self.unpacker.unpack(keys["archive"], keys["episode"])}
         manifest = json.loads(self.blobs.get(keys["manifest"]))
         for entry in manifest["files"]:
             got = files.get(entry["path"])
             if got is None or got.sha256 != entry["sha256"] or got.size != entry["size"]:
-                scan.status, scan.detail = ScanStatus.FAILED, f"{entry['path']} is missing or damaged in the archive."
-                self.scans.save(scan)
-                return scan
+                return self._failed(scan, f"{entry['path']} is missing or damaged in the archive.")
         scan.status, scan.detail = ScanStatus.UPLOADED, None
         scan.aligned_to = manifest.get("aligned_to")  # a rescan the phone recognised in an earlier scan's map
         self.scans.save(scan)
@@ -156,4 +157,14 @@ class UploadScan:
         self.trigger.start(scan.folder.removeprefix("scans/"), scan_id, episode_dir)
         scan.status = ScanStatus.PROCESSING
         self.scans.save(scan)
+        self.audit(Action.SCAN_UPLOADED, Actor.OWNER, target_type="scan", target_id=scan.id, room=scan.room,
+                   frames=manifest.get("frame_count"), bytes=scan.archive_size,
+                   rescan=scan.aligned_to is not None)  # fmt: skip
+        return scan
+
+    def _failed(self, scan: Scan, why: str) -> Scan:
+        scan.status, scan.detail = ScanStatus.FAILED, why
+        self.scans.save(scan)
+        self.audit(Action.SCAN_UPLOADED, Actor.OWNER, Outcome.FAILED, target_type="scan", target_id=scan.id,
+                   room=scan.room, why=why)  # fmt: skip
         return scan

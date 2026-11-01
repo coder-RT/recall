@@ -10,6 +10,7 @@ import numpy as np
 
 from recall_api.application import scan_geometry
 from recall_api.application.ports import BlobStore
+from recall_api.application.trust import TrustPolicy
 from recall_api.domain.memory import Scan
 from recall_api.domain.navigation import FloorGrid, NavConfig, NoSafePath, plan, simplify, to_clock_steps
 from recall_api.domain.ports import HomeRepository, ScanRepository, TrackedObjectRepository
@@ -52,9 +53,10 @@ class PlanGuidance:
         blobs: BlobStore,
         new_id,
         cfg: NavConfig | None = None,
+        trust: TrustPolicy | None = None,
     ) -> None:
         self.homes, self.scans, self.objects, self.blobs, self.new_id = homes, scans, objects, blobs, new_id
-        self.cfg = cfg or NavConfig()
+        self.cfg, self.trust = cfg or NavConfig(), trust or TrustPolicy()
         self.sessions: dict[str, Session] = {}
         self._grids: dict[str, tuple[str, FloorGrid]] = {}
 
@@ -85,7 +87,7 @@ class PlanGuidance:
         fwd = T[:3, :3] @ (-M[:3, 2])  # the camera looks along −Z
         heading = fwd[:2] / (np.linalg.norm(fwd[:2]) or 1.0)
         obj = self.objects.get(object_id)
-        last = obj.where() if obj else None
+        last = obj.where(self.trust.level) if obj else None
         if last is None:
             raise GuidanceError("object_not_seen", "That object isn't in memory.")
         session = Session(self.new_id("gs"), home_id, object_id, pos, heading, tracking)

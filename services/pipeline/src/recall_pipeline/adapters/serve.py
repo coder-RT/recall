@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import contextlib
 import gc
+import hmac
 import json
 import logging
 import threading
@@ -22,6 +23,7 @@ from pathlib import Path
 from recall_pipeline.adapters.run import ROOT, _env
 
 log = logging.getLogger("recall_pipeline.serve")
+MAX_JOB_BYTES = 64 * 1024  # a job is a few arguments and a path
 
 
 def free_gpu_cache() -> None:
@@ -78,6 +80,10 @@ def _load():
     return make_reconstructor(_env())
 
 
+def data_dir() -> Path:
+    return Path(_env().get("RECALL_DATA_DIR") or ROOT / "data").resolve()
+
+
 def run_job(model: WarmModel, args: list[str], log_file: Path) -> int:
     """One `process` job with the warm model; its log and printed summary go to the job's log file, as before."""
     from recall_pipeline.adapters.args import parser
@@ -85,10 +91,16 @@ def run_job(model: WarmModel, args: list[str], log_file: Path) -> int:
 
     a = parser().parse_args(["process", *args])
     episode = Path(a.episode_dir).resolve()
-    data = Path(_env().get("RECALL_DATA_DIR") or ROOT / "data").resolve()
-    if data not in episode.parents:
-        log.warning("refused: %s is outside the data folder", episode)
-        return 2
+    data = data_dir()
+    # every path a job reads or writes stays inside the data folder: the episode, its log, and any --out
+    for what, path in (
+        ("episode", episode),
+        ("log", log_file.resolve()),
+        ("out", Path(a.out).resolve() if a.out else None),
+    ):
+        if path is not None and data not in path.parents:
+            log.warning("refused: the %s %s is outside the data folder", what, path)
+            return 2
     log_file.parent.mkdir(parents=True, exist_ok=True)
     with log_file.open("a", buffering=1) as out, contextlib.redirect_stdout(out):
         handler = logging.StreamHandler(out)
@@ -118,7 +130,10 @@ def make_server(port: int, model: WarmModel, key: str) -> ThreadingHTTPServer:
             self.wfile.write(data)
 
         def _authorised(self) -> bool:
-            if key and self.headers.get("x-device-key") != key:
+            if not key:  # never open: without a key nothing is served
+                self._reply(503, {"error": "device key unset"})
+                return False
+            if not hmac.compare_digest(self.headers.get("x-device-key", "").encode(), key.encode()):
                 self._reply(401, {"error": "device key"})
                 return False
             return True
@@ -139,9 +154,18 @@ def make_server(port: int, model: WarmModel, key: str) -> ThreadingHTTPServer:
                 self._reply(202, {"loading": not model.loaded})
                 return
             if self.path == "/jobs":
-                body = json.loads(self.rfile.read(int(self.headers.get("content-length", 0))) or b"{}")
+                size = int(self.headers.get("content-length", 0) or 0)
+                if size > MAX_JOB_BYTES:
+                    self._reply(413, {"error": "too large"})
+                    return
+                try:
+                    body = json.loads(self.rfile.read(size) or b"{}")
+                    args, log_path = [str(x) for x in body.get("args", [])], Path(str(body["log"]))
+                except (ValueError, KeyError, TypeError):
+                    self._reply(400, {"error": "args and log expected"})
+                    return
                 with jobs:
-                    code = run_job(model, list(body.get("args", [])), Path(body["log"]))
+                    code = run_job(model, args, log_path)
                 self._reply(200, {"code": code})
                 return
             self._reply(404, {"error": "not found"})

@@ -256,10 +256,33 @@ final class AccessibilityTests: XCTestCase {
         XCTAssertTrue(card.descendants(matching: .any)["White mug: New, on the desk."].exists)
         XCTAssertTrue(card.descendants(matching: .any)["Grey bag: Gone from near the desk."].exists)
         XCTAssertTrue(app.buttons["Hear what changed again"].exists)
-        XCTAssertEqual(app.buttons.matching(identifier: "Scan again").count, 2)  // on both processed scans
-        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "what-changed").count, 1)  // the first scan has none
+        XCTAssertEqual(app.buttons.matching(identifier: "Scan again").count, 1)  // the room's current scan only
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "what-changed").count, 1)
         shot("ios-what-changed")
         try auditBothEnds(app)
+    }
+
+    /// A rescanned room is one card; its first scan folds under it as history, and opens with a tap.
+    func testEarlierScansFoldUnderTheRoom() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-UITestSampleThings"]
+        app.launch()
+        openScans(app)
+        let any = app.descendants(matching: .any)
+        let earlier = any["earlier-scans"]
+        XCTAssertTrue(earlier.waitForExistence(timeout: 5))
+        XCTAssertEqual(earlier.label, "Earlier scans of Living room, 1 scan")
+        XCTAssertEqual(earlier.value as? String, "Folded")
+        XCTAssertFalse(any["earlier-scan-scan-1"].exists)
+        earlier.tap()
+        let row = any["earlier-scan-scan-1"]
+        XCTAssertTrue(row.waitForExistence(timeout: 3))
+        XCTAssertTrue(row.label.hasSuffix("updated by the scan on \(dayMonth(1_800_090_000))"), row.label)
+        try audit(app)
+    }
+
+    private func dayMonth(_ seconds: TimeInterval) -> String {
+        Date(timeIntervalSince1970: seconds).formatted(.dateTime.day().month())
     }
 
     /// Home robots in Devices, and Robot Access: the switch, what is and isn't shared, the map, the audit.
@@ -425,6 +448,81 @@ extension AccessibilityTests {
 
 @MainActor
 extension AccessibilityTests {
+    /// The README's iPhone screenshots, from the real API on this Mac (the owner's own scan). Run with
+    /// TEST_RUNNER_RECALL_DEVICE_KEY and TEST_RUNNER_RECALL_SHOTS set; skipped otherwise, so CI never runs it.
+    /// One real question goes to the Guide. Every image is reviewed by a person before it is committed.
+    func testReadmeShotsFromThisMac() throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let key = env["RECALL_DEVICE_KEY"], !key.isEmpty, env["RECALL_SHOTS"] != nil else {
+            throw XCTSkip("Needs RECALL_DEVICE_KEY, RECALL_SHOTS and the API running on this Mac.")
+        }
+        let app = XCUIApplication()
+        app.launch()
+        var pair = URLComponents(string: "recall://pair")!
+        pair.queryItems = [.init(name: "url", value: "http://127.0.0.1:8000"), .init(name: "key", value: key),
+                           .init(name: "home", value: "flat")]
+        app.open(pair.url!)
+        let open = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Open"]
+        if open.waitForExistence(timeout: 3) { open.tap() }
+        let any = app.descendants(matching: .any)
+
+        // 1, 2: Find with the room's map, then the list grouped by furniture
+        app.tabBars.buttons["Find"].tap()
+        XCTAssertTrue(any["room-maps"].waitForExistence(timeout: 15))
+        sleep(3)  // the map loads from the Mac
+        bring(app.staticTexts["Your rooms"], toY: 110, in: app)
+        shot("readme-1-rooms")
+        bring(app.staticTexts["Your things"], toY: 110, in: app)
+        shot("readme-2-things")
+
+        // 3, 4: a real question, its answer, and why
+        app.swipeDown(); app.swipeDown(); app.swipeDown()
+        let field = app.textViews["question"].exists ? app.textViews["question"] : app.textFields["question"]
+        field.tap()
+        field.typeText("Where are my keys?")
+        app.buttons["Ask"].tap()
+        XCTAssertTrue(app.buttons["Take me there"].waitForExistence(timeout: 30))
+        sleep(1)
+        shot("readme-3-answer")
+        app.buttons["Why?"].tap()
+        XCTAssertTrue(app.staticTexts["evidence-summary"].waitForExistence(timeout: 15))
+        sleep(2)  // the camera crop loads
+        shot("readme-4-why")
+        app.buttons["Done"].tap()
+
+        // 5: Found
+        app.tabBars.buttons["Found"].tap()
+        XCTAssertTrue(any["group-Living room"].waitForExistence(timeout: 10))
+        sleep(1)
+        shot("readme-5-found")
+
+        // 6: Robot Access, with the map robots get
+        app.tabBars.buttons["Devices"].tap()
+        app.buttons["Home robots"].tap()
+        let link = any["robot-access-link"]
+        XCTAssertTrue(link.waitForExistence(timeout: 5))
+        link.tap()
+        XCTAssertTrue(app.switches["robot-access-switch"].waitForExistence(timeout: 10))
+        sleep(3)
+        bring(app.switches["robot-access-switch"], toY: 130, in: app)
+        shot("readme-6-robots")
+    }
+
+    /// Scrolls without a fling so `e`'s top edge lands at `y` points: a screenshot then starts at a heading, not
+    /// halfway through a card.
+    private func bring(_ e: XCUIElement, toY y: CGFloat, in app: XCUIApplication) {
+        XCTAssertTrue(e.waitForExistence(timeout: 5))
+        for _ in 0..<3 {
+            let delta = e.frame.minY - y
+            if abs(delta) < 4 { break }
+            let step = max(-500, min(500, delta))
+            let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: step > 0 ? 0.75 : 0.3))
+            from.press(forDuration: 0.3, thenDragTo: from.withOffset(CGVector(dx: 0, dy: -step)),
+                       withVelocity: .slow, thenHoldForDuration: 0.4)
+        }
+        sleep(1)
+    }
+
     /// At the largest accessibility text size, the rows lowest on their screens still grow (the audit can't measure
     /// them once they move off screen).
     func testLargeTextScales() throws {

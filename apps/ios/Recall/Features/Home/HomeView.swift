@@ -29,9 +29,10 @@ struct HomeView: View {
                     if scans.scans.isEmpty {
                         EmptyState("viewfinder", "No scans yet. Scan a room to start.")
                     }
-                    ForEach(scans.scans) { scan in
-                        ScanRow(scan: scan, review: { router.tab = .found },
-                                again: { scanning = ScanRequest(room: scan.room, again: scan) })
+                    // one card per room; its earlier scans fold inside it
+                    ForEach(ScanHistory.byRoom(scans.scans)) { room in
+                        ScanRow(history: room, review: { router.tab = .found },
+                                again: { scanning = ScanRequest(room: room.latest.room, again: room.latest) })
                     }
                 }
                 .padding(.horizontal, Tokens.gutter)
@@ -52,8 +53,13 @@ struct HomeView: View {
         }
     }
 
+    // "1 scan", or "2 rooms · 3 scans" once a room has history
     private var count: String? {
-        scans.scans.isEmpty ? nil : scans.scans.count == 1 ? "1 scan" : "\(scans.scans.count) scans"
+        let n = scans.scans.count
+        guard n > 0 else { return nil }
+        let rooms = ScanHistory.byRoom(scans.scans).count
+        let scansText = n == 1 ? "1 scan" : "\(n) scans"
+        return rooms == n ? scansText : "\(rooms == 1 ? "1 room" : "\(rooms) rooms") · \(scansText)"
     }
 }
 
@@ -140,11 +146,14 @@ struct ScanRequest: Identifiable {
 
 private struct ScanRow: View {
     @Environment(ScansModel.self) private var scans
-    let scan: Scan
+    let history: RoomScans
     let review: () -> Void
     let again: () -> Void
     @State private var shareURL: URL?
     @State private var confirmingDelete = false
+    @State private var showingEarlier = false
+
+    private var scan: Scan { history.latest }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -195,13 +204,123 @@ private struct ScanRow: View {
                         .accessibilityHint("Send this scan with AirDrop or save it to Files.")
                 }
             }
+            if !history.earlier.isEmpty {
+                EarlierScans(history: history, open: $showingEarlier)
+            }
         }
         .card()
         .task(id: scan.id) { shareURL = await scans.archive(scan) }  // built once, off the main thread
         .accessibilityElement(children: .contain)
         .accessibilityAction(named: "Delete scan") { askToDelete() }
-        // an alert, not a confirmation dialog: iOS 26 shows that as a popover with no Cancel, hard to leave by VoiceOver
-        .alert(deleteTitle, isPresented: $confirmingDelete) {
+        .deleteScanAlert(scan, isPresented: $confirmingDelete)
+    }
+
+    /// Asks first; while the Mac is still busy with the scan, says so instead.
+    private func askToDelete() {
+        if scan.deleteReach == .waitForMac { Task { await scans.delete(scan) } } else { confirmingDelete = true }
+    }
+}
+
+/// A room's earlier scans, folded at the foot of its card: the memory now comes from the newest one, so these are
+/// history, kept to share or delete. No Check or Scan again here; those belong to the current scan.
+private struct EarlierScans: View {
+    let history: RoomScans
+    @Binding var open: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Divider().overlay(Tokens.line.opacity(0.5))
+            Button {
+                withAnimation(reduceMotion ? nil : .snappy) { open.toggle() }
+            } label: {
+                HStack(spacing: 8) {
+                    Label("Earlier scans", systemImage: "clock.arrow.circlepath")
+                        .font(.subheadline.weight(.semibold)).foregroundStyle(Tokens.ink)
+                    Spacer(minLength: 8)
+                    Text("\(history.earlier.count)").font(.subheadline).foregroundStyle(Tokens.muted)
+                    Image(systemName: "chevron.down").font(.footnote.weight(.bold)).foregroundStyle(Tokens.muted)
+                        .rotationEffect(.degrees(open ? 0 : -90))
+                }
+                .frame(minHeight: 44)
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Earlier scans of \(history.latest.room), \(scansText)")
+            .accessibilityValue(open ? "Open" : "Folded")
+            .accessibilityHint(open ? "Hides them." : "Shows them.")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityIdentifier("earlier-scans")
+            if open {
+                ForEach(history.earlier) { earlier in
+                    EarlierScanRow(scan: earlier, after: history.successor(of: earlier))
+                }
+            }
+        }
+    }
+
+    private var scansText: String { history.earlier.count == 1 ? "1 scan" : "\(history.earlier.count) scans" }
+}
+
+/// One earlier scan, compact: when, how good, and which scan took over from it. Long press to share or delete.
+private struct EarlierScanRow: View {
+    @Environment(ScansModel.self) private var scans
+    let scan: Scan
+    let after: Scan?
+    @State private var shareURL: URL?
+    @State private var confirmingDelete = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(scan.createdAt.formatted(date: .abbreviated, time: .shortened))
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(Tokens.ink)
+                Text("\(scan.frames) frames · \(took)").font(.footnote).foregroundStyle(Tokens.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            GradeBadge(grade: scan.grade)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Tokens.canvas, in: .rect(cornerRadius: 12))
+        .contentShape(.rect)
+        .contextMenu {
+            if let url = shareURL { ShareLink("Share scan", item: url) }
+            Button("Delete scan", systemImage: "trash", role: .destructive) { confirmingDelete = true }
+        }
+        .task(id: scan.id) { shareURL = await scans.archive(scan) }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(scan.room), \(scan.createdAt.formatted(date: .abbreviated, time: .shortened)), \(took)")
+        .accessibilityAction(named: "Delete scan") { confirmingDelete = true }
+        .accessibilityIdentifier("earlier-scan-\(scan.id)")
+        .deleteScanAlert(scan, isPresented: $confirmingDelete)
+    }
+
+    // a recognised rescan built on this one; an unrecognised one started the room afresh
+    private var took: String {
+        guard let after else { return "earlier scan" }
+        let day = after.createdAt.formatted(.dateTime.day().month())
+        return after.alignedTo == nil ? "replaced by the scan on \(day)" : "updated by the scan on \(day)"
+    }
+}
+
+private extension View {
+    /// Asks before deleting a scan, saying what it reaches. An alert, not a confirmation dialog: iOS 26 shows that as
+    /// a popover with no Cancel, hard to leave by VoiceOver.
+    func deleteScanAlert(_ scan: Scan, isPresented: Binding<Bool>) -> some View {
+        modifier(DeleteScanAlert(scan: scan, isPresented: isPresented))
+    }
+}
+
+private struct DeleteScanAlert: ViewModifier {
+    @Environment(ScansModel.self) private var scans
+    let scan: Scan
+    @Binding var isPresented: Bool
+
+    func body(content: Content) -> some View {
+        content.alert(title, isPresented: $isPresented) {
             Button(scan.deleteReach == .phoneAndMac ? "Delete from iPhone and Mac" : "Delete", role: .destructive) {
                 Task { await scans.delete(scan) }
             }
@@ -214,13 +333,8 @@ private struct ScanRow: View {
         }
     }
 
-    private var deleteTitle: String {
+    private var title: String {
         scan.deleteReach == .phoneAndMac ? "Delete this scan from your iPhone and your Mac?" : "Delete this scan?"
-    }
-
-    /// Asks first; while the Mac is still busy with the scan, says so instead.
-    private func askToDelete() {
-        if scan.deleteReach == .waitForMac { Task { await scans.delete(scan) } } else { confirmingDelete = true }
     }
 }
 

@@ -30,6 +30,7 @@ final class AppContainer {
     let settings: SettingsModel
     let things: ThingsModel
     let scans: ScansModel
+    let roomMaps: RoomMapsModel
 
     init() {
         let store = DefaultsConnectionStore()
@@ -41,6 +42,7 @@ final class AppContainer {
                            upload: UploadScan(files: files, uploads: Self.uploader, server: server, speech: speech),
                            track: TrackProcessing(processing: server, memory: server, speech: speech),
                            processing: server, settings: settings, things: things, speech: speech, clock: clock)
+        roomMaps = RoomMapsModel(source: UITestSamples.enabled ? UITestSamples.Maps() : server, settings: settings)
         if UITestSamples.logSpeech {
             speech.onSay = { line in UITestSamples.SpokenLog.shared.lines.append(line) }
         }
@@ -108,7 +110,7 @@ struct SystemClock: Clock {
 /// The Mac, as every Mac-facing port, reached with the current connection settings. Changing Settings swaps the
 /// client underneath; a call made before setup throws the setup issue, in words.
 final class LiveServer: HomeMemory, GuideService, Transcriber, ScanProcessing, ConnectionCheck, ScanServer, RobotSharing,
-    PrivacySource, EvidenceSource, @unchecked Sendable {
+    RoomMaps, PrivacySource, EvidenceSource, @unchecked Sendable {
     private let lock = NSLock()
     private var api: RecallAPI?
     private var issue: SetupIssue = .nothingSet
@@ -148,6 +150,9 @@ final class LiveServer: HomeMemory, GuideService, Transcriber, ScanProcessing, C
     func robotAccess() async throws -> RobotAccessStatus { try await current().robotAccess() }
     func setRobotAccess(_ on: Bool) async throws -> RobotAccessStatus { try await current().setRobotAccess(on) }
     func robotMap(home: String) async throws -> RobotMapPackage { try await current().robotMap(home: home) }
+    func roomMap(home: String, room: String) async throws -> RobotMapPackage {
+        try await current().roomMap(home: home, room: room)
+    }
     func activity(limit: Int) async throws -> [AuditEntry] { try await current().activity(limit: limit) }
     func transcribe(wav: Data) async throws -> String { try await current().transcribe(wav: wav) }
     func status(scan: String) async throws -> ScanReport { try await current().status(scan: scan) }

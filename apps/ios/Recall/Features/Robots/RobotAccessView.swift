@@ -71,55 +71,13 @@ private struct MapPreview: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("\(package.room) map").font(.headline).foregroundStyle(Tokens.ink)
-            Canvas { ctx, size in
-                let m = package.map
-                let k = min(size.width / CGFloat(m.width), size.height / CGFloat(m.height))
-                let ox = (size.width - CGFloat(m.width) * k) / 2, oy = (size.height - CGFloat(m.height) * k) / 2
-                for r in 0..<m.height {
-                    for c in 0..<m.width {
-                        let colour: Color = switch m.cell(row: r, column: c) {
-                        case .free: .white
-                        case .occupied: Tokens.ink
-                        case .unknown: Tokens.line.opacity(0.5)
-                        }
-                        ctx.fill(Path(CGRect(x: ox + CGFloat(c) * k, y: oy + CGFloat(r) * k, width: k + 0.5, height: k + 0.5)),
-                                 with: .color(colour))
-                    }
-                }
-                for t in package.things {
-                    let p = m.pixel(x: t.x, y: t.y)
-                    let at = CGPoint(x: ox + CGFloat(p.column) * k, y: oy + CGFloat(p.row) * k)
-                    ctx.fill(Path(ellipseIn: CGRect(x: at.x - 6, y: at.y - 6, width: 12, height: 12)), with: .color(.white))
-                    ctx.fill(Path(ellipseIn: CGRect(x: at.x - 4.5, y: at.y - 4.5, width: 9, height: 9)), with: .color(Tokens.blue))
-                }
-            }
-            .frame(height: 220)
-            .background(Tokens.tile, in: .rect(cornerRadius: 14))
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Map of \(package.room) for robots, with \(package.things.count) things marked.")
-            HStack(spacing: 14) {
-                Legend(colour: .white, edge: true, "Floor")
-                Legend(colour: Tokens.ink, "Furniture and walls")
-                Legend(colour: Tokens.blue, "Things")
-            }
-            .font(.footnote).foregroundStyle(Tokens.muted)
-            .accessibilityHidden(true)
+            RoomMapCanvas(package: package)
+                .frame(height: 220)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Map of \(package.room) for robots, with \(package.things.count) things marked.")
+            RoomMapLegend()
         }
         .card()
-    }
-}
-
-private struct Legend: View {
-    let colour: Color
-    let edge: Bool
-    let text: String
-    init(colour: Color, edge: Bool = false, _ text: String) { self.colour = colour; self.edge = edge; self.text = text }
-    var body: some View {
-        HStack(spacing: 5) {
-            RoundedRectangle(cornerRadius: 3).fill(colour).frame(width: 12, height: 12)
-                .overlay(RoundedRectangle(cornerRadius: 3).stroke(Tokens.line, lineWidth: edge ? 1 : 0))
-            Text(text)
-        }
     }
 }
 

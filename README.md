@@ -238,7 +238,7 @@ routes match it. While `make demo` or `make live` runs, **Swagger UI** is at `ht
 | `POST /transcribe` | Speech to text through Muse Voice Transcribe |
 | `POST /scans`, `PUT /scans/{scan_id}/parts/{part_number}`, `POST /scans/{scan_id}/complete` | Resumable scan upload |
 | `DELETE /scans/{scan_id}` | Erase a scan from your computer, with what only it found |
-| `GET /homes/{home_id}/objects`, `GET /homes/{home_id}/room` | What Recall found, and the room model |
+| `GET /homes/{home_id}/objects`, `GET /homes/{home_id}/room`, `GET /homes/{home_id}/room-map` | What Recall found, the room model, and each room's map for Find |
 | `POST /guidance/sessions`, `POST /guidance/sessions/{session_id}/verify` | Directions, and the arrival check |
 | `GET /privacy`, `GET /audit` | What is sent where right now; who did what |
 | `GET /homes/{home_id}/robot-export`, `/a2a/home-memory` | For robots: the Nav2 map, and the Home Memory agent ([Agent Card](services/api/resources/agents/home-memory.card.json)) |
@@ -347,10 +347,10 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
 - In the app's Settings, enter the Mac's address (the API on your network, a Tailscale HTTPS address or a Cloudflare Tunnel URL) and the device key from `.env`. No other keys live on the phone.
 - Tabs:
   - **Devices** (first; the app still opens on Find): where Recall runs. The iPhone is available now; Apple Watch Ultra 4 support is coming next and Meta AI glasses are planned, each labelled as such. **Home robots → Robot Access**: the switch, what robots receive and never receive, a map preview, the export, and recent robot activity. **Your privacy** opens the privacy note.
-  - **Find**: ask "where are my keys?" by typing or speaking (Muse Voice Transcribe on the Mac), hear the answer, then **Why?** (the sightings behind it, read aloud) or **Take me there**. The phone relocalises in the saved room map, the Mac plans a route, and the phone speaks clock-face turns with the compass point and distance ("At 2 o'clock, north-east, 3 metres"), with a tick when you face the right way and a blue arrow over the thing in the camera view for a sighted helper. Without a map match it says the landmark and which way it lies, and ticks when you face it.
+  - **Find**: ask "where are my keys?" by typing or speaking (Muse Voice Transcribe on the Mac), hear the answer, then **Why?** (the sightings behind it, read aloud) or **Take me there**. Below, **Your rooms** shows a map card per room (swipe sideways; tap one to show only its things), and **Your things** is grouped like Found: each room, then the furniture things are on or near, with **Go** on every row. The phone relocalises in the saved room map, the Mac plans a route, and the phone speaks clock-face turns with the compass point and distance ("At 2 o'clock, north-east, 3 metres"), with a tick when you face the right way and a blue arrow over the thing in the camera view for a sighted helper. Without a map match it says the landmark and which way it lies, and ticks when you face it.
   - **Scans**: record a room, led by voice, with a step card, a top-down mini-map and the room-map state on screen; then upload it. **Scan again** compares the room with its last scan and says what moved, what's new and what's gone. Deleting a scan asks first, then erases it from the iPhone and the Mac.
   - **Found**: what Recall found, grouped by room and furniture with an icon for each kind of thing; correct the name, colour or height, or forget a thing.
-  - **Settings**: **Privacy** (what stays home and what is sent where, read live from the Mac), the Mac's address and key, and Appearance (automatic, light or dark, plus high contrast in black, white and yellow).
+  - **Settings**: **Privacy** (what stays home and what is sent where, read live from the Mac), the Mac's address and key, and Appearance (automatic, light or dark, plus high contrast in black, white and yellow, and Tap sounds: a soft tap and a light buzz when you switch tabs, muted by the silent switch).
 
 ### 5. Hosted version (optional)
 

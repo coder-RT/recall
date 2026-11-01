@@ -209,11 +209,37 @@ final class AccessibilityTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments += ["-UITestSampleThings"]
         app.launch()
-        XCTAssertTrue(app.staticTexts["Kitchen"].waitForExistence(timeout: 5))  // two rooms: a heading each
-        XCTAssertTrue(app.images["icon-wallet"].exists)
-        XCTAssertTrue(app.images["icon-mug"].exists)
+        let any = app.descendants(matching: .any)
+        // a heading per room, like Found, then a card per piece of furniture; every row says where and offers Go
+        XCTAssertTrue(any["find-group-Living room"].waitForExistence(timeout: 5))
+        XCTAssertEqual(any["find-group-Living room"].label, "Living room, 4 things")
+        XCTAssertEqual(any["find-group-Kitchen"].label, "Kitchen, 2 things")
+        XCTAssertTrue(app.buttons["Brown wallet, on the counter, waist height, Go"].exists)
+        XCTAssertTrue(app.staticTexts["ON OR NEAR THE COUNTER"].exists)
         shot("ios-find-icons")
         try auditBothEnds(app)
+    }
+
+    /// Find's room maps: one card per room, side by side; tapping one shows only its things, tapping it again all.
+    func testFindRoomMapsPickARoom() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-UITestSampleThings"]
+        app.launch()
+        let any = app.descendants(matching: .any)
+        let living = any["room-map-Living room"], kitchen = any["room-map-Kitchen"]
+        XCTAssertTrue(living.waitForExistence(timeout: 5) && kitchen.exists)
+        XCTAssertEqual(living.label, "Living room map, 4 things")
+        XCTAssertEqual(kitchen.value as? String, "Not selected")
+        XCTAssertGreaterThan(kitchen.frame.minX, living.frame.maxX - 1)  // side by side, not stacked
+        shot("ios-find-rooms")
+        kitchen.tap()
+        XCTAssertEqual(kitchen.value as? String, "Selected")
+        XCTAssertTrue(any["find-group-Kitchen"].waitForExistence(timeout: 3))
+        XCTAssertFalse(any["find-group-Living room"].exists)  // only the Kitchen's things now
+        XCTAssertTrue(app.staticTexts["2 things in Kitchen"].exists)
+        try audit(app)
+        kitchen.tap()
+        XCTAssertTrue(any["find-group-Living room"].waitForExistence(timeout: 3))
     }
 
     /// A processed scan offers "Scan again"; a rescan shows what moved, what's new and what's gone.

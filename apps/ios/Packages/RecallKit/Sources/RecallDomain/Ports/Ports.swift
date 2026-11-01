@@ -12,6 +12,11 @@ public protocol HomeMemory: Sendable {
     func forget(home: String, thing: String) async throws
 }
 
+/// Each room's map, with the things in it, for the owner's own screens (not recorded as a robot export).
+public protocol RoomMaps: Sendable {
+    func roomMap(home: String, room: String) async throws -> RobotMapPackage
+}
+
 /// The Guide agent and the route planner.
 public protocol GuideService: Sendable {
     /// `about`: the thing the last answer was about, so "why do you think so?" knows what "so" is.

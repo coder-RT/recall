@@ -394,6 +394,17 @@ extension RecallAPI: RobotSharing {
         return try Self.package(j)
     }
 
+    /// GET /homes/{id}/room-map?room=: the same document, for the owner's Find screen. Not a robot export, so it
+    /// works with robot access off and isn't in the robot activity.
+    public func roomMap(home: String, room: String) async throws -> RobotMapPackage {
+        var req = request("homes/\(home)/room-map", method: "GET", contentType: "application/json", body: Data())
+        if let url = req.url, var parts = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            parts.queryItems = [URLQueryItem(name: "room", value: room)]
+            req.url = parts.url
+        }
+        return try Self.package(try await send(req))
+    }
+
     static func package(_ j: [String: Any]) throws -> RobotMapPackage {
         guard let m = j["map"] as? [String: Any], let b64 = m["pgm_base64"] as? String, let pgm = Data(base64Encoded: b64),
               let resolution = m["resolution"] as? Double, let origin = m["origin"] as? [Double], origin.count == 3,

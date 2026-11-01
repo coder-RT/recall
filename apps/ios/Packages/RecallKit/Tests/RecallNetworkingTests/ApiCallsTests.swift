@@ -40,6 +40,20 @@ struct ApiCallsTests {
         }
     }
 
+    @Test func roomMapDecodesTheExportDocument() throws {
+        // a 2 x 1 PGM: one free cell, one occupied; one thing at the free cell
+        let pgm = Data("P5\n2 1\n255\n".utf8) + Data([254, 0])
+        let j: [String: Any] = [
+            "room": "Kitchen",
+            "map": ["pgm_base64": pgm.base64EncodedString(), "resolution": 0.1, "origin": [0.0, 0.0, 0.0]],
+            "objects": [["label": "mug", "color": "white", "position": [0.05, 0.05, 0.9]]],
+            "room_model": [:],
+        ]
+        let p = try RecallAPI.package(j)
+        #expect(p.room == "Kitchen" && p.map.width == 2 && p.map.cell(row: 0, column: 1) == .occupied)
+        #expect(p.things.map(\.title) == ["white mug"])
+    }
+
     @Test func privacyDecodes() async throws {
         let json = """
         {"stored_on": "This Mac", "robot_access": false, "audit_days": 90, "sent": [

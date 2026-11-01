@@ -124,4 +124,20 @@ enum UITestSamples {
                               exportURL: "http://mac.local:8000/homes/flat/robot-export")
         }
     }
+
+    /// Room maps for the UI tests: a small made-up map for each sample room, its things as dots.
+    struct Maps: RoomMaps {
+        func roomMap(home: String, room: String) async throws -> RobotMapPackage {
+            guard room == "Living room" || room == "Kitchen" else { throw RecallError.status(404) }
+            // a 10 x 6 room: a wall along the top, unseen along the bottom, one piece of furniture
+            var shades = [UInt8](repeating: 0, count: 10) + [UInt8](repeating: 254, count: 40) + [UInt8](repeating: 128, count: 10)
+            shades[room == "Kitchen" ? 22 : 25] = 0
+            let map = RobotMap(width: 10, height: 6, resolution: 0.25, origin: (0, 0), shades: shades)
+            let here = things.filter { $0.room == room }
+            let dots = here.enumerated().map { i, t in
+                RobotMapPackage.Thing(label: t.label, color: t.color, x: 0.4 + Double(i) * 0.5, y: 0.6)
+            }
+            return RobotMapPackage(room: room, map: map, things: dots, files: [:])
+        }
+    }
 }

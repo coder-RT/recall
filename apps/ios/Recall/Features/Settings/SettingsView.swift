@@ -160,10 +160,11 @@ struct SettingsView: View {
     }
 }
 
-/// Theme: automatic, light or dark, and high contrast.
+/// Theme: automatic, light or dark, high contrast, and the tab tap sound.
 private struct AppearanceView: View {
     @AppStorage(Theme.appearanceKey) private var appearance = Appearance.system
     @AppStorage(Theme.highContrastKey) private var highContrast = false
+    @AppStorage(TapSound.enabledKey) private var tapSounds = true
 
     var body: some View {
         Form {
@@ -186,6 +187,11 @@ private struct AppearanceView: View {
                     Toggle("High contrast", isOn: $highContrast).tint(Tokens.go)
                 } footer: {
                     FormNote("Black, white and yellow, like the website's high contrast. It also turns on with iOS's Increase Contrast.")
+                }
+                Section {
+                    Toggle("Tap sounds", isOn: $tapSounds).tint(Tokens.go)
+                } footer: {
+                    FormNote("A soft tap and a light buzz when you switch tabs. The ring/silent switch mutes the sound.")
                 }
             }
             .listRowBackground(Tokens.card)

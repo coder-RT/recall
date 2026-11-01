@@ -16,6 +16,7 @@ struct RecallApp: App {
                 .environment(container.settings)
                 .environment(container.things)
                 .environment(container.scans)
+                .environment(container.roomMaps)
                 .environment(\.container, container)
         }
     }
@@ -39,7 +40,12 @@ private struct ThemedRoot: View {
 
     var body: some View {
         @Bindable var router = router
-        TabView(selection: $router.tab) {
+        // a tap on the bar plays the tap sound; switching tabs in code ("Open Settings") stays quiet
+        let tabs = Binding(get: { router.tab }, set: { tab in
+            if tab != router.tab { TapSound.shared.play() }
+            router.tab = tab
+        })
+        TabView(selection: tabs) {
             // first in the bar, but the app opens on Find: asking stays one step away
             Tab("Devices", systemImage: "apps.iphone", value: AppTab.devices) { DevicesView() }
             Tab("Find", systemImage: "location.magnifyingglass", value: AppTab.find) { FindView() }

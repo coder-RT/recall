@@ -273,3 +273,15 @@ public final class FakeRobotSharing: RobotSharing, @unchecked Sendable {
                           exportURL: "http://mac.local:8000/homes/flat/robot-export")
     }
 }
+
+/// Room maps by room name; a room not in `maps` throws, as the Mac does for a room with no processed scan.
+public final class FakeRoomMaps: RoomMaps, @unchecked Sendable {
+    public var maps: [String: RobotMapPackage]
+    public private(set) var asked: [String] = []
+    public init(maps: [String: RobotMapPackage] = [:]) { self.maps = maps }
+    public func roomMap(home: String, room: String) async throws -> RobotMapPackage {
+        asked.append(room)
+        guard let map = maps[room] else { throw RecallError.status(404) }
+        return map
+    }
+}

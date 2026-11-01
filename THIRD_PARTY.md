@@ -19,6 +19,7 @@ Library versions are pinned in the lockfiles (`pnpm-lock.yaml`, `uv.lock`).
 | What | Where | Terms |
 |---|---|---|
 | Thing icons (keys, wallet, bag, backpack, book, bottle, glasses, phone, remote, mug, laptop, headphones, charger, watch, passport, and the box for unsure things) | `apps/ios/Recall/Resources/Assets.xcassets/Things`, drawn by `apps/ios/scripts/make_thing_icons.py` | Drawn for Recall; Apache-2.0 with the rest of the repo. No third-party art |
+| Tab tap sound | `apps/ios/Recall/Resources/tap.wav`, made by `apps/ios/scripts/make_tap_sound.py` (two damped sine waves) | Made for Recall; Apache-2.0 with the rest of the repo. No third-party audio |
 
 ## Hosting and infrastructure
 

@@ -3,13 +3,18 @@ import RecallDesign
 import RecallDomain
 import SwiftUI
 
-/// Find: ask where something is (typed or spoken), hear the answer, and be walked there; or pick a thing from the
-/// list and go.
+/// Find: ask where something is (typed or spoken), hear the answer, and be walked there; or pick a room's map and a
+/// thing from the list below it, grouped by room and the furniture it's on or near, and go.
 struct FindView: View {
     @Environment(\.container) private var container
     @Environment(ThingsModel.self) private var things
+    @Environment(ScansModel.self) private var scans
+    @Environment(RoomMapsModel.self) private var maps
     @Environment(Router.self) private var router
     @State private var model: FindModel?
+    /// The room picked on its map card; nil shows every room.
+    @State private var room: String?
+    @State private var folded: Set<String> = []
 
     var body: some View {
         NavigationStack {
@@ -18,6 +23,12 @@ struct FindView: View {
                     BrandHeader("Find", subtitle: "Ask where something is")
                     if let model { AskCard(model: model) { router.guiding = $0 } }
 
+                    if !rooms.isEmpty {
+                        SectionTitle("Your rooms", count: rooms.count == 1 ? "1 room" : "\(rooms.count) rooms")
+                            .padding(.top, 12)
+                        RoomCarousel(rooms: rooms, things: things.things, picked: $room)
+                    }
+
                     SectionTitle("Your things", count: things.things.isEmpty ? nil : count)
                         .padding(.top, 12)
                     if let error = things.error {
@@ -25,19 +36,11 @@ struct FindView: View {
                     } else if things.things.isEmpty, things.loaded {
                         EmptyState("shippingbox", "Nothing remembered yet. Scan a room and upload it first.")
                     }
-                    // one room: a plain list; several: a heading per room
-                    let rooms = ThingGroups.byPlace(things.things)
-                    ForEach(rooms) { room in
-                        if rooms.count > 1 {
-                            Text(room.title).font(.headline).foregroundStyle(Tokens.muted)
-                                .padding(.top, 4)
-                                .accessibilityAddTraits(.isHeader)
-                        }
-                        ForEach(room.things) { thing in
-                            Button { router.guiding = thing } label: { ThingRow(thing: thing) }
-                                .buttonStyle(.plain)
-                                .accessibilityHint("Walks you there with spoken directions.")
-                        }
+                    // like Found: a heading per room (even just one), then a card per piece of furniture
+                    ForEach(ThingGroups.byPlace(shown)) { group in
+                        GroupSection(group: group, folded: folded.contains(group.id), inSpots: true, mode: .find,
+                                     toggle: { toggle(group.id) }, open: { router.guiding = $0 },
+                                     guide: { router.guiding = $0 })
                     }
                 }
                 .padding(.horizontal, Tokens.gutter)
@@ -48,11 +51,115 @@ struct FindView: View {
                 if model == nil { model = container?.findModel() }
                 if !things.loaded { await things.refresh() }
             }
-            .refreshable { await things.refresh() }
+            .refreshable {
+                maps.forget()
+                await things.refresh()
+            }
+            // a room that's gone (erased, or renamed) stops filtering the list
+            .onChange(of: rooms) { if let room, !rooms.contains(room) { self.room = nil } }
         }
     }
 
-    private var count: String { things.things.count == 1 ? "1 thing" : "\(things.things.count) things" }
+    /// Rooms with things, most first, then rooms scanned on this phone that have nothing found yet.
+    private var rooms: [String] {
+        ThingGroups.rooms(things.things, scanned: scans.scans.filter { $0.state == .processed }.map(\.room))
+    }
+
+    private var shown: [Thing] { room.map { r in things.things.filter { $0.room == r } } ?? things.things }
+
+    private var count: String {
+        let n = shown.count
+        return (n == 1 ? "1 thing" : "\(n) things") + (room.map { " in \($0)" } ?? "")
+    }
+
+    private func toggle(_ id: String) {
+        if folded.contains(id) { folded.remove(id) } else { folded.insert(id) }
+    }
+}
+
+/// One map card per room, side by side: swipe to see the next room, tap one to show only its things below.
+private struct RoomCarousel: View {
+    let rooms: [String]
+    let things: [Thing]
+    @Binding var picked: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if rooms.count > 1 {
+                FilterChip("All rooms", selected: picked == nil) { pick(nil) }
+                    .accessibilityHint("Shows every room's things.")
+            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: 12) {
+                    ForEach(rooms, id: \.self) { room in
+                        RoomMapCard(room: room, count: things.filter { $0.room == room }.count, picked: picked == room) {
+                            pick(picked == room ? nil : room)
+                        }
+                        // one room fills the width; with more, the next one peeks in so it's clear there's more
+                        .containerRelativeFrame(.horizontal) { width, _ in rooms.count == 1 ? width : width * 0.86 }
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .scrollTargetBehavior(.viewAligned)
+            .scrollClipDisabled()
+            .accessibilityIdentifier("room-maps")
+            RoomMapLegend().padding(.top, 2)
+        }
+    }
+
+    private func pick(_ room: String?) {
+        withAnimation(reduceMotion ? nil : .snappy) { picked = room }
+    }
+}
+
+/// A room's map in a card: its name, how many things, and the map with the things as dots.
+private struct RoomMapCard: View {
+    let room: String
+    let count: Int
+    let picked: Bool
+    let tap: () -> Void
+    @Environment(RoomMapsModel.self) private var maps
+
+    var body: some View {
+        Button(action: tap) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(room).font(.headline).foregroundStyle(Tokens.ink)
+                        .fixedSize(horizontal: false, vertical: true)  // wraps at large text instead of clipping
+                    Spacer(minLength: 8)
+                    Text(things).font(.subheadline).foregroundStyle(Tokens.muted)
+                }
+                Group {
+                    switch maps.maps[room] {
+                    case .ready(let package): RoomMapCanvas(package: package)
+                    case .notReady:
+                        Text("Map not ready yet. It appears once your Mac has processed a scan of this room.")
+                            .font(.subheadline).foregroundStyle(Tokens.muted).multilineTextAlignment(.center)
+                            .padding().frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(Tokens.tile, in: .rect(cornerRadius: 14))
+                    case .loading, nil:
+                        ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(Tokens.tile, in: .rect(cornerRadius: 14))
+                    }
+                }
+                .frame(height: 190)
+            }
+            .card()
+            .overlay(RoundedRectangle(cornerRadius: Tokens.cardRadius).stroke(Tokens.accent, lineWidth: picked ? 3 : 0))
+        }
+        .buttonStyle(.plain)
+        .task { await maps.load(room) }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(room) map, \(things)")
+        .accessibilityValue(picked ? "Selected" : "Not selected")
+        .accessibilityHint(picked ? "Shows every room's things again." : "Shows only this room's things.")
+        .accessibilityAddTraits(picked ? [.isButton, .isSelected] : .isButton)
+        .accessibilityIdentifier("room-map-\(room)")
+    }
+
+    private var things: String { count == 1 ? "1 thing" : "\(count) things" }
 }
 
 /// The question, the two ways to ask it, and the answer.
@@ -140,31 +247,5 @@ private struct AnswerCard: View {
             }
         }
         .card()
-    }
-}
-
-/// A thing in the list: what it is, where it is, and a Go arrow.
-private struct ThingRow: View {
-    let thing: Thing
-
-    var body: some View {
-        HStack(spacing: 12) {
-            ThingIcon(thing: thing)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(thing.title.capitalizedFirst).font(.headline).foregroundStyle(Tokens.ink)
-                Text(thing.place.capitalizedFirst).font(.subheadline).foregroundStyle(Tokens.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 8)
-            Label("Go", systemImage: "figure.walk")
-                .font(.subheadline.weight(.semibold)).foregroundStyle(Tokens.onAccent)
-                .padding(.horizontal, 14).frame(minHeight: 40)
-                .background(Tokens.accentFill, in: Capsule())
-                .fixedSize()
-        }
-        .frame(minHeight: Tokens.minTarget)
-        .card(padding: 14)
-        // VoiceOver reads the row's own words: "Grey bag, near the desk, knee height, Go"
-        .accessibilityElement(children: .combine)
     }
 }

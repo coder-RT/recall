@@ -26,7 +26,7 @@ struct FoundView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: Tokens.stack) {
                     BrandHeader("Found", subtitle: "Check what Recall found")
                     if things.loading && !things.loaded {
                         ProgressView("Loading what Recall found…").frame(maxWidth: .infinity).padding(.vertical, 32)
@@ -107,6 +107,7 @@ private struct SearchField: View {
                       axis: .vertical)  // grows with large text instead of clipping
                 .foregroundStyle(Tokens.ink)
                 .textInputAutocapitalization(.never)
+                .limited($text, to: TextInput.search)
                 .submitLabel(.search)
                 .accessibilityIdentifier("search")
             if !text.isEmpty {

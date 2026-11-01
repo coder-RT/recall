@@ -44,6 +44,30 @@ public struct AuditEntry: Sendable, Equatable, Identifiable {
             return "You erased a scan of \(detail["room"] ?? "a room") from the Mac"
         case "auth.refused":
             return "Refused: \(detail["why"] ?? "no valid key") (\(detail["path"] ?? "a request"))"
+        case "trust.changed":
+            return "You set how sure Recall must be to \(detail["level"] ?? "a new level")"
+        case "scan.created":
+            return "You started uploading a scan of \(detail["room"] ?? "a room")"
+        case "scan.uploaded":
+            return refused ? "A scan upload failed its check: \(detail["why"] ?? "damaged")"
+                           : "Your scan of \(detail["room"] ?? "a room") arrived; the Mac is processing it"
+        case "scan.failed":
+            return "The Mac couldn't process a scan of \(detail["room"] ?? "a room")"
+        case "scan.ingested":
+            return "The Mac remembered a scan of \(detail["room"] ?? "a room")"
+        case "object.corrected":
+            return "You corrected \(detail["label"] ?? "a thing")"
+        case "object.forgotten":
+            return "You said \(detail["label"] ?? "a thing") isn't there"
+        case "arrival.verified":
+            return "The camera checked you'd reached a thing"
+        case "guide.answered":
+            return refused ? "Your question couldn't reach the Guide's model" : "Your question went to the Guide's model"
+        case "voice.transcribed":
+            return refused ? "Your voice couldn't reach Muse Voice Transcribe"
+                           : "Your voice went to Muse Voice Transcribe (not kept)"
+        case "audit.pruned":
+            return "The Mac dropped \(detail["dropped"] ?? "some") events past the keeping period"
         default:
             return action
         }

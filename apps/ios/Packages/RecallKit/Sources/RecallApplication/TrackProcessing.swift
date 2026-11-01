@@ -47,7 +47,7 @@ public struct TrackProcessing {
     /// A rescan says what changed; a first scan (or a fresh start) says how much was found.
     static func announce(_ scan: Scan, report: ScanReport, things: [Thing]) -> String {
         if report.fresh {
-            return "I didn't recognise \(scan.room), so its memory started afresh. " + ready(scan.room, things: things)
+            return ChangeSummary.sayFresh(room: scan.room) + " " + ready(scan.room, things: things)
         }
         if scan.alignedTo != nil || !report.changes.isEmpty {
             return ChangeSummary.say(room: scan.room, changes: report.changes)

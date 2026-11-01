@@ -9,6 +9,15 @@ enum UITestSamples {
     /// The usability tests read what was spoken from one invisible element ("spoken-log").
     static let logSpeech = ProcessInfo.processInfo.arguments.contains("-UITestSpokenLog")
 
+    /// A paired-looking Mac, whatever an earlier run left in the simulator's settings or Keychain (the key outlives an
+    /// uninstall there), so every screen starts the same and shows no setup notice. Nothing listens on port 9, so a
+    /// request that slips past the samples fails at once instead of reaching a real Mac. Changes last until the app quits.
+    final class Connections: ConnectionStore, @unchecked Sendable {
+        private var connection = Connection(address: "127.0.0.1:9", key: "ui-test-sample-key", home: "flat")
+        func load() -> Connection { connection }
+        func save(_ connection: Connection) { self.connection = connection }
+    }
+
     /// Every line spoken since launch, newest last.
     @MainActor @Observable final class SpokenLog {
         static let shared = SpokenLog()
@@ -92,6 +101,18 @@ enum UITestSamples {
                 DataFlow(what: "Your question as text", to: "Baseten: Muse Spark Open", when: "Each time you ask"),
             ], robotAccess: false, auditDays: 90)
         }
+    }
+
+    /// A robot package for the UI tests: a few bytes standing in for the Mac's .zip.
+    struct Packages: RobotPackages {
+        func robotPackage(home: String, room: String?) async throws -> Data { Data("sample robot package".utf8) }
+    }
+
+    /// The trust level for the UI tests: Balanced, kept in memory.
+    final class Trust: TrustSettings, @unchecked Sendable {
+        private var level = TrustLevel.balanced
+        func trustLevel() async throws -> TrustLevel { level }
+        func setTrustLevel(_ level: TrustLevel) async throws -> TrustLevel { self.level = level; return level }
     }
 
     /// Robot Access for the UI tests: kept in memory, with a small made-up map.

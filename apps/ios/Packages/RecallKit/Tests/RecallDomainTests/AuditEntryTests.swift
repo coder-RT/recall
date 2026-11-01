@@ -28,6 +28,17 @@ struct AuditEntryTests {
                 == "Refused: wrong key (/a2a/home-memory)")
     }
 
+    @Test func everyActionTheMacRecordsReadsAsASentence() {
+        let actions = ["trust.changed", "scan.created", "scan.uploaded", "scan.failed", "scan.ingested", "object.corrected",
+                       "object.forgotten", "arrival.verified", "guide.answered", "voice.transcribed", "audit.pruned"]
+        for action in actions {
+            #expect(entry(action, "owner").summary != action, "\(action) has no sentence")
+        }
+        #expect(entry("object.forgotten", "owner", "ok", ["label": "wallet"]).summary == "You said wallet isn't there")
+        #expect(entry("voice.transcribed", "owner", "failed").summary == "Your voice couldn't reach Muse Voice Transcribe")
+        #expect(entry("trust.changed", "owner", "ok", ["level": "careful"]).summary == "You set how sure Recall must be to careful")
+    }
+
     @Test func onlyRobotMattersAreShown() {
         #expect(entry("home_memory.query", "robot").isAboutRobots)
         #expect(!entry("object.corrected", "owner").isAboutRobots)

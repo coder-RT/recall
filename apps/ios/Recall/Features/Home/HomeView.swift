@@ -13,9 +13,10 @@ struct HomeView: View {
     @State private var scanning: ScanRequest?
 
     var body: some View {
+        let rooms = ScanHistory.byRoom(scans.scans)  // one card per room; its earlier scans fold inside it
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: Tokens.stack) {
                     BrandHeader("Scans", subtitle: "Where are your things?")
                     ScanHero { askingRoom = true }
                         .padding(.top, 4)
@@ -25,12 +26,11 @@ struct HomeView: View {
                     }
 
                     SectionTitle("Your scans", count: count)
-                        .padding(.top, 12)
+                        .padding(.top, Tokens.sectionGap)
                     if scans.scans.isEmpty {
                         EmptyState("viewfinder", "No scans yet. Scan a room to start.")
                     }
-                    // one card per room; its earlier scans fold inside it
-                    ForEach(ScanHistory.byRoom(scans.scans)) { room in
+                    ForEach(rooms) { room in
                         ScanRow(history: room, review: { router.tab = .found },
                                 again: { scanning = ScanRequest(room: room.latest.room, again: room.latest) })
                     }
@@ -53,13 +53,8 @@ struct HomeView: View {
         }
     }
 
-    // "1 scan", or "2 rooms · 3 scans" once a room has history
     private var count: String? {
-        let n = scans.scans.count
-        guard n > 0 else { return nil }
-        let rooms = ScanHistory.byRoom(scans.scans).count
-        let scansText = n == 1 ? "1 scan" : "\(n) scans"
-        return rooms == n ? scansText : "\(rooms == 1 ? "1 room" : "\(rooms) rooms") · \(scansText)"
+        scans.scans.isEmpty ? nil : scans.scans.count == 1 ? "1 scan" : "\(scans.scans.count) scans"
     }
 }
 
@@ -95,7 +90,7 @@ private struct ScanHero: View {
                     .frame(maxWidth: .infinity, minHeight: Tokens.minTarget)
                     .background(hc ? Tokens.accentFill : .white, in: Capsule())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.plainTap)
             .glassRim(.capsule, .regular.interactive())
             .accessibilityHint("Walk slowly around one room with the phone.")
         }
@@ -245,7 +240,7 @@ private struct EarlierScans: View {
                 .frame(minHeight: 44)
                 .contentShape(.rect)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.plainTap)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Earlier scans of \(history.latest.room), \(scansText)")
             .accessibilityValue(open ? "Open" : "Folded")
@@ -298,7 +293,7 @@ private struct EarlierScanRow: View {
         .deleteScanAlert(scan, isPresented: $confirmingDelete)
     }
 
-    // a recognised rescan built on this one; an unrecognised one started the room afresh
+    // a recognised rescan built on this one; one that didn't line up made a fresh map of the room
     private var took: String {
         guard let after else { return "earlier scan" }
         let day = after.createdAt.formatted(.dateTime.day().month())
@@ -405,7 +400,7 @@ private struct UploadStatus: View {
 }
 
 /// After a rescan: what moved, what's new, what's gone, each with its icon and the places in words; or that the room
-/// wasn't recognised and its memory started afresh. "Hear it again" says the summary.
+/// didn't line up with the last one, so it is a fresh map (nothing lost, nothing compared). "Hear it again" says it.
 private struct WhatChanged: View {
     @Environment(ScansModel.self) private var scans
     let scan: Scan
@@ -413,7 +408,9 @@ private struct WhatChanged: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Label("What changed", systemImage: "arrow.left.arrow.right").font(.headline).foregroundStyle(Tokens.ink)
+                Label(scan.fresh ? ChangeSummary.freshTitle(room: scan.room) : "What changed",
+                      systemImage: scan.fresh ? "map" : "arrow.left.arrow.right")
+                    .font(.headline).foregroundStyle(Tokens.ink)
                 Spacer(minLength: 8)
                 Button { scans.sayChanges(scan) } label: {
                     Label("Hear it again", systemImage: "speaker.wave.2.fill").labelStyle(.iconOnly)
@@ -422,8 +419,10 @@ private struct WhatChanged: View {
                 .accessibilityLabel("Hear what changed again")
             }
             if scan.fresh {
-                Text("The room wasn't recognised, so Recall started its memory afresh.")
+                Text(ChangeSummary.freshBody)
                     .font(.subheadline).foregroundStyle(Tokens.ink).fixedSize(horizontal: false, vertical: true)
+                Label(ChangeSummary.freshTip, systemImage: "lightbulb")
+                    .font(.subheadline).foregroundStyle(Tokens.muted).fixedSize(horizontal: false, vertical: true)
             } else if scan.changes.isEmpty {
                 Text("Nothing has moved since the last scan.").font(.subheadline).foregroundStyle(Tokens.ink)
             } else {

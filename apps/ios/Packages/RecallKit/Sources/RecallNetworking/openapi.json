@@ -459,6 +459,59 @@
         }
       }
     },
+    "/trust": {
+      "get": {
+        "tags": [
+          "homes"
+        ],
+        "operationId": "getTrust",
+        "summary": "How sure Recall must be before it tells you about a thing",
+        "responses": {
+          "200": {
+            "description": "The trust level",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trust"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "homes"
+        ],
+        "operationId": "setTrust",
+        "summary": "Set how sure Recall must be (the owner's device key only)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrustUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The trust level after the change",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trust"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        }
+      }
+    },
     "/audit": {
       "get": {
         "tags": [
@@ -646,6 +699,70 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RobotExport"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "The scan's point cloud is missing; process the scan again",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/homes/{home_id}/robot-package": {
+      "get": {
+        "tags": [
+          "robots"
+        ],
+        "operationId": "getRobotPackage",
+        "summary": "One room's memory for a robot as a .zip of files it loads (Nav2 map, things, room, 3D points, README)",
+        "description": "The same content as the robot export, as files: map.pgm and map.yaml (Nav2 map server), objects.json, room.json, cloud.ply (x y z, metres, z up) and README.md. Same access as the robot export: the owner's device key always (to share it from the phone), a robot's key only while robot access is on. Recorded in the audit.\n",
+        "security": [
+          {
+            "deviceKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/home_id"
+          },
+          {
+            "name": "room",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The package",
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Robot access is off",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -1975,9 +2092,20 @@
           "corrections": {
             "$ref": "#/components/schemas/ObjectCorrection"
           },
+          "photos": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "How many of the scan's photos showed it (null for sightings kept before this was recorded)"
+          },
+          "trusted": {
+            "type": "boolean",
+            "description": "Seen in enough photos for the owner's trust level (or confirmed): the Guide, Find, room maps and robots use it"
+          },
           "needs_review": {
             "type": "boolean",
-            "description": "The models were unsure (confidence under 0.7) and the user hasn't confirmed it"
+            "description": "Unconfirmed and either unsure (confidence under 0.7) or not trusted yet"
           }
         }
       },
@@ -2018,6 +2146,47 @@
           }
         }
       },
+      "Trust": {
+        "type": "object",
+        "description": "How sure Recall must be before it tells the owner (or a robot) about a thing, by the photos it was seen in",
+        "required": [
+          "level",
+          "min_photos"
+        ],
+        "properties": {
+          "level": {
+            "type": "string",
+            "enum": [
+              "careful",
+              "balanced",
+              "everything"
+            ],
+            "description": "careful: 3 photos; balanced: 2 (default); everything: 1"
+          },
+          "min_photos": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Photos a thing must be seen in, at this level (a confirmed thing always counts)"
+          }
+        }
+      },
+      "TrustUpdate": {
+        "type": "object",
+        "required": [
+          "level"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "level": {
+            "type": "string",
+            "enum": [
+              "careful",
+              "balanced",
+              "everything"
+            ]
+          }
+        }
+      },
       "AuditEvent": {
         "type": "object",
         "description": "One recorded event: who (by the key they used), what, how it ended. Append-only, kept on the Mac for RECALL_AUDIT_RETENTION_DAYS (90). Never a key, token or password; free text is trimmed.\n",
@@ -2043,6 +2212,7 @@
               "owner",
               "robot",
               "pipeline",
+              "system",
               "unknown"
             ]
           },
@@ -2050,14 +2220,21 @@
             "type": "string",
             "enum": [
               "robot_access.changed",
+              "trust.changed",
               "robot_export.read",
               "home_memory.query",
               "auth.refused",
               "object.corrected",
               "object.forgotten",
+              "scan.created",
+              "scan.uploaded",
+              "scan.failed",
               "scan.ingested",
               "scan.erased",
-              "arrival.verified"
+              "arrival.verified",
+              "guide.answered",
+              "voice.transcribed",
+              "audit.pruned"
             ]
           },
           "outcome": {
@@ -2604,7 +2781,8 @@
         ],
         "properties": {
           "home_id": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^[a-z0-9-]{1,64}$"
           },
           "question": {
             "type": "string",
@@ -2616,6 +2794,7 @@
               "string",
               "null"
             ],
+            "pattern": "^[A-Za-z0-9_-]{1,64}$",
             "description": "A guidance session, if the user is already being guided"
           },
           "about": {
@@ -2623,6 +2802,7 @@
               "string",
               "null"
             ],
+            "pattern": "^[A-Za-z0-9_-]{1,64}$",
             "description": "The thing the last answer was about, for a follow-up (\"why do you think so?\")"
           }
         }

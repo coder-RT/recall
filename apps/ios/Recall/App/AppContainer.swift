@@ -31,9 +31,10 @@ final class AppContainer {
     let things: ThingsModel
     let scans: ScansModel
     let roomMaps: RoomMapsModel
+    let trust: TrustModel
 
     init() {
-        let store = DefaultsConnectionStore()
+        let store: any ConnectionStore = UITestSamples.enabled ? UITestSamples.Connections() : DefaultsConnectionStore()
         settings = SettingsModel(store: store, server: server, pair: PairDevice(store: store),
                                  test: TestConnection(check: server), speech: speech)
         things = ThingsModel(load: LoadThings(memory: server), correct: CorrectThing(memory: server),
@@ -43,6 +44,7 @@ final class AppContainer {
                            track: TrackProcessing(processing: server, memory: server, speech: speech),
                            processing: server, settings: settings, things: things, speech: speech, clock: clock)
         roomMaps = RoomMapsModel(source: UITestSamples.enabled ? UITestSamples.Maps() : server, settings: settings)
+        trust = TrustModel(source: UITestSamples.enabled ? UITestSamples.Trust() : server)
         if UITestSamples.logSpeech {
             speech.onSay = { line in UITestSamples.SpokenLog.shared.lines.append(line) }
         }
@@ -50,6 +52,10 @@ final class AppContainer {
             things.useForUITests(UITestSamples.things)
             scans.useForUITests(UITestSamples.scans)
         }
+    }
+
+    func robotPackages() -> any RobotPackages {
+        UITestSamples.enabled ? UITestSamples.Packages() : server
     }
 
     func evidenceSource() -> any EvidenceSource {
@@ -110,7 +116,7 @@ struct SystemClock: Clock {
 /// The Mac, as every Mac-facing port, reached with the current connection settings. Changing Settings swaps the
 /// client underneath; a call made before setup throws the setup issue, in words.
 final class LiveServer: HomeMemory, GuideService, Transcriber, ScanProcessing, ConnectionCheck, ScanServer, RobotSharing,
-    RoomMaps, PrivacySource, EvidenceSource, @unchecked Sendable {
+    RoomMaps, RobotPackages, TrustSettings, PrivacySource, EvidenceSource, @unchecked Sendable {
     private let lock = NSLock()
     private var api: RecallAPI?
     private var issue: SetupIssue = .nothingSet
@@ -147,6 +153,11 @@ final class LiveServer: HomeMemory, GuideService, Transcriber, ScanProcessing, C
     func verify(session: String, frame: ArrivalFrame) async throws -> ArrivalCheck {
         try await current().verify(session: session, frame: frame)
     }
+    func robotPackage(home: String, room: String?) async throws -> Data {
+        try await current().robotPackage(home: home, room: room)
+    }
+    func trustLevel() async throws -> TrustLevel { try await current().trustLevel() }
+    func setTrustLevel(_ level: TrustLevel) async throws -> TrustLevel { try await current().setTrustLevel(level) }
     func robotAccess() async throws -> RobotAccessStatus { try await current().robotAccess() }
     func setRobotAccess(_ on: Bool) async throws -> RobotAccessStatus { try await current().setRobotAccess(on) }
     func robotMap(home: String) async throws -> RobotMapPackage { try await current().robotMap(home: home) }

@@ -33,7 +33,7 @@ struct GroupSection: View {
                 .frame(minHeight: 44)
                 .contentShape(.rect)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.plainTap)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(mode == .review ? group.summary : summaryWithoutChecks)
             .accessibilityValue(folded ? "Folded" : "Open")
@@ -80,13 +80,13 @@ struct RowsCard: View {
                 switch mode {
                 case .review:
                     Button { open(thing) } label: { ThingListRow(thing: thing, atFurniture: atFurniture, mode: mode) }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.plainTap)
                         .accessibilityHint("Opens it to correct or confirm.")
                         .accessibilityAction(named: "Take me there") { guide(thing) }
                         .contextMenu { Button("Take me there", systemImage: "figure.walk") { guide(thing) } }
                 case .find:
                     Button { guide(thing) } label: { ThingListRow(thing: thing, atFurniture: atFurniture, mode: mode) }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.plainTap)
                         .accessibilityHint("Walks you there with spoken directions.")
                 }
             }
@@ -113,7 +113,7 @@ struct ThingListRow: View {
                         .fixedSize(horizontal: false, vertical: true)
                     if mode == .review {
                         if thing.needsReview && !thing.confirmed {
-                            Label("Check", systemImage: "questionmark.circle.fill").labelStyle(.titleAndIcon)
+                            Label(thing.checkMark, systemImage: "questionmark.circle.fill").labelStyle(.titleAndIcon)
                                 .font(.caption.weight(.bold)).foregroundStyle(Tokens.danger).fixedSize()
                         } else if thing.confirmed {
                             Image(systemName: "checkmark.seal.fill").font(.caption).foregroundStyle(Tokens.goText)

@@ -10,47 +10,45 @@ struct DevicesView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    BrandHeader("Devices", subtitle: "One memory of your home, wherever you are")
-                    Pitch()
-                    SectionTitle("Where Recall runs", count: "\(Device.all.count) devices")
-                }
-                .padding(.horizontal, Tokens.gutter)
-                DeviceCarousel()
-                NavigationLink { RobotAccessView() } label: {
-                    LinkCard(icon: "gearshape.2.fill", title: "Robot Access",
-                             text: "Share your home map with a robot, or keep it private", id: "robot-access-link")
-                }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, Tokens.gutter)
-                    .padding(.top, 8)
-                    .accessibilityHint("Share your home map with robots, or turn it off.")
-                    .padding(.top, 4)
-                NavigationLink { PrivacyView() } label: {
-                    LinkCard(icon: "hand.raised.fill", title: "Your privacy",
-                             text: "Your memory lives on your Mac. See what is sent where", id: "privacy-link")
-                }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, Tokens.gutter)
-                    .padding(.top, 8)
-                    .accessibilityHint("What stays on your Mac and iPhone, and what is sent where.")
-                VStack(alignment: .leading, spacing: 16) {
-                    SectionTitle("Why it works")
-                    Promises()
-                    HStack(spacing: 12) {
-                        Button { router.tab = .find } label: { Label("Ask now", systemImage: "location.magnifyingglass") }
-                            .buttonStyle(SolidPillStyle(fill: Tokens.go, text: Tokens.onGo))
-                            .accessibilityHint("Opens Find, to ask where something is.")
-                        Button { router.tab = .scans } label: { Label("Scan a room", systemImage: "viewfinder") }
-                            .buttonStyle(SolidPillStyle(fill: Tokens.card, text: Tokens.accent, edge: Tokens.line))
-                            .accessibilityHint("Opens Scans, to record a room.")
+                // one column on the shared rhythm: Tokens.stack between blocks, Tokens.sectionGap more above a section
+                VStack(alignment: .leading, spacing: Tokens.stack) {
+                    Group {
+                        BrandHeader("Devices", subtitle: "One memory, on every device")
+                        Pitch()
+                        SectionTitle("Where Recall runs", count: "\(Device.all.count) devices")
+                            .padding(.top, Tokens.sectionGap)
                     }
-                    Text("Only the iPhone app works today; the Watch and glasses are being built, and robots can use the shared map in a preview. Recall is an independent project, not affiliated with Apple or Meta.")
-                        .font(.footnote).foregroundStyle(Tokens.muted)
-                        .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, Tokens.gutter)
+                    DeviceCarousel()  // full width: its cards peek in from the edges
+                    Group {
+                        NavigationLink { RobotAccessView() } label: {
+                            LinkCard(icon: "gearshape.2.fill", title: "Robot Access",
+                                     text: "Share your home map with a robot, or keep it private", id: "robot-access-link")
+                        }
+                        .buttonStyle(.plainTap)
+                        .accessibilityHint("Share your home map with robots, or turn it off.")
+                        NavigationLink { PrivacyView() } label: {
+                            LinkCard(icon: "hand.raised.fill", title: "Your privacy",
+                                     text: "Your memory lives on your Mac. See what is sent where", id: "privacy-link")
+                        }
+                        .buttonStyle(.plainTap)
+                        .accessibilityHint("What stays on your Mac and iPhone, and what is sent where.")
+                        SectionTitle("Why it works").padding(.top, Tokens.sectionGap)
+                        Promises()
+                        HStack(spacing: Tokens.stack) {
+                            Button { router.tab = .find } label: { Label("Ask now", systemImage: "location.magnifyingglass") }
+                                .buttonStyle(SolidPillStyle(fill: Tokens.go, text: Tokens.onGo))
+                                .accessibilityHint("Opens Find, to ask where something is.")
+                            Button { router.tab = .scans } label: { Label("Scan a room", systemImage: "viewfinder") }
+                                .buttonStyle(SolidPillStyle(fill: Tokens.card, text: Tokens.accent, edge: Tokens.line))
+                                .accessibilityHint("Opens Scans, to record a room.")
+                        }
+                        Text("Only the iPhone app works today; the Watch and glasses are being built, and robots can use the shared map in a preview. Recall is an independent project, not affiliated with Apple or Meta.")
+                            .font(.footnote).foregroundStyle(Tokens.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.horizontal, Tokens.gutter)
                 }
-                .padding(.horizontal, Tokens.gutter)
-                .padding(.top, 8)
                 .padding(.bottom, 24)
             }
             .tabScreen()
@@ -88,7 +86,7 @@ private struct DeviceCarousel: View {
                         }
                         .contentShape(.rect)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.plainTap)
                     .accessibilityLabel(device.name)
                     .accessibilityHint("Shows it below.")
                     .accessibilityAddTraits(on ? .isSelected : [])

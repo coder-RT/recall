@@ -37,14 +37,21 @@ struct RoomMapCanvas: View {
 
 /// Floor · Furniture and walls · Things: what the map's colours mean.
 struct RoomMapLegend: View {
+    @ViewBuilder private var swatches: some View {
+        Swatch(colour: .white, edge: true, "Floor")
+        Swatch(colour: Tokens.ink, "Furniture and walls")
+        Swatch(colour: Tokens.blue, "Things")
+    }
+
     var body: some View {
-        HStack(spacing: 14) {
-            Swatch(colour: .white, edge: true, "Floor")
-            Swatch(colour: Tokens.ink, "Furniture and walls")
-            Swatch(colour: Tokens.blue, "Things")
+        // one line when it fits, else one swatch per line (large text)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 14) { swatches }
+            VStack(alignment: .leading, spacing: 6) { swatches }
         }
         .font(.footnote).foregroundStyle(Tokens.muted)
-        .accessibilityHidden(true)
+        // visible words are never hidden from VoiceOver: the key's words are read together, and wrap at large text
+        .accessibilityElement(children: .combine)
     }
 }
 

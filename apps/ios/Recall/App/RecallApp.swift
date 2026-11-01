@@ -9,6 +9,10 @@ struct RecallApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var container = AppContainer()
 
+    init() {
+        TapFeedback.play = { TapSound.shared.play(.press) }  // every shared button style gives the soft tap
+    }
+
     var body: some Scene {
         WindowGroup {
             ThemedRoot()
@@ -17,6 +21,7 @@ struct RecallApp: App {
                 .environment(container.things)
                 .environment(container.scans)
                 .environment(container.roomMaps)
+                .environment(container.trust)
                 .environment(\.container, container)
         }
     }

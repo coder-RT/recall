@@ -13,6 +13,18 @@ public protocol HomeMemory: Sendable {
 }
 
 /// Each room's map, with the things in it, for the owner's own screens (not recorded as a robot export).
+/// The owner's trust level, kept on the Mac.
+public protocol TrustSettings: Sendable {
+    func trustLevel() async throws -> TrustLevel
+    func setTrustLevel(_ level: TrustLevel) async throws -> TrustLevel
+}
+
+/// One room's package for a robot, made by the Mac: a .zip of the files a robot loads (Nav2 map, things, room
+/// outline, 3D points, README). `room` nil is the newest scan's room.
+public protocol RobotPackages: Sendable {
+    func robotPackage(home: String, room: String?) async throws -> Data
+}
+
 public protocol RoomMaps: Sendable {
     func roomMap(home: String, room: String) async throws -> RobotMapPackage
 }

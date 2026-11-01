@@ -56,6 +56,8 @@ public enum Tokens {
 
     // spacing: 16 pt gutters, 12 between cards, 24 between sections
     public static let gutter: CGFloat = 16
+    public static let stack: CGFloat = 12  // between cards and blocks on a screen
+    public static let sectionGap: CGFloat = 12  // extra space above a section title (12 + 12 = 24 between sections)
     public static let cardRadius: CGFloat = 20
     public static let cardPadding: CGFloat = 16
 

@@ -50,6 +50,18 @@ public struct ScanChange: Sendable, Equatable, Codable, Identifiable {
 public enum ChangeSummary {
     public static let most = 3  // per kind; the rest are counted ("and 2 more")
 
+    /// A rescan that didn't line up with the last one: a complete new map, nothing lost, but no comparison. Said as
+    /// what Recall did and what to do next time, never as a failure.
+    public static func freshTitle(room: String) -> String { "A fresh map of \(room)" }
+    public static let freshBody = "This walk didn't line up with your last scan, so Recall can't say what moved this "
+        + "time. Everything it found is mapped, and your earlier scan is kept below."
+    public static let freshTip = "To see what moved next time, start Scan again where your last scan began."
+
+    /// Spoken: the same, shorter.
+    public static func sayFresh(room: String) -> String {
+        "A fresh map of \(room). This walk didn't line up with your last scan, so I can't say what moved this time."
+    }
+
     public static func say(room: String, changes: [ScanChange]) -> String {
         guard !changes.isEmpty else { return "\(room) is ready. Nothing has moved since the last scan." }
         let n = changes.count == 1 ? "1 change" : "\(changes.count) changes"

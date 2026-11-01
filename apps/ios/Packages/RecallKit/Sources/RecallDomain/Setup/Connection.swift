@@ -30,8 +30,9 @@ public struct Connection: Sendable, Equatable {
         return "\(k.count) characters, ending in \(k.suffix(4).map(String.init).joined(separator: " "))."
     }
 
+    /// The home as the Mac names it: "My Flat" is sent as "my-flat"; nothing typed is "flat".
     public var homeId: String {
-        let h = home.trimmingCharacters(in: .whitespacesAndNewlines)
+        let h = TextInput.homeId(home)
         return h.isEmpty ? "flat" : h
     }
 

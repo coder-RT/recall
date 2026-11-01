@@ -260,7 +260,8 @@ extension Thing {
                   heightM: o.position.count == 3 ? o.position[2] : 0, userHeightM: o.corrections?.heightM,
                   heightBand: o.heightBand.rawValue, landmark: o.landmark, relation: o.relation?.rawValue, room: o.room,
                   sizeCm: o.sizeM?.map { Int(($0 * 100).rounded()) }, note: o.corrections?.note, confidence: o.confidence,
-                  confirmed: o.corrections?.confirmed ?? false, needsReview: o.needsReview ?? false, seenAt: o.seenAt)
+                  confirmed: o.corrections?.confirmed ?? false, needsReview: o.needsReview ?? false, photos: o.photos,
+                  trusted: o.trusted ?? true, seenAt: o.seenAt)
     }
 }
 
@@ -343,6 +344,42 @@ extension RecallAPI: EvidenceSource {
         case .notFound: throw RecallError.server("No camera view is kept for this sighting.")
         case .undocumented(let code, _): throw RecallError.status(code)
         }
+    }
+}
+
+// MARK: RobotPackages
+
+extension RecallAPI: RobotPackages {
+    public func robotPackage(home: String, room: String?) async throws -> Data {
+        var req = request("homes/\(home)/robot-package", method: "GET", contentType: "application/zip", body: Data())
+        if let room, let url = req.url, var parts = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            parts.queryItems = [URLQueryItem(name: "room", value: room)]
+            req.url = parts.url
+        }
+        let (data, response) = try await URLSession.shared.data(for: req)
+        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard code == 200 else { throw RecallError.status(code) }
+        return data
+    }
+}
+
+// MARK: TrustSettings
+
+extension RecallAPI: TrustSettings {
+    public func trustLevel() async throws -> TrustLevel {
+        try Self.level(try await send(request("trust", method: "GET", contentType: "application/json", body: Data())))
+    }
+
+    public func setTrustLevel(_ level: TrustLevel) async throws -> TrustLevel {
+        let body = try JSONSerialization.data(withJSONObject: ["level": level.rawValue])
+        return try Self.level(try await send(request("trust", method: "PUT", contentType: "application/json", body: body)))
+    }
+
+    static func level(_ j: [String: Any]) throws -> TrustLevel {
+        guard let raw = j["level"] as? String, let level = TrustLevel(rawValue: raw) else {
+            throw RecallError.server("The Mac answered with a trust level this app doesn't know. Update the app.")
+        }
+        return level
     }
 }
 

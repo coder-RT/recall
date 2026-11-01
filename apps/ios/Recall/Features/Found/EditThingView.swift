@@ -37,6 +37,11 @@ struct EditThingView: View {
                                 Text("About \(size[0]) by \(size[1]) by \(size[2]) centimetres.").font(.subheadline)
                                     .foregroundStyle(Tokens.muted)
                             }
+                            Text("\(thing.evidence) (SAM 3.1).").font(.subheadline).foregroundStyle(Tokens.muted)
+                            if !thing.trusted {
+                                Text("Recall won't mention it yet. Save to confirm it's there, or tell it it's not.")
+                                    .font(.subheadline.weight(.semibold)).foregroundStyle(Tokens.danger)
+                            }
                         }
                         .fixedSize(horizontal: false, vertical: true)
                     }
@@ -45,6 +50,7 @@ struct EditThingView: View {
                         TextField("Your name for it", text: $name, prompt: Text("e.g. work bag").foregroundStyle(Tokens.muted))
                             .textInputAutocapitalization(.never)
                             .accessibilityIdentifier("objectName")
+                            .limited($name, to: TextInput.thingName)
                     } header: { FormHeader("Your name for it") } footer: {
                         FormNote("Optional. You can then ask for it by this name.")
                     }
@@ -75,14 +81,15 @@ struct EditThingView: View {
                     Section {
                         TextField("Note", text: $note, prompt: Text("e.g. in the blue pouch").foregroundStyle(Tokens.muted),
                                   axis: .vertical)
-                    } header: { FormHeader("Note") }
+                            .limited($note, to: TextInput.note, multiline: true)
+                    } header: { FormHeader("Note") } footer: { FormNote("\(note.count) of \(TextInput.note) characters.") }
 
                     if let error { Section { ErrorBox(text: error) } }
 
                     Section {
                         Button("Not there, forget it", systemImage: "trash", role: .destructive) { confirmRemove = true }
                             .foregroundStyle(Tokens.danger)
-                            .accessibilityHint("Removes it from memory.")
+                            .accessibilityHint("Removes it, and later scans won't bring it back here.")
                             .disabled(busy)
                     }
                 }

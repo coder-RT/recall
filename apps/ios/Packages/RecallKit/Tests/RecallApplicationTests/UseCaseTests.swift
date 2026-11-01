@@ -200,13 +200,14 @@ struct UseCaseTests {
         #expect(speech.lines.last == "Hall is ready. Nothing has moved since the last scan.")
     }
 
-    @Test func aRescanThatWasNotRecognisedSaysItStartedAfresh() async {
+    @Test func aRescanThatDidNotLineUpSaysItIsAFreshMap() async {
         let speech = FakeSpeech()
         let scan = Scan(id: "f", room: "Kitchen", createdAt: .now, grade: .good, directions: 10, frames: 50, state: .processing)
         let out = await TrackProcessing(processing: FakeProcessing(reports: ["f": ScanReport(.processed, fresh: true)]),
                                         memory: FakeHomeMemory(things: [keys]), speech: speech)([scan], home: "flat")
         #expect(out["f"]?.fresh == true)
-        #expect(speech.lines == ["I didn't recognise Kitchen, so its memory started afresh. Kitchen is ready. 1 thing found."])
+        #expect(speech.lines == ["A fresh map of Kitchen. This walk didn't line up with your last scan, so I can't say what "
+                                 + "moved this time. Kitchen is ready. 1 thing found."])
     }
 
     @Test func uploadNeedsSetupAndAManifest() async throws {

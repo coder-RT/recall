@@ -116,7 +116,8 @@ final class ScansModel {
 
     /// Says a processed rescan's changes again (the "Hear it again" button).
     func sayChanges(_ scan: Scan) {
-        speech.say(ChangeSummary.say(room: scan.room, changes: scan.changes), interrupt: true)
+        let line = scan.fresh ? ChangeSummary.sayFresh(room: scan.room) : ChangeSummary.say(room: scan.room, changes: scan.changes)
+        speech.say(line, interrupt: true)
     }
 
     private func apply(_ id: String, _ state: UploadState, announce: Bool = true) {

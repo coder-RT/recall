@@ -21,16 +21,22 @@ public struct Thing: Identifiable, Sendable, Equatable {
     public let confidence: Double
     public let confirmed: Bool
     public let needsReview: Bool
+    /// How many of the scan's photos showed it (nil for sightings kept before the Mac counted them).
+    public let photos: Int?
+    /// Seen in enough photos for the owner's level, or confirmed: Find and the Guide use only trusted things.
+    public let trusted: Bool
     public let seenAt: Date
 
     public init(id: String, label: String, name: String? = nil, color: String? = nil, measuredColor: String? = nil,
                 heightM: Double, userHeightM: Double? = nil, heightBand: String, landmark: String? = nil,
                 relation: String? = nil, room: String? = nil, sizeCm: [Int]? = nil, note: String? = nil, confidence: Double,
-                confirmed: Bool = false, needsReview: Bool = false, seenAt: Date) {
+                confirmed: Bool = false, needsReview: Bool = false, photos: Int? = nil, trusted: Bool = true,
+                seenAt: Date) {
         self.id = id; self.label = label; self.name = name; self.color = color; self.measuredColor = measuredColor
         self.heightM = heightM; self.userHeightM = userHeightM; self.heightBand = heightBand; self.landmark = landmark
         self.relation = relation; self.room = room; self.sizeCm = sizeCm; self.note = note; self.confidence = confidence
-        self.confirmed = confirmed; self.needsReview = needsReview; self.seenAt = seenAt
+        self.confirmed = confirmed; self.needsReview = needsReview; self.photos = photos; self.trusted = trusted
+        self.seenAt = seenAt
     }
 
     /// What VoiceOver and the lists say: "grey bag", or the user's own name for it.
@@ -49,6 +55,16 @@ public struct Thing: Identifiable, Sendable, Equatable {
         let sure = "\(Int((confidence * 100).rounded())) percent sure"
         return needsReview ? "Unsure, \(sure)" : sure.prefix(1).uppercased() + sure.dropFirst()
     }
+
+    /// The evidence, in words: "Seen in 1 photo, 55 percent sure".
+    public var evidence: String {
+        let sure = "\(Int((confidence * 100).rounded())) percent sure"
+        guard let photos else { return sure.prefix(1).uppercased() + sure.dropFirst() }
+        return "Seen in \(photos == 1 ? "1 photo" : "\(photos) photos"), \(sure)"
+    }
+
+    /// Found's short mark for a thing to check: "Seen once" while it waits for a second look, else "Check".
+    public var checkMark: String { !trusted && photos == 1 ? "Seen once" : "Check" }
 
     /// Unsure things first, then by name: the order of every list.
     public static func listOrder(_ a: Thing, _ b: Thing) -> Bool {

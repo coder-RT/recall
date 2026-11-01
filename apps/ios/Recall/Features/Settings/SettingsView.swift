@@ -7,6 +7,7 @@ import UIKit
 /// A native grouped Form: the system draws its rows and bars, and every text scales with Dynamic Type.
 struct SettingsView: View {
     @Environment(SettingsModel.self) private var model
+    @Environment(TrustModel.self) private var trust
     @State private var testResult: String?
     @State private var testOK = false
     @State private var testing = false
@@ -50,11 +51,14 @@ struct SettingsView: View {
                         .accessibilityIdentifier("appearance")
                     }
 
+                    TrustSection(trust: trust)
+
                     Section {
                         TextField("Mac address", text: $model.connection.address,
                                   prompt: Text("https://your-mac.ts.net:8445").foregroundStyle(Tokens.muted), axis: .vertical)
                             .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
                             .accessibilityIdentifier("macAddress")
+                            .limited($model.connection.address, to: TextInput.address)
                     } header: { FormHeader("Mac address") } footer: {
                         FormNote("The address the Mac's API prints when it starts, a Tailscale or a Cloudflare Tunnel URL.")
                     }
@@ -77,6 +81,7 @@ struct SettingsView: View {
                             }
                         }
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
+                        .limited($model.connection.key, to: TextInput.deviceKey)
                         .accessibilityIdentifier("deviceKey")
                         HStack(spacing: 8) {
                             Button(showKey ? "Hide" : "Show", systemImage: showKey ? "eye.slash" : "eye") { showKey.toggle() }
@@ -112,7 +117,13 @@ struct SettingsView: View {
                         TextField("Home name", text: $model.connection.home, axis: .vertical)
                             .textInputAutocapitalization(.never).autocorrectionDisabled()
                             .accessibilityIdentifier("homeName")
-                    } header: { FormHeader("Home name") } footer: { FormNote("One name per home; every scan joins it.") }
+                            .limited($model.connection.home, to: TextInput.homeId)
+                    } header: { FormHeader("Home name") } footer: {
+                        // the Mac takes lowercase letters, digits and dashes: say what will be sent when it differs
+                        let sent = model.connection.homeId
+                        FormNote(sent == model.connection.home ? "One name per home; every scan joins it."
+                                 : "Sent to your Mac as \(sent). One name per home; every scan joins it.")
+                    }
 
                     Section {
                         Button { Task { await test() } } label: {
@@ -141,6 +152,8 @@ struct SettingsView: View {
                 }
                 .listRowBackground(Tokens.card)
             }
+            // the Form's own top margin would put the header lower than on the other tabs
+            .contentMargins(.top, 0, for: .scrollContent)
             .recallScreen()
             .toolbar(.hidden, for: .navigationBar)
             .scrollEdgeEffectStyle(.soft, for: .top)
@@ -199,5 +212,30 @@ private struct AppearanceView: View {
         .recallScreen()
         .navigationTitle("Appearance")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// How sure Recall must be before it tells you about a thing: the three levels, the chosen one explained under them.
+private struct TrustSection: View {
+    let trust: TrustModel
+
+    var body: some View {
+        Section {
+            if let level = trust.level {
+                Picker("How sure before Recall tells you", selection: Binding(get: { level }, set: { next in
+                    Task { await trust.choose(next) }
+                })) {
+                    ForEach(TrustLevel.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.inline).labelsHidden().tint(Tokens.accent)
+                .accessibilityIdentifier("trust-level")
+            } else if trust.error == nil {
+                ProgressView().frame(maxWidth: .infinity)
+            }
+            // no Mac yet: the address and key above already say what's missing, so this only explains itself
+        } header: { FormHeader("How sure before Recall tells you") } footer: {
+            FormNote(trust.level?.explanation ?? "Set on your Mac, so your voice answers, Find, maps and robots all follow it.")
+        }
+        .task { await trust.load() }
     }
 }

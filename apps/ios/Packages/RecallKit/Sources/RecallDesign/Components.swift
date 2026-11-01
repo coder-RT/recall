@@ -94,6 +94,7 @@ public struct SolidPillStyle: ButtonStyle {
             .opacity(configuration.isPressed ? 0.75 : 1)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
             .animation(MotionTokens.animation(MotionTokens.press, reduceMotion: reduceMotion), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { _, down in if down { TapFeedback.play() } }
             .glassRim(.capsule, .regular.interactive())
     }
 }

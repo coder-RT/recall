@@ -116,26 +116,18 @@ private struct Point: View {
     }
 }
 
-/// The package to hand to a robot: map.pgm, map.yaml, objects.json, room.json, as one .zip.
+/// The package to hand to a robot, made by the Mac: map.pgm, map.yaml, objects.json, room.json, cloud.ply, README.md.
 private struct ExportCard: View {
     let model: RobotAccessModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Export map for robots").font(.headline).foregroundStyle(Tokens.ink)
-            Text("A ready-to-load package for ROS 2 and Nav2: the map, where things are, and the room outline.")
+            Text("Export for robots").font(.headline).foregroundStyle(Tokens.ink)
+            Text("A ready-to-load package for ROS 2 and Nav2: the map, where things are, the room outline, its 3D "
+                 + "points for reaching things at the right height, and a README. Robots with your robot key can also "
+                 + "fetch it from your Mac while robot access is on.")
                 .font(.subheadline).foregroundStyle(Tokens.muted).fixedSize(horizontal: false, vertical: true)
-            if let zip = model.zip {
-                ShareLink(item: zip) { Label("Share robot map", systemImage: "square.and.arrow.up") }
-                    .buttonStyle(SolidPillStyle(fill: Tokens.go, text: Tokens.onGo))
-                    .accessibilityHint("Send the package with AirDrop, Files or Mail.")
-            } else {
-                Button { Task { await model.prepareExport() } } label: {
-                    Label(model.busy ? "Preparing…" : "Prepare robot map", systemImage: "shippingbox")
-                }
-                .buttonStyle(SolidPillStyle(fill: Tokens.accentFill, text: Tokens.onAccent))
-                .disabled(model.busy)
-            }
+            RobotPackageShare(room: model.package?.room, title: "Share robot package")
         }
         .card()
     }

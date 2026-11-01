@@ -19,21 +19,21 @@ struct FindView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: Tokens.stack) {
                     BrandHeader("Find", subtitle: "Ask where something is")
                     if let model { AskCard(model: model) { router.guiding = $0 } }
 
                     if !rooms.isEmpty {
                         SectionTitle("Your rooms", count: rooms.count == 1 ? "1 room" : "\(rooms.count) rooms")
-                            .padding(.top, 12)
-                        RoomCarousel(rooms: rooms, things: things.things, picked: $room)
+                            .padding(.top, Tokens.sectionGap)
+                        RoomCarousel(rooms: rooms, things: trusted, picked: $room)
                     }
 
-                    SectionTitle("Your things", count: things.things.isEmpty ? nil : count)
-                        .padding(.top, 12)
+                    SectionTitle("Your things", count: trusted.isEmpty ? nil : count)
+                        .padding(.top, Tokens.sectionGap)
                     if let error = things.error {
                         ErrorBox(text: error)
-                    } else if things.things.isEmpty, things.loaded {
+                    } else if trusted.isEmpty, things.loaded {
                         EmptyState("shippingbox", "Nothing remembered yet. Scan a room and upload it first.")
                     }
                     // like Found: a heading per room (even just one), then a card per piece of furniture
@@ -64,12 +64,15 @@ struct FindView: View {
 
     /// Rooms with things, most first, then rooms scanned on this phone that have nothing found yet.
     private var rooms: [String] {
-        ThingGroups.rooms(things.things, scanned: scans.scans.filter { $0.state == .processed }.map(\.room))
+        ThingGroups.rooms(trusted, scanned: scans.scans.filter { $0.state == .processed }.map(\.room))
     }
 
     private var processed: [String] { scans.scans.filter { $0.state == .processed }.map(\.id) }
 
-    private var shown: [Thing] { room.map { r in things.things.filter { $0.room == r } } ?? things.things }
+    /// Find only offers what the owner's trust level counts (Found shows the rest, to check).
+    private var trusted: [Thing] { things.things.filter(\.trusted) }
+
+    private var shown: [Thing] { room.map { r in trusted.filter { $0.room == r } } ?? trusted }
 
     private var count: String {
         let n = shown.count
@@ -127,43 +130,56 @@ private struct RoomMapCard: View {
     @Environment(RoomMapsModel.self) private var maps
 
     var body: some View {
-        Button(action: tap) {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(room).font(.headline).foregroundStyle(Tokens.ink)
-                        .fixedSize(horizontal: false, vertical: true)  // wraps at large text instead of clipping
-                    Spacer(minLength: 8)
-                    Text(things).font(.subheadline).foregroundStyle(Tokens.muted)
-                }
-                Group {
+        VStack(alignment: .leading, spacing: 10) {
+            Button(action: tap) {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(room).font(.headline).foregroundStyle(Tokens.ink)
+                            .fixedSize(horizontal: false, vertical: true)  // wraps at large text instead of clipping
+                        Spacer(minLength: 8)
+                        Text(things).font(.subheadline).foregroundStyle(Tokens.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     switch maps.maps[room] {
-                    case .ready(let package): RoomMapCanvas(package: package)
+                    case .ready(let package): RoomMapCanvas(package: package).frame(height: 190)
                     case .notReady:
+                        // grows with large text instead of clipping; the map itself keeps a fixed height
                         Text("Map not ready yet. It appears once your Mac has processed a scan of this room.")
                             .font(.subheadline).foregroundStyle(Tokens.muted).multilineTextAlignment(.center)
-                            .padding().frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding().frame(maxWidth: .infinity, minHeight: 190)
                             .background(Tokens.tile, in: .rect(cornerRadius: 14))
                     case .loading, nil:
-                        ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                        ProgressView().frame(maxWidth: .infinity).frame(height: 190)
                             .background(Tokens.tile, in: .rect(cornerRadius: 14))
                     }
                 }
-                .frame(height: 190)
+                .contentShape(.rect)
             }
-            .card()
-            .overlay(RoundedRectangle(cornerRadius: Tokens.cardRadius).stroke(Tokens.accent, lineWidth: picked ? 3 : 0))
+            .buttonStyle(.plainTap)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(room) map, \(things)\(mapState)")
+            .accessibilityValue(picked ? "Selected" : "Not selected")
+            .accessibilityHint(picked ? "Shows every room's things again." : "Shows only this room's things.")
+            .accessibilityAddTraits(picked ? [.isButton, .isSelected] : .isButton)
+            .accessibilityIdentifier("room-map-\(room)")
+            if case .ready = maps.maps[room] { RobotPackageShare(room: room) }
         }
-        .buttonStyle(.plain)
+        .card()
+        .overlay(RoundedRectangle(cornerRadius: Tokens.cardRadius).stroke(Tokens.accent, lineWidth: picked ? 3 : 0))
         .task(id: maps.generation) { await maps.load(room) }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(room) map, \(things)")
-        .accessibilityValue(picked ? "Selected" : "Not selected")
-        .accessibilityHint(picked ? "Shows every room's things again." : "Shows only this room's things.")
-        .accessibilityAddTraits(picked ? [.isButton, .isSelected] : .isButton)
-        .accessibilityIdentifier("room-map-\(room)")
     }
 
     private var things: String { count == 1 ? "1 thing" : "\(count) things" }
+
+    /// What the card shows instead of a map, said too: VoiceOver hears every word a sighted person reads.
+    private var mapState: String {
+        switch maps.maps[room] {
+        case .notReady: ". Map not ready yet. It appears once your Mac has processed a scan of this room."
+        case .loading, nil: ". Loading the map."
+        case .ready: ""
+        }
+    }
 }
 
 /// The question, the two ways to ask it, and the answer.
@@ -179,6 +195,7 @@ private struct AskCard: View {
                 TextField("Your question", text: $model.question,
                           prompt: Text("e.g. where are my keys?").foregroundStyle(Tokens.muted), axis: .vertical)
                     .font(.body).foregroundStyle(Tokens.ink)
+                    .limited($model.question, to: TextInput.question)
                     .focused($typing)
                     .submitLabel(.search)
                     .onSubmit { Task { await model.submit() } }

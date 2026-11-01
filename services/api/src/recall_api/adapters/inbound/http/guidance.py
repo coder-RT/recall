@@ -48,7 +48,7 @@ async def verify(
 ) -> VerificationResult:
     view = _view(pose, await depth.read())
     try:
-        v = c.verify_arrival(session_id, await image.read(), view)
+        v = c.arrival_verifier(session_id, await image.read(), view)
     except GuidanceError as e:
         raise HTTPException(e.status, {"error": e.code, "detail": str(e)}) from e
     return VerificationResult(outcome=v.outcome, say=v.say, distance_cm=v.distance_cm, sam_score=v.sam_score,

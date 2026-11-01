@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from zoneinfo import ZoneInfo
 
+from recall_api.adapters.outbound.agents.verifier_inprocess import InProcessVerifier
 from recall_api.adapters.outbound.export import robot_files
 from recall_api.adapters.outbound.jobs.heartbeat import FileHeartbeat
 from recall_api.adapters.outbound.llm.openai_compatible import from_settings as llm_from_settings
@@ -41,6 +42,7 @@ from recall_api.application.list_things import ListThings
 from recall_api.application.mark_scan_failed import MarkScanFailed
 from recall_api.application.plan_compass_route import PlanCompassRoute
 from recall_api.application.plan_guidance import PlanGuidance
+from recall_api.application.ports import ArrivalVerifier
 from recall_api.application.robot_access import RobotAccess
 from recall_api.application.share_robot_export import ShareRobotExport
 from recall_api.application.tools import Tools
@@ -237,6 +239,11 @@ class Container:
         return VerifyArrival(
             self.guidance, self.objects, Sam31MetaApi(k), SparkVisionMetaApi(k), self.clock, new_id, audit=self.auditor
         )
+
+    @cached_property
+    def arrival_verifier(self) -> ArrivalVerifier:
+        """VERIFIER_TRANSPORT picks how the Verifier is reached; only in-process exists."""
+        return InProcessVerifier(self.verify_arrival)
 
     @cached_property
     def transcriber(self) -> MuseTranscriber:

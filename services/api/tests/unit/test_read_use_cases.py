@@ -63,3 +63,16 @@ def test_the_crop_keeps_a_margin_and_stays_inside_the_picture():
     Image.new("RGB", (64, 48), "white").save(buf, "JPEG")
     out = Image.open(io.BytesIO(PillowCropper().crop(buf.getvalue(), (0, 5, 100, 35))))
     assert out.size == (64, 30) and out.format == "JPEG"
+
+
+def test_the_verifier_is_reached_in_process_by_default(tmp_path):
+    from recall_api.adapters.outbound.agents.verifier_inprocess import InProcessVerifier
+    from recall_api.config.settings import Settings
+    from recall_api.infra.container import Container
+
+    c = Container(Settings(RECALL_DATA_DIR=tmp_path, RECALL_TRACES="off"))
+    assert c.settings.verifier_transport == "inprocess"
+    calls = []
+    c.__dict__["verify_arrival"] = lambda *a: calls.append(a) or "verified"
+    assert isinstance(c.arrival_verifier, InProcessVerifier)
+    assert c.arrival_verifier("g1", b"jpeg", None) == "verified" and calls == [("g1", b"jpeg", None)]

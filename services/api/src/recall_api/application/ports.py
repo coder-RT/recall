@@ -8,11 +8,21 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
+    from recall_api.application.verify_arrival import Verification
     from recall_api.domain.audit import AuditEvent
+    from recall_api.domain.spatial import CameraView
 
 
 class Clock(Protocol):
     def now(self) -> datetime: ...
+
+
+class ArrivalVerifier(Protocol):
+    """The Verifier agent: did the user reach the thing? One camera frame with depth; SAM 3.1 and geometry decide,
+    Muse Spark 1.1 may only downgrade to uncertain. In-process by default (VERIFIER_TRANSPORT=inprocess); an A2A
+    transport is optional and not built."""
+
+    def __call__(self, session_id: str, jpeg: bytes, view: CameraView) -> Verification: ...
 
 
 class RobotFormat(Protocol):

@@ -3,7 +3,7 @@ import { en } from "../i18n/dictionaries/en";
 import { site } from "../lib/site";
 import { open, expectNoBrokenText, prepare } from "./helpers";
 
-/** Page-wide: language, title, navigation, footer, the privacy note and the voice API's guards. */
+/** Page-wide: language, title, navigation, footer, the privacy note, and the voice and contact APIs' guards. */
 
 test("is in English with the right title, and no unfilled text", async ({ page }) => {
   await prepare(page);
@@ -119,6 +119,49 @@ test.describe("voice API", () => {
   test("every error code it can return has a message for visitors", () => {
     for (const code of ["disabled", "not_configured", "forbidden", "wrong_format", "rate_limited", "daily_limit", "too_long", "too_short", "unreachable", "failed"]) {
       expect(en.ask.errors[code as keyof typeof en.ask.errors]).toBeTruthy();
+    }
+  });
+});
+
+test.describe("contact API", () => {
+  const own = (baseURL?: string) => new URL(baseURL ?? "http://localhost:3000").origin;
+  // started a minute ago, so it passes the minimum fill time
+  const message = () => ({ name: "Ada", email: "ada@example.com", message: "Hello, I'd like to try Recall.", website: "", startedAt: Date.now() - 60_000 });
+
+  test("refuses calls that don't come from this site's pages", async ({ request }) => {
+    const none: Record<string, string> = {};
+    for (const headers of [none, { origin: "https://elsewhere.example" }]) {
+      const res = await request.post("/api/contact", { headers, data: message() });
+      expect(res.status()).toBe(403);
+      expect(await res.json()).toEqual({ error: "forbidden" });
+    }
+  });
+
+  test("rejects a message with missing or bad fields", async ({ request, baseURL }) => {
+    for (const data of [{}, { ...message(), email: "not-an-email" }, { ...message(), message: "hi" }, { ...message(), name: "" }]) {
+      const res = await request.post("/api/contact", { headers: { origin: own(baseURL) }, data });
+      expect(res.status()).toBe(400);
+      expect(await res.json()).toEqual({ error: "invalid" });
+    }
+  });
+
+  test("tells a bot it worked, without sending, when the hidden field is filled or it was too fast", async ({ request, baseURL }) => {
+    for (const data of [{ ...message(), website: "https://spam.example" }, { ...message(), startedAt: Date.now() }]) {
+      const res = await request.post("/api/contact", { headers: { origin: own(baseURL) }, data });
+      expect(res.status()).toBe(200);
+      expect(await res.json()).toEqual({ ok: true });
+    }
+  });
+
+  test("a real message reaches the send step (the test server has no email key)", async ({ request, baseURL }) => {
+    const res = await request.post("/api/contact", { headers: { origin: own(baseURL) }, data: message() });
+    expect(res.status()).toBe(503);
+    expect(await res.json()).toEqual({ error: "not_configured" });
+  });
+
+  test("every error code it can return has a message for visitors", () => {
+    for (const code of ["disabled", "not_configured", "forbidden", "invalid", "rate_limited", "daily_limit", "failed"]) {
+      expect(en.contact.errors[code as keyof typeof en.contact.errors]).toBeTruthy();
     }
   });
 });

@@ -51,5 +51,7 @@ These services process what they receive under their own terms. Recall doesn't c
 
 No cookies and no analytics. It keeps two small settings in your browser (reduce motion, and that you saw the storage
 note). Vercel Speed Insights measures page speed without cookies or anything personal. "Ask by voice" sends your
-recording through our server to Muse Voice Transcribe and doesn't store it. The demo shows **recorded output of a real
+recording through our server to Muse Voice Transcribe and doesn't store it. The contact form sends your name, email
+and message through our server to Rachit's inbox, using the email service Resend, and Vercel BotID checks invisibly
+that a browser sent it; the site keeps none of it. The demo shows **recorded output of a real
 run**, not your data.

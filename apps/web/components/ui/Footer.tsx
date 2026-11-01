@@ -8,6 +8,8 @@ import { site } from "@/lib/site";
 export function Footer() {
   const t = getDictionary();
   const link = "text-fb-blue-dark hover:underline";
+  // the header's section links, plus Contact, which only the footer carries
+  const sections = [...t.nav.links, { href: "#contact", label: t.nav.contact }];
   const ours = [
     { href: site.repo, label: t.footer.source },
     { href: site.author.linkedin, label: t.footer.linkedin },
@@ -19,7 +21,7 @@ export function Footer() {
         <div className="flex flex-wrap items-baseline justify-between gap-x-8 gap-y-2">
           <p className="text-muted">{format(t.footer.copyright, { name: site.name })}</p>
           <ul className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
-            {t.nav.links.map((item) => (
+            {sections.map((item) => (
               <li key={item.href}>
                 <a href={`/${item.href}`} className={link}>
                   {item.label}

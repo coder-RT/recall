@@ -168,3 +168,47 @@ test.describe("FAQ", () => {
     for (const item of en.faq.items) await expect(page.locator("#faq").getByRole("button", { name: item.q })).toBeVisible();
   });
 });
+
+test.describe("contact form", () => {
+  test("has labelled fields, and the hidden trap field is out of reach", async ({ page }) => {
+    await open(page, "/#contact");
+    const form = page.locator("#contact form");
+    await expect(page.getByRole("heading", { name: en.contact.title })).toBeVisible();
+    for (const label of [en.contact.name, en.contact.email, en.contact.message]) await expect(form.getByLabel(label)).toBeVisible();
+    await expect(form.locator('input[name="website"]')).toHaveAttribute("tabindex", "-1");
+    await expect(form.getByRole("textbox", { name: en.contact.trap })).toHaveCount(0);
+    await expect(page.locator("footer").getByRole("link", { name: en.nav.contact })).toHaveAttribute("href", "/#contact");
+  });
+
+  test("the page never shows an email address to write to", async ({ page }) => {
+    await open(page, "/");
+    const html = await page.content();
+    expect(html).not.toContain("mailto:");
+    expect(html).not.toContain("@gmail.com");
+  });
+
+  test("sends with fetch and says so; a refusal shows its message", async ({ page }) => {
+    let sent: Record<string, unknown> | null = null;
+    await page.route("**/api/contact", async (route) => {
+      sent = route.request().postDataJSON();
+      await route.fulfill({ json: { ok: true } });
+    });
+    await open(page, "/#contact");
+    const form = page.locator("#contact form");
+    await form.getByLabel(en.contact.name).fill("Ada");
+    await form.getByLabel(en.contact.email).fill("ada@example.com");
+    await form.getByLabel(en.contact.message).fill("I'd like to try Recall at home.");
+    await form.getByRole("button", { name: en.contact.send }).click();
+    await expect(form.getByText(en.contact.sent)).toBeVisible();
+    expect(sent).toMatchObject({ name: "Ada", email: "ada@example.com", website: "" });
+    await expect(form.getByLabel(en.contact.name)).toHaveValue("");
+
+    await page.unroute("**/api/contact");
+    await page.route("**/api/contact", (route) => route.fulfill({ status: 429, json: { error: "rate_limited" } }));
+    await form.getByLabel(en.contact.name).fill("Ada");
+    await form.getByLabel(en.contact.email).fill("ada@example.com");
+    await form.getByLabel(en.contact.message).fill("A second note for Rachit.");
+    await form.getByRole("button", { name: en.contact.send }).click();
+    await expect(form.getByRole("alert")).toHaveText(en.contact.errors.rate_limited);
+  });
+});

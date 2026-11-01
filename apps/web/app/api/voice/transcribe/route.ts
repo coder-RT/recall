@@ -7,7 +7,7 @@
  * "audio" part; Authorization: Bearer <key>; model muse-voice-transcribe-1.0.
  *
  * It spends money, so it is guarded (lib/voice-guard.ts): an off switch, this site's pages only, the Vercel firewall
- * rule `voice-transcribe` (5 a minute per visitor, set in the dashboard), and a daily cap.
+ * rule `voice-transcribe` (10 a minute per visitor, set in the dashboard), and a daily cap.
  */
 
 import { checkRateLimit } from "@vercel/firewall";

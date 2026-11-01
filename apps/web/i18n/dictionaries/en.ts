@@ -26,6 +26,8 @@ export const en = {
       { href: "#models", label: "Models" },
       { href: "#faq", label: "FAQ" },
     ],
+    // footer only: the header stays short for keyboard users (e2e/usability.spec.ts)
+    contact: "Contact",
   },
 
   braille: {
@@ -78,6 +80,31 @@ export const en = {
       unreachable: "Couldn’t reach the speech service.",
       failed: "Couldn’t understand that recording.",
       empty: "I didn’t catch that. Try again.",
+    },
+  },
+
+  contact: {
+    eyebrow: "Get in touch",
+    title: "Write to Rachit",
+    intro: "Questions, ideas, or you'd like to try Recall at home? Send a note and Rachit will reply by email.",
+    name: "Your name",
+    email: "Your email",
+    emailHint: "Only used to reply to you.",
+    message: "Message",
+    trap: "Leave this empty",
+    send: "Send message",
+    sending: "Sending…",
+    sent: "Thanks, your message is on its way. Rachit will reply by email.",
+    privacy: "Your name, email and message go to Rachit through the email service Resend. This site doesn't keep them.",
+    privacyLink: "Privacy",
+    errors: {
+      disabled: "The contact form is paused for now. Please try again later.",
+      not_configured: "The contact form isn’t set up on this server yet.",
+      forbidden: "The message couldn’t be sent from here. Reload the page and try again.",
+      invalid: "Please fill in your name, a valid email, and a message of at least 10 characters.",
+      rate_limited: "You’ve sent a few messages already. Try again in a few minutes.",
+      daily_limit: "Today’s messages are used up. Please try again tomorrow.",
+      failed: "The message couldn’t be sent. Please try again.",
     },
   },
 
@@ -413,7 +440,7 @@ export const en = {
       { title: "Private mode", body: "Run the Guide on Muse Glimmer in LM Studio, so your questions stay on your Mac. Scans and voice still use Meta's online models." },
     ],
     siteTitle: "This website",
-    site: "No cookies and no analytics. It keeps two small settings in your browser: Reduce motion, and that you saw the storage note. Vercel Speed Insights measures page speed without cookies or anything personal. “Ask by voice” sends your recording through our server to Muse Voice Transcribe and doesn't store it. The demo shows recorded output of a real run, not your data.",
+    site: "No cookies and no analytics. It keeps two small settings in your browser: Reduce motion, and that you saw the storage note. Vercel Speed Insights measures page speed without cookies or anything personal. “Ask by voice” sends your recording through our server to Muse Voice Transcribe and doesn't store it. The contact form sends your name, email and message through our server to Rachit's inbox, using the email service Resend, and Vercel BotID checks invisibly that a browser sent it; the site keeps none of it. The demo shows recorded output of a real run, not your data.",
     source: "The same note is in the iPhone app, under Settings → Privacy, where your Mac also shows what it sends right now.",
   },
 

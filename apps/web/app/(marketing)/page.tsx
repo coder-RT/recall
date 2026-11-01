@@ -6,6 +6,7 @@ import { ModelCards } from "@/components/scroll/ModelCards";
 import { RevealSection } from "@/components/scroll/RevealSection";
 import { StoryVideo } from "@/components/scroll/story/StoryVideo";
 import { Devices } from "@/components/ui/Devices";
+import { ContactForm } from "@/components/ui/ContactForm";
 import { Faq } from "@/components/ui/Faq";
 import { getDictionary } from "@/i18n";
 
@@ -79,6 +80,23 @@ export default function LandingPage() {
         </h2>
         <Faq />
       </section>
+
+      <RevealSection id="contact" aria-labelledby="contact-title" className="scroll-mt-20 bg-fb-grey">
+        <div className="mx-auto max-w-3xl px-4 py-24">
+          <p data-eyebrow className="classic-label">
+            {t.contact.eyebrow}
+          </p>
+          <h2 id="contact-title" data-heading="words" className="mt-4 text-4xl font-extrabold text-ink sm:text-5xl">
+            {t.contact.title}
+          </h2>
+          <p data-reveal className="mt-4 max-w-2xl text-lg leading-relaxed text-ink">
+            {t.contact.intro}
+          </p>
+          <div data-reveal className="mt-8">
+            <ContactForm />
+          </div>
+        </div>
+      </RevealSection>
     </>
   );
 }

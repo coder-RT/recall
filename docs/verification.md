@@ -193,3 +193,19 @@ p50 **2268 ms**, p90 2736 ms, 10 questions on the real memory.
 | Where is the laptop | 2245 | 1 | It's near the desk in the Living room at waist height, seen yesterday at 04:21. |
 | Where did I put my reading glasses? | 2326 | 1 | Your glasses were near the desk in the living room at waist height, seen yesterday at 04:21. |
 | Where is my umbrella? | 1781 | 1 | I haven't seen that yet. Scan the room it might be in, and I'll remember it. |
+
+## Contact form: Resend and Vercel BotID (2026-11-01, docs)
+
+- **Resend** (https://resend.com/docs/api-reference/emails/send-email): `POST https://api.resend.com/emails`,
+  `Authorization: Bearer <key>`, JSON `from`, `to` (string or array, max 50), `subject`, `text`, `reply_to`; success is
+  `{ "id": ... }`. Without a verified domain, `onboarding@resend.dev` can send only to the Resend account's own address
+  (https://resend.com/docs/knowledge-base/403-error-resend-dev-domain). Free plan: 100 emails a day, 3,000 a month
+  (https://resend.com/pricing).
+- **BotID** (https://vercel.com/docs/botid/get-started): package `botid`; `initBotId({ protect: [{ path, method }] })`
+  from `botid/client/core` in `instrumentation-client.ts` (Next.js 15.3+); `checkBotId()` from `botid/server` returns
+  `isBot`. Vercel routes BotID's requests itself, so no `withBotId` wrapper. Basic mode is free on all plans; Deep
+  Analysis is Pro and Enterprise. Native HTML form posts aren't supported, only `fetch`. In development `checkBotId()`
+  returns `{ isBot: false }`.
+- **Measured locally:** outside Vercel, BotID's script path returns 404 and the wrapped `fetch` throws, so the client
+  starts BotID only in a Vercel build (`NEXT_PUBLIC_VERCEL_ENV`) and the route checks only on Vercel.
+  `TODO(verify)`: after the first deploy, one real send from the page arrives (shows BotID's script loads on Vercel).

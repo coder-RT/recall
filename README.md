@@ -359,6 +359,9 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
   rate-limited per visitor by a Vercel firewall rule (`voice-transcribe`, via `@vercel/firewall`), has a daily cap
   (`VOICE_DAILY_CAP`, default 300), and can be switched off at once with `VOICE_DEMO=off`. The preset questions always
   work.
+- The contact form sends messages through the email service Resend, so no address appears on the site. It takes only
+  the site's own pages, checks with Vercel BotID that a browser sent it, has a hidden trap field, a minimum fill time,
+  a per-visitor limit and a daily cap (`CONTACT_DAILY_CAP`, default 20), and turns off with `CONTACT_FORM=off`.
 - Everything also runs locally from the steps above.
 
 ### 6. Environment variables

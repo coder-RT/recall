@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { format, getDictionary } from "@/i18n";
 import { site } from "@/lib/site";
 
@@ -31,6 +32,17 @@ export function Footer() {
             <li>
               <a href="/privacy" className={link}>
                 {t.nav.privacy}
+              </a>
+            </li>
+            <li>
+              <Link href="/homes/flat/viewer" className={link}>
+                {t.footer.realScan}
+              </Link>
+            </li>
+            <li>
+              {/* the repo's INSTALL.md, for a person or an AI agent; a test keeps this copy identical */}
+              <a href="/INSTALL.md" download className={link}>
+                {t.footer.install}
               </a>
             </li>
             <li aria-hidden="true" className="select-none text-[0.5rem] text-fb-line">

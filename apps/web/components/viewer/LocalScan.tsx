@@ -4,13 +4,13 @@ import { useParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { format, getDictionary } from "@/i18n";
 import { BAND_EDGES, BANDS, bandOf } from "./bands";
+import { PUBLIC_SCANS, scanFolder } from "@/lib/scans";
 import { FoundViewer } from "./FoundViewer";
+import { RealScanStory } from "./RealScanStory";
 import type { FurnitureBox, RoomShape, Surface, Thing } from "./Layers";
 import { ViewerStats } from "./ViewerStats";
 
 const s = getDictionary().app.viewer.scan;
-/** Where `make viewer` writes a home's export; gitignored, so it only ever exists on the computer that scanned. */
-const folder = (homeId: string) => `/local-scan/${encodeURIComponent(homeId)}`;
 
 export interface ScanMeta {
   count: number;
@@ -19,7 +19,16 @@ export interface ScanMeta {
   room: RoomShape;
   furniture: FurnitureBox[];
   objects: Thing[];
-  stats: { frames: number; total_s: number; sam_calls: number; captured: string };
+  stats: {
+    frames: number;
+    total_s: number;
+    sam_calls: number;
+    captured: string;
+    duration_s?: number;
+    reconstruct_s?: number;
+  };
+  /** the published real scan: geometry only, every colour from height (make public-scan) */
+  public?: boolean;
   /** present when the export built a surface mesh */
   mesh?: { vertices: number; triangles: number };
   /** present when the export painted the surface with the scan's photos */
@@ -39,7 +48,7 @@ function bandRange(i: number) {
 /** Your exported scan if this computer has one, else the steps to make one. */
 export function LocalScan({ steps }: { steps: ReactNode }) {
   const { homeId } = useParams<{ homeId: string }>();
-  const src = folder(homeId);
+  const src = scanFolder(homeId);
   const [meta, setMeta] = useState<ScanMeta | null | "missing">(null);
   useEffect(() => {
     let cancelled = false;
@@ -78,6 +87,11 @@ export function LocalScan({ steps }: { steps: ReactNode }) {
   };
   return (
     <>
+      {PUBLIC_SCANS.has(homeId) && (
+        <p className="mt-4 max-w-3xl text-lg text-muted" data-real-intro>
+          {format(getDictionary().app.viewer.real.body, { date: meta.stats.captured })}
+        </p>
+      )}
       <FoundViewer
         src={src}
         bounds={meta.bounds}
@@ -102,12 +116,25 @@ export function LocalScan({ steps }: { steps: ReactNode }) {
         <ViewerStats label={s.stats.label} items={stats} />
       </div>
 
+      {PUBLIC_SCANS.has(homeId) && <RealScanStory meta={meta} src={src} part="before" />}
+
       {meta.drawings && meta.drawings.length > 0 && (
         <section aria-labelledby="drawings-title" className="mt-10">
-          <h2 id="drawings-title" className="text-sm font-semibold text-muted">
-            {s.drawings.title} · {meta.drawings.length}
-          </h2>
-          <p className="mt-1 text-sm text-muted">{s.drawings.body}</p>
+          {PUBLIC_SCANS.has(homeId) ? (
+            <>
+              <h2 id="drawings-title" className="mt-6 text-3xl font-bold tracking-tight text-ink sm:text-4xl">
+                {s.drawings.publicTitle}
+              </h2>
+              <p className="mt-3 max-w-3xl text-lg text-muted">{s.drawings.body}</p>
+            </>
+          ) : (
+            <>
+              <h2 id="drawings-title" className="text-sm font-semibold text-muted">
+                {s.drawings.title} · {meta.drawings.length}
+              </h2>
+              <p className="mt-1 text-sm text-muted">{s.drawings.body}</p>
+            </>
+          )}
           <ul className="mt-4 grid gap-6 lg:grid-cols-2">
             {meta.drawings.map((d) => (
               <li key={d.id} data-sheet={d.id}>
@@ -128,6 +155,8 @@ export function LocalScan({ steps }: { steps: ReactNode }) {
           </ul>
         </section>
       )}
+
+      {PUBLIC_SCANS.has(homeId) && <RealScanStory meta={meta} src={src} part="after" />}
 
       <div className="mt-8 grid gap-8 sm:grid-cols-2">
         <section aria-labelledby="bands-title">

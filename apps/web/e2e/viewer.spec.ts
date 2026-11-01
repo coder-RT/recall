@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { en } from "../i18n/dictionaries/en";
@@ -9,7 +11,7 @@ import { open as openPage, prepare } from "./helpers";
  * The tests serve a made-up room (fixtures/test-room.ts) instead of anything on disk, so they never see a real home.
  */
 
-const PAGE = "/homes/flat/viewer";
+const PAGE = "/homes/my-home/viewer";  // a home of your own, exported on this computer (flat is the published scan)
 const s = en.app.viewer.scan;
 const steps = en.app.viewer.steps;
 
@@ -17,7 +19,7 @@ const steps = en.app.viewer.steps;
 async function serveScan(page: Page, present: boolean) {
   await page.route("**/local-scan/**", (route) => {
     const url = new URL(route.request().url());
-    if (!url.pathname.startsWith("/local-scan/flat/")) return route.fulfill({ status: 404, body: "" }); // other homes: none
+    if (!url.pathname.startsWith("/local-scan/my-home/")) return route.fulfill({ status: 404, body: "" }); // other homes: none
     const file = url.pathname.split("/").pop() ?? "";
     const body = present ? testFiles[file] : undefined;
     return body ? route.fulfill({ status: 200, body }) : route.fulfill({ status: 404, body: "" });
@@ -315,4 +317,83 @@ test.describe("3D viewer: your scan", () => {
     const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
     expect(results.violations).toEqual([]);
   });
+});
+
+
+/** The published real scan at /homes/flat/viewer: served from /real-scan/flat/; the tests swap in the made-up room. */
+async function openPublic(page: Page, path = "/homes/flat/viewer") {
+  await page.route("**/real-scan/flat/**", (route) => {
+    const file = new URL(route.request().url()).pathname.split("/").pop() ?? "";
+    if (file === "meta.json") {
+      const m = JSON.parse(testFiles["meta.json"].toString());
+      m.public = true;
+      m.objects = m.objects.map((o: object, i: number) => ({ ...o, photos: i === 0 ? 1 : 4 }));
+      return route.fulfill({ status: 200, body: JSON.stringify(m) });
+    }
+    const body = testFiles[file];
+    return body ? route.fulfill({ status: 200, body }) : route.fulfill({ status: 404, body: "" });
+  });
+  await openPage(page, path);
+}
+
+test.describe("3D viewer: the published real scan", () => {
+  const story = en.app.viewer.story;
+  const real = en.app.viewer.real;
+
+  test("says it is a real scan, not a simulation, with big section headings", async ({ page }) => {
+    await prepare(page);
+    await openPublic(page);
+    await expect(page.locator("[data-real-badge]")).toHaveText(real.badge);
+    await expect(page.getByRole("heading", { level: 1, name: real.title })).toBeVisible();
+    for (const title of [story.models.title, story.measured.title, story.robots.title, story.how.title]) {
+      const h = page.getByRole("heading", { level: 2, name: title });
+      await expect(h).toBeVisible();
+      expect(parseFloat(await h.evaluate((e) => getComputedStyle(e).fontSize))).toBeGreaterThanOrEqual(30);
+    }
+  });
+
+  test("names the Meta model behind each part, and lists what SAM 3.1 found with its photos", async ({ page }) => {
+    await prepare(page);
+    await openPublic(page);
+    const models = page.locator("[data-story=models-title] tbody tr");
+    await expect(models).toHaveCount(story.models.rows.length);
+    await expect(models.first()).toContainText("MapAnything");
+    const found = page.locator("[data-story=found-title] tbody tr");
+    await expect(found).toHaveCount(meta.objects.length);
+    await expect(found.first()).toContainText(story.found.waits);  // seen in one photo: waits for the owner
+    await expect(found.nth(1)).toContainText(story.found.told);
+  });
+
+  test("the old demo address opens the real scan", async ({ page }) => {
+    await prepare(page);
+    await openPublic(page, "/homes/demo-flat/viewer");
+    await expect(page).toHaveURL(/\/homes\/flat\/viewer$/);
+    await expect(page.locator("[data-real-badge]")).toBeVisible();
+  });
+
+  test("passes an automated WCAG 2.2 AA audit", async ({ page }) => {
+    await prepare(page);
+    await openPublic(page);
+    await formed(page);
+    const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
+    expect(results.violations).toEqual([]);
+  });
+});
+
+test("the published scan holds geometry only: no photo, no photo colours", () => {
+  const dir = path.join(__dirname, "..", "public", "real-scan");
+  if (!fs.existsSync(dir)) return;  // nothing published yet, so nothing to leak
+  for (const home of fs.readdirSync(dir)) {
+    const files = fs.readdirSync(path.join(dir, home));
+    expect(files.filter((f) => f === "colors.bin" || f.startsWith("photo") || /\.(jpe?g|png|heic|mov|mp4)$/i.test(f))).toEqual([]);
+    const m = JSON.parse(fs.readFileSync(path.join(dir, home, "meta.json"), "utf8"));
+    expect(m.public).toBe(true);
+    expect(m.photo).toBeUndefined();
+  }
+});
+
+test("the site's install guide is the repo's INSTALL.md, word for word", () => {
+  const root = path.join(__dirname, "..", "..", "..");
+  const served = fs.readFileSync(path.join(__dirname, "..", "public", "INSTALL.md"), "utf8");
+  expect(served).toBe(fs.readFileSync(path.join(root, "INSTALL.md"), "utf8"));
 });

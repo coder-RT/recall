@@ -367,3 +367,35 @@ test.describe("hero icons", () => {
     await expect(page.locator("#top [data-floater='clock']")).toHaveCount(1);
   });
 });
+
+test.describe("hero headline", () => {
+  const h = en.hero.headline;
+
+  test("is big, and its last word changes on its own", async ({ page }) => {
+    await open(page, "/");
+    const headline = page.locator("[data-headline]");
+    expect(parseFloat(await headline.evaluate((e) => getComputedStyle(e).fontSize))).toBeGreaterThanOrEqual(48);
+    const word = page.locator("[data-cycling-word]");
+    const first = await word.textContent();
+    expect(h.words).toContain(first);
+    await expect.poll(() => word.textContent(), { timeout: 8_000 }).not.toBe(first);
+  });
+
+  test("screen readers hear one steady sentence, not a changing word", async ({ page }) => {
+    await open(page, "/");
+    await expect(page.locator("[data-headline] .sr-only")).toHaveText(h.sentence);
+    await expect(page.locator("[data-headline] [aria-hidden=true]").first()).toBeAttached();
+  });
+
+  test("with reduced motion the word stays still", async ({ browser }) => {
+    const context = await browser.newContext({ reducedMotion: "reduce" });
+    const page = await context.newPage();
+    await prepare(page);
+    await open(page, "/");
+    const word = page.locator("[data-cycling-word]");
+    await expect(word).toHaveText(h.words[0]);
+    await page.waitForTimeout(5_000);
+    await expect(word).toHaveText(h.words[0]);
+    await context.close();
+  });
+});

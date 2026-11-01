@@ -90,6 +90,8 @@ function SurfaceSlab({ w, h, position, colour }: { w: number; h: number; positio
 export interface RoomShape {
   floor: number[][];
   walls: { start: number[]; end: number[]; height_m: number }[];
+  /** floor to ceiling, metres (newer exports) */
+  height_m?: number;
 }
 
 export interface FurnitureBox {
@@ -105,6 +107,8 @@ export interface Thing {
   /** measured size in metres (x, y, z), when the pipeline has one */
   size?: number[] | null;
   confidence: number;
+  /** how many of the scan's photos showed it (newer exports) */
+  photos?: number | null;
 }
 
 /** The room model the pipeline built: floor outline at z = 0 and the walls as thin translucent sheets. */

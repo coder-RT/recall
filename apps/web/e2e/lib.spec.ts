@@ -111,6 +111,14 @@ test.describe("voice route guards", () => {
     expect(limit.over("a", 61_000)).toBe(false); // a minute later
   });
 
+  test("the fallback limit forgets the longest-quiet visitors first, never everyone", () => {
+    const limit = new WindowLimit(1, 60_000, 3);
+    for (const [i, who] of ["a", "b", "c", "d"].entries()) limit.over(who, i);
+    expect(limit.size).toBe(3);
+    expect(limit.over("d", 10)).toBe(true); // d is still counted: the oldest, a, was dropped instead
+    expect(limit.over("a", 11)).toBe(false);
+  });
+
   test("the daily cap stops at the cap and starts again the next UTC day", () => {
     const cap = new DailyCap(2);
     const d1 = new Date("2026-11-01T10:00:00Z");

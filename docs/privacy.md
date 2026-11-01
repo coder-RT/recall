@@ -46,6 +46,8 @@ These services process what they receive under their own terms. Recall doesn't c
 - **Activity log**: who did what to the memory and its sharing, kept 90 days on your Mac.
 - **Private mode**: run the Guide on Muse Glimmer in LM Studio (`LLM_PROVIDER=lmstudio`), so your questions stay on
   your Mac. Scans and voice still use Meta's online models.
+- **People in view:** scan when nobody else is in the room. Anyone the camera sees is in the scan photos that go to
+  SAM 3.1 with the rest; Recall never looks for people or faces, and robots never get photos.
 
 ## This website
 

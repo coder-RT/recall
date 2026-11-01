@@ -39,14 +39,22 @@ export class WindowLimit {
   constructor(
     private readonly limit: number,
     private readonly windowMs: number,
+    private readonly maxKeys = 5000,
   ) {}
+
+  /** How many visitors are being counted (for tests). */
+  get size(): number {
+    return this.hits.size;
+  }
 
   /** Counts this request; true when it is over the limit. */
   over(key: string, now = Date.now()): boolean {
     const recent = (this.hits.get(key) ?? []).filter((t) => now - t < this.windowMs);
     recent.push(now);
+    this.hits.delete(key); // re-inserted below: the Map's order is oldest use first
     this.hits.set(key, recent);
-    if (this.hits.size > 5000) this.hits.clear(); // keep memory bounded
+    // keep memory bounded by forgetting the longest-quiet visitors, never everyone at once
+    while (this.hits.size > this.maxKeys) this.hits.delete(this.hits.keys().next().value as string);
     return recent.length > this.limit;
   }
 }

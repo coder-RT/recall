@@ -70,6 +70,10 @@ export async function POST(request: Request) {
   if (!request.headers.get("content-type")?.startsWith("audio/wav")) {
     return Response.json({ error: "wrong_format" }, { status: 415 });
   }
+  // refuse by the declared size before reading anything into memory
+  const declared = Number(request.headers.get("content-length") ?? "0");
+  if (declared > MAX_BYTES) return Response.json({ error: "too_long" }, { status: 413 });
+
   if (await rateLimited(request)) return Response.json({ error: "rate_limited" }, { status: 429 });
   if (dailyCap.reached()) return Response.json({ error: "daily_limit" }, { status: 429 });
 

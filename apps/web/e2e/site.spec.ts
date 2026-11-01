@@ -116,6 +116,15 @@ test.describe("voice API", () => {
     expect(await res.json()).toEqual({ error: "too_short" });
   });
 
+  test("refuses a recording that says it is too big, before reading it", async ({ request, baseURL }) => {
+    const res = await request.post("/api/voice/transcribe", {
+      headers: { "content-type": "audio/wav", origin: own(baseURL) },
+      data: Buffer.alloc(1_500_001),
+    });
+    expect(res.status()).toBe(413);
+    expect(await res.json()).toEqual({ error: "too_long" });
+  });
+
   test("every error code it can return has a message for visitors", () => {
     for (const code of ["disabled", "not_configured", "forbidden", "wrong_format", "rate_limited", "daily_limit", "too_long", "too_short", "unreachable", "failed"]) {
       expect(en.ask.errors[code as keyof typeof en.ask.errors]).toBeTruthy();
@@ -163,5 +172,27 @@ test.describe("contact API", () => {
     for (const code of ["disabled", "not_configured", "forbidden", "invalid", "rate_limited", "daily_limit", "failed"]) {
       expect(en.contact.errors[code as keyof typeof en.contact.errors]).toBeTruthy();
     }
+  });
+});
+
+test.describe("security headers and crawlers", () => {
+  test("every page refuses framing and sniffing, and names no framework", async ({ request }) => {
+    for (const path of ["/", "/privacy", "/homes/flat/viewer"]) {
+      const res = await request.get(path);
+      const h = res.headers();
+      expect(h["x-frame-options"]).toBe("DENY");
+      expect(h["content-security-policy"]).toContain("frame-ancestors 'none'");
+      expect(h["x-content-type-options"]).toBe("nosniff");
+      expect(h["referrer-policy"]).toBe("strict-origin-when-cross-origin");
+      expect(h["permissions-policy"]).toContain("camera=()");
+      expect(h["x-powered-by"]).toBeUndefined();
+    }
+  });
+
+  test("robots.txt keeps crawlers off local scans and the API, not off the published scan", async ({ request }) => {
+    const body = await (await request.get("/robots.txt")).text();
+    expect(body).toContain("Disallow: /homes/");
+    expect(body).toContain("Disallow: /api/");
+    expect(body).toContain("Allow: /homes/flat/");
   });
 });

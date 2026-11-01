@@ -453,6 +453,7 @@ export const en = {
       { title: "Forget a thing", body: "In Found, open a thing and choose “Not there, forget it”." },
       { title: "Robot Access", body: "Off by default. Every robot request is in the activity log, kept 90 days on your Mac." },
       { title: "Private mode", body: "Run the Guide on Muse Glimmer in LM Studio, so your questions stay on your Mac. Scans and voice still use Meta's online models." },
+      { title: "People in view", body: "Scan when nobody else is in the room. Anyone the camera sees is in the scan photos that go to SAM 3.1 with the rest; Recall never looks for people or faces, and robots never get photos." },
     ],
     siteTitle: "This website",
     site: "No cookies and no analytics. It keeps two small settings in your browser: Reduce motion, and that you saw the storage note. Vercel Speed Insights measures page speed without cookies or anything personal. “Ask by voice” sends your recording through our server to Muse Voice Transcribe and doesn't store it. The contact form sends your name, email and message through our server to Rachit's inbox, using the email service Resend, and Vercel BotID checks invisibly that a browser sent it; the site keeps none of it. The demo shows recorded output of a real run, not your data.",

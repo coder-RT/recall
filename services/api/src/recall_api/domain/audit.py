@@ -31,6 +31,7 @@ class Action(StrEnum):
     ROBOT_EXPORT_READ = "robot_export.read"
     HOME_MEMORY_QUERY = "home_memory.query"
     AUTH_REFUSED = "auth.refused"
+    RATE_LIMITED = "rate.limited"  # too many calls to a route that reaches a model or the pipeline
     OBJECT_CORRECTED = "object.corrected"
     OBJECT_FORGOTTEN = "object.forgotten"
     SCAN_CREATED = "scan.created"  # an upload started

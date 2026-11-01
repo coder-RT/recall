@@ -39,7 +39,9 @@ def _view(pose: str, depth: bytes) -> CameraView:
         return CameraView(M, float(k["fx"]), float(k["fy"]), float(k["cx"]), float(k["cy"]), (iw, ih),
                           mm.reshape(dh, dw).astype(float) / 1000.0)  # fmt: skip
     except (KeyError, ValueError, TypeError) as e:
-        raise HTTPException(422, {"error": "invalid", "detail": f"Bad arrival frame: {e}"}) from e
+        # a fixed sentence: the parser's own message would echo the request back
+        detail = "Bad arrival frame: pose, intrinsics, sizes and depth must match."
+        raise HTTPException(422, {"error": "invalid", "detail": detail}) from e
 
 
 @router.post("/guidance/sessions/{session_id}/verify", response_model=VerificationResult)

@@ -66,6 +66,8 @@ public struct AuditEntry: Sendable, Equatable, Identifiable {
         case "voice.transcribed":
             return refused ? "Your voice couldn't reach Muse Voice Transcribe"
                            : "Your voice went to Muse Voice Transcribe (not kept)"
+        case "rate.limited":
+            return "Slowed down: too many calls to \(detail["path"] ?? "a route") in a minute"
         case "audit.pruned":
             return "The Mac dropped \(detail["dropped"] ?? "some") events past the keeping period"
         default:

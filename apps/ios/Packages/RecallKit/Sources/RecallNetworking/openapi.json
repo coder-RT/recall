@@ -117,6 +117,9 @@
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
           "422": {
             "$ref": "#/components/responses/Invalid"
           }
@@ -241,6 +244,9 @@
           "404": {
             "$ref": "#/components/responses/NotFound"
           },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
           "422": {
             "$ref": "#/components/responses/Invalid"
           }
@@ -286,6 +292,9 @@
           "404": {
             "$ref": "#/components/responses/NotFound"
           },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
           "422": {
             "$ref": "#/components/responses/Invalid"
           }
@@ -323,6 +332,12 @@
           },
           "409": {
             "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
@@ -365,6 +380,9 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
           }
         }
       }
@@ -488,6 +506,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
           }
         }
       }
@@ -544,6 +565,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
           },
           "422": {
             "$ref": "#/components/responses/Invalid"
@@ -1058,6 +1082,9 @@
           "404": {
             "$ref": "#/components/responses/NotFound"
           },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
           "422": {
             "$ref": "#/components/responses/Invalid"
           }
@@ -1160,6 +1187,12 @@
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
           "503": {
             "$ref": "#/components/responses/Unavailable"
           }
@@ -1199,6 +1232,9 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
           }
         }
       }
@@ -1246,6 +1282,12 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
@@ -1290,6 +1332,12 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           },
           "503": {
             "$ref": "#/components/responses/Unavailable"
@@ -2006,7 +2054,11 @@
         ],
         "properties": {
           "label": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+            "description": "What SAM 3.1 was asked for (\"mug\", \"sofa\"); no control characters"
           },
           "centroid": {
             "type": "array",
@@ -2073,6 +2125,7 @@
               "string",
               "null"
             ],
+            "maxLength": 30,
             "description": "Basic colour name measured from the photo pixels inside the box (objects only)"
           },
           "size_m": {
@@ -2452,7 +2505,8 @@
               "arrival.verified",
               "guide.answered",
               "voice.transcribed",
-              "audit.pruned"
+              "audit.pruned",
+              "rate.limited"
             ]
           },
           "outcome": {
@@ -3457,6 +3511,16 @@
           }
         }
       },
+      "TooLarge": {
+        "description": "The body is larger than this route accepts (a part 64 MB, a result 50 MB, an arrival frame 25 MB, audio 10 MB, anything else 1 MB)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
       "Invalid": {
         "description": "Invalid input",
         "content": {
@@ -3479,6 +3543,24 @@
       },
       "Conflict": {
         "description": "Not in a state that allows this",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Too many calls from this key to a route that reaches a model or the pipeline; try again after Retry-After seconds",
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Seconds to wait"
+          }
+        },
         "content": {
           "application/json": {
             "schema": {

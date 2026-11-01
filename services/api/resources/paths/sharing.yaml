@@ -21,6 +21,8 @@ sharing:
         application/json:
           schema: {$ref: ../schemas/SharingUpdate.yaml}
     responses:
+      "413":
+        $ref: ../schemas/Responses.yaml#/TooLarge
       "401":
         $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":

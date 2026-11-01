@@ -7,7 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 
 from recall_api.application.erase_scan import EraseError
-from recall_api.application.ingest_scan import IngestError
+from recall_api.application.ingest_scan import IngestError, all_finite
 from recall_api.application.upload_scan import UploadError
 from recall_api.domain.memory import Scan as ScanEntity
 
@@ -120,6 +120,8 @@ def complete(scan_id: str, c=Depends(container)) -> Scan:
 
 @router.post("/scans/{scan_id}/results", response_model=Scan)
 def post_results(scan_id: str, body: ScanResult, c=Depends(container)) -> Scan:
+    if not all_finite(body.model_dump()):
+        raise HTTPException(422, {"error": "invalid", "detail": "The result has a number that isn't finite."})
     try:
         return _scan(c.ingest_scan(scan_id, body.model_dump(mode="json")))
     except IngestError as e:

@@ -11,7 +11,7 @@ properties:
     type: string
     enum: [robot_access.changed, trust.changed, robot_export.read, home_memory.query, auth.refused, object.corrected,
            object.forgotten, scan.created, scan.uploaded, scan.failed, scan.ingested, scan.erased, arrival.verified,
-           guide.answered, voice.transcribed, audit.pruned]
+           guide.answered, voice.transcribed, audit.pruned, rate.limited]
   outcome: {type: string, enum: [ok, refused, failed]}
   target_type: {type: [string, "null"]}
   target_id: {type: [string, "null"]}

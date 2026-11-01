@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections import defaultdict
 from dataclasses import replace
 from typing import Any
@@ -23,6 +24,17 @@ from recall_api.domain.memory import (
 from recall_api.domain.memory.matching import match_label
 from recall_api.domain.ports import HomeRepository, ScanRepository, TrackedObjectRepository
 from recall_api.domain.spatial import relate
+
+
+def all_finite(value: Any) -> bool:
+    """No NaN or infinity anywhere in a result: JSON parsers accept them, and one would poison every distance."""
+    if isinstance(value, float):
+        return math.isfinite(value)
+    if isinstance(value, dict):
+        return all(all_finite(v) for v in value.values())
+    if isinstance(value, (list, tuple)):
+        return all(all_finite(v) for v in value)
+    return True
 
 
 class IngestError(Exception):

@@ -10,6 +10,10 @@ ask:
           schema:
             $ref: ../schemas/AskRequest.yaml
     responses:
+      "413":
+        $ref: ../schemas/Responses.yaml#/TooLarge
+      "429":
+        $ref: ../schemas/Responses.yaml#/RateLimited
       "401":
         $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":

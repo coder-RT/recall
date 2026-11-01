@@ -2,6 +2,8 @@
 SHELL := /bin/bash
 API := services/api
 PIPE := services/pipeline
+# where the API listens: the LAN by default so the phone reaches it; BIND=127.0.0.1 when a Cloudflare Tunnel is the only way in
+BIND ?= 0.0.0.0
 WEB := apps/web
 REDOCLY := npx -y @redocly/cli@2.72.1
 
@@ -17,7 +19,7 @@ setup: ## Install Python 3.12 services (uv), the web app (pnpm) and generate the
 	$(MAKE) bundle-spec gen-models migrate
 
 dev: ## Run the API on :8000 (reachable on the LAN), the scan worker and the web app on :3000
-	( cd $(API) && uv run recall-api ) & $(MAKE) worker & ( cd $(WEB) && pnpm dev ) ; wait
+	( cd $(API) && RECALL_BIND_HOST=$(BIND) uv run recall-api ) & $(MAKE) worker & ( cd $(WEB) && pnpm dev ) ; wait
 
 worker: ## The scan job worker (Huey on SQLite) and the warm pipeline (MapAnything kept loaded, freed after 10 min idle)
 	( cd $(PIPE) && uv run recall-pipeline serve ) & ( cd $(API) && uv run huey_consumer recall_api.infra.jobs.huey -w 1 -k thread ) ; wait
@@ -33,6 +35,7 @@ regression: ## Re-run every processed scan now (no posting; cached SAM answers) 
 
 public-scan: ## The real scan for the public site, geometry only (no photo data): make public-scan [HOME_ID=flat] -> apps/web/public/real-scan/<home>/ (review before committing)
 	@H="$(or $(HOME_ID),flat)"; \
+	case "$$H" in *[!a-z0-9-]*|"") echo "HOME_ID: lower-case letters, digits and hyphens only."; exit 2;; esac; \
 	ID=$$(sqlite3 data/recall.db "SELECT id FROM scans WHERE home_id = '$$H' AND status = 'processed' ORDER BY created_at DESC LIMIT 1" 2>/dev/null); \
 	E=$$(ls -d data/blobs/scans/*_$$ID/episode 2>/dev/null | head -1); \
 	if [ -z "$$ID" ] || [ ! -f "$$E/home_colors.npy" ]; then echo "No processed scan of '$$H' yet."; exit 1; fi; \
@@ -41,6 +44,7 @@ public-scan: ## The real scan for the public site, geometry only (no photo data)
 
 viewer: ## Export a home's newest processed scan for /homes/<home>/viewer: make viewer [HOME_ID=flat] (gitignored output)
 	@H="$(or $(HOME_ID),flat)"; \
+	case "$$H" in *[!a-z0-9-]*|"") echo "HOME_ID: lower-case letters, digits and hyphens only."; exit 2;; esac; \
 	ID=$$(sqlite3 data/recall.db "SELECT id FROM scans WHERE home_id = '$$H' AND status = 'processed' ORDER BY created_at DESC LIMIT 1" 2>/dev/null); \
 	E=$$(ls -d data/blobs/scans/*_$$ID/episode 2>/dev/null | head -1); \
 	if [ -z "$$ID" ] || [ ! -f "$$E/home_colors.npy" ]; then \
@@ -49,7 +53,7 @@ viewer: ## Export a home's newest processed scan for /homes/<home>/viewer: make 
 	echo "Open http://localhost:3000/homes/$$H/viewer"
 
 live: ## The API with real Meta model calls (keys from .env), and the scan worker
-	( cd $(API) && uv run recall-api ) & $(MAKE) worker ; wait
+	( cd $(API) && RECALL_BIND_HOST=$(BIND) uv run recall-api ) & $(MAKE) worker ; wait
 
 demo: ## No keys: the API on a memory built from a recorded real scan; the Guide's replies are replayed (labelled recorded)
 	cd $(API) && uv run python -m recall_api.infra.demo serve $(if $(PORT),--port $(PORT))

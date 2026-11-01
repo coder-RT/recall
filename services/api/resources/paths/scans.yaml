@@ -13,6 +13,8 @@ scans:
           schema:
             $ref: ../schemas/ScanCreate.yaml
     responses:
+      "413":
+        $ref: ../schemas/Responses.yaml#/TooLarge
       "401":
         $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
@@ -82,6 +84,8 @@ part:
         application/octet-stream:
           schema: {type: string, format: binary}
     responses:
+      "413":
+        $ref: ../schemas/Responses.yaml#/TooLarge
       "401":
         $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
@@ -108,6 +112,8 @@ manifest:
           schema:
             $ref: ../schemas/Manifest.yaml
     responses:
+      "413":
+        $ref: ../schemas/Responses.yaml#/TooLarge
       "401":
         $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
@@ -128,6 +134,10 @@ complete:
     parameters:
       - $ref: ../schemas/Params.yaml#/scan_id
     responses:
+      "413":
+        $ref: ../schemas/Responses.yaml#/TooLarge
+      "429":
+        $ref: ../schemas/Responses.yaml#/RateLimited
       "401":
         $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
@@ -154,6 +164,8 @@ results:
           schema:
             $ref: ../schemas/ScanResult.yaml
     responses:
+      "413":
+        $ref: ../schemas/Responses.yaml#/TooLarge
       "401":
         $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":

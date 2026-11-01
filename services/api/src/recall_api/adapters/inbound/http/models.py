@@ -265,7 +265,15 @@ class RoomModel(BaseModel):
 
 
 class DetectedThing(BaseModel):
-    label: str
+    label: Annotated[
+        str,
+        Field(
+            description='What SAM 3.1 was asked for ("mug", "sofa"); no control characters',
+            max_length=80,
+            min_length=1,
+            pattern="^[^\\u0000-\\u001f\\u007f]+$",
+        ),
+    ]
     centroid: Annotated[list[float], Field(max_length=3, min_length=3)]
     bbox_min: Annotated[list[float], Field(max_length=3, min_length=3)]
     bbox_max: Annotated[list[float], Field(max_length=3, min_length=3)]
@@ -284,7 +292,10 @@ class DetectedThing(BaseModel):
         list[float] | None, Field(description="Unit vector (x, y) the front faces, landmarks only")
     ] = None
     color: Annotated[
-        str | None, Field(description="Basic colour name measured from the photo pixels inside the box (objects only)")
+        str | None,
+        Field(
+            description="Basic colour name measured from the photo pixels inside the box (objects only)", max_length=30
+        ),
     ] = None
     size_m: Annotated[
         list[float] | None, Field(description="Bounding box x, y, z in metres", max_length=3, min_length=3)
@@ -454,6 +465,7 @@ class Action(StrEnum):
     guide_answered = "guide.answered"
     voice_transcribed = "voice.transcribed"
     audit_pruned = "audit.pruned"
+    rate_limited = "rate.limited"
 
 
 class Outcome(StrEnum):

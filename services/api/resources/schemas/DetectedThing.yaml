@@ -1,7 +1,7 @@
 type: object
 required: [label, centroid, bbox_min, bbox_max, confidence, sightings]
 properties:
-  label: {type: string}
+  label: {type: string, minLength: 1, maxLength: 80, pattern: "^[^\\u0000-\\u001f\\u007f]+$", description: "What SAM 3.1 was asked for (\"mug\", \"sofa\"); no control characters"}
   centroid: {type: array, items: {type: number}, minItems: 3, maxItems: 3}
   bbox_min: {type: array, items: {type: number}, minItems: 3, maxItems: 3}
   bbox_max: {type: array, items: {type: number}, minItems: 3, maxItems: 3}
@@ -15,5 +15,5 @@ properties:
     maxItems: 4
     description: "The best frame's box (x1, y1, x2, y2), source-image pixels: the evidence crop"
   front_dir: {type: [array, "null"], items: {type: number}, description: "Unit vector (x, y) the front faces, landmarks only"}
-  color: {type: [string, "null"], description: "Basic colour name measured from the photo pixels inside the box (objects only)"}
+  color: {type: [string, "null"], maxLength: 30, description: "Basic colour name measured from the photo pixels inside the box (objects only)"}
   size_m: {type: [array, "null"], items: {type: number}, minItems: 3, maxItems: 3, description: "Bounding box x, y, z in metres"}

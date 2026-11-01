@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import zipfile
 from dataclasses import dataclass
 from typing import Any
 
@@ -144,7 +145,10 @@ class UploadScan:
         if digest.hexdigest() != scan.archive_sha256:
             return self._failed(scan, "The uploaded archive does not match its checksum.")
         self.blobs.put(keys["archive"], b"".join(chunks))
-        files = {f.path: f for f in self.unpacker.unpack(keys["archive"], keys["episode"])}
+        try:
+            files = {f.path: f for f in self.unpacker.unpack(keys["archive"], keys["episode"])}
+        except (ValueError, zipfile.BadZipFile):
+            return self._failed(scan, "The archive is damaged, or too large once unpacked.")
         manifest = json.loads(self.blobs.get(keys["manifest"]))
         for entry in manifest["files"]:
             got = files.get(entry["path"])

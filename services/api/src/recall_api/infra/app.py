@@ -5,6 +5,7 @@ from __future__ import annotations
 import hmac
 import json
 import logging
+import os
 import time
 import uuid
 
@@ -31,6 +32,7 @@ from recall_api.infra import logging as recall_logging
 from recall_api.infra import telemetry
 from recall_api.infra.container import Container
 from recall_api.infra.db import API_ROOT
+from recall_api.infra.guard import RateLimiter, body_limit, caller_id
 from recall_api.util.request_context import request_id
 
 log = logging.getLogger("recall_api.http")
@@ -55,6 +57,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ):
         app.include_router(r)
     _mount_home_memory(app, settings)
+
+    limiter = RateLimiter()
+
+    @app.middleware("http")
+    async def _limits(request: Request, call_next):  # noqa: ANN001, ANN202
+        # inside the access log (registered first), so refusals are logged and audited with the request id
+        method, path = request.method, request.url.path
+        size = request.headers.get("content-length")
+        if size is not None and size.isdigit() and int(size) > body_limit(method, path):
+            return JSONResponse({"error": "too_large", "detail": "The request is larger than this route accepts."},
+                                status_code=413)  # fmt: skip
+        who = caller_id(request.headers.get("authorization"), request.client.host if request.client else None)
+        ok, wait = limiter.allow(who, method, path)
+        if not ok:
+            app.state.container.auditor(Action.RATE_LIMITED, Actor.UNKNOWN, Outcome.REFUSED, path=path, method=method,
+                                        wait_s=wait)  # fmt: skip
+            return JSONResponse({"error": "rate_limited", "detail": f"Too many requests. Try again in {wait} s."},
+                                status_code=429, headers={"Retry-After": str(wait)})  # fmt: skip
+        return await call_next(request)
 
     @app.middleware("http")
     async def _access_log(request: Request, call_next):  # noqa: ANN001, ANN202
@@ -130,4 +151,7 @@ def _mount_home_memory(app: FastAPI, settings: Settings) -> None:
 
 
 def main() -> None:
-    uvicorn.run("recall_api.infra.app:create_app", factory=True, host="0.0.0.0", port=8000)
+    # loopback unless asked: RECALL_BIND_HOST=0.0.0.0 (make live / make dev) lets the phone reach it on the LAN;
+    # behind a Cloudflare Tunnel, loopback is enough
+    host = os.environ.get("RECALL_BIND_HOST", "127.0.0.1")
+    uvicorn.run("recall_api.infra.app:create_app", factory=True, host=host, port=8000)

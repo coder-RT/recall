@@ -164,8 +164,8 @@ export const en = {
     steps: [
       {
         title: "Walk through once",
-        body: "Hold your iPhone and walk through your home. Recall records the rooms, the furniture and where your things are, in 3D, with real distances.",
-        meta: "LiDAR + camera · about 5 minutes",
+        body: "Walk each room once, led step by step: turn round, walk the walls about a metre away, sweep the tables and floor, end where you began. Recall says how high to hold the phone, shows what the LiDAR has covered on a neon grid of height zones, then grades the scan with tips for next time. It remembers the rooms, the furniture and where your things are, in 3D, with real distances.",
+        meta: "LiDAR + camera · about 2 minutes a room",
       },
       {
         title: "Ask out loud",

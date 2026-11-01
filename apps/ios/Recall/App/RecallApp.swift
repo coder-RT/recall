@@ -76,6 +76,15 @@ private struct ThemedRoot: View {
         // back from the background: what finished meanwhile updates the cards without talking
         .onChange(of: scenePhase) { _, phase in if phase == .active { scans.becameActive() } }
         .onOpenURL { settings.pair(with: $0) }
+        .alert("Pair with this Mac?", isPresented: Binding(get: { settings.pendingPairing != nil },
+                                                           set: { if !$0 { settings.cancelPairing() } }),
+               presenting: settings.pendingPairing) { _ in
+            Button("Pair") { settings.confirmPairing() }
+                .accessibilityIdentifier("pairing.confirm")
+            Button("Cancel", role: .cancel) { settings.cancelPairing() }
+        } message: { pairing in
+            Text(pairing.summary + " Only pair with your own Mac.")
+        }
     }
 }
 

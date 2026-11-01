@@ -232,6 +232,16 @@ struct UseCaseTests {
         #expect(try pair(URL(string: "https://example.com")!) == nil)
     }
 
+    @Test func readingAPairingLinkChangesNothingUntilItIsApplied() throws {
+        let store = FakeConnectionStore()
+        let before = store.load()
+        let pair = PairDevice(store: store)
+        let pairing = try #require(try pair.read(URL(string: "recall://pair?url=https://evil.example&key=theirs")!))
+        #expect(store.load() == before)  // a link alone never re-points the phone
+        let c = pair.apply(pairing)
+        #expect(c.address == "https://evil.example" && store.connection == c)
+    }
+
     @Test func testConnectionSaysTheModel() async throws {
         #expect(try await TestConnection(check: FakeConnectionCheck(.success("baseten_spark_open")))()
                 == "Connected. The Mac's Guide runs on baseten_spark_open.")

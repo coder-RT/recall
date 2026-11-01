@@ -17,6 +17,8 @@ extension RecallError: LocalizedError {
         case .setup(let issue): issue.message
         case .server(let s): s
         case .status(401): "The device key is wrong. Check it in Settings."
+        case .status(413): "That was too large for the Mac to accept."
+        case .status(429): "The Mac is getting a lot of requests. Wait a moment and try again."
         case .status(404): "The Mac doesn't know that yet."
         case .status(503): "The Mac is missing a setting. Check RECALL_DEVICE_KEY in its .env."
         case .status(let c): "The Mac answered with an error (\(c))."

@@ -31,4 +31,12 @@ struct PendingRepliesTests {
         #expect(PendingReplies<Int>.timeout == .seconds(25))
         #expect(WatchReply.phoneDidNotAnswer.say?.contains("didn't answer") == true)
     }
+
+    @Test func aReplyFromThePhoneIsCapped() {
+        let many = (0..<500).map { WatchThing(id: "t\($0)", title: "thing \($0)", place: "here") }
+        let r = WatchReply(things: many, say: String(repeating: "a", count: 1000)).capped
+        #expect(r.things?.count == WatchReply.maxThings)
+        #expect(r.say?.count == 400)
+        #expect(WatchReply(say: "Fine.").capped == WatchReply(say: "Fine."))
+    }
 }

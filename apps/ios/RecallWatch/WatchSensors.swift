@@ -180,7 +180,9 @@ final class PhoneLink: NSObject, WCSessionDelegate, @unchecked Sendable {
         }
         let id = wait(for: reply)
         WCSession.default.sendMessage(["request": data], replyHandler: { [self] message in
-            let r = (message["reply"] as? Data).flatMap { try? JSONDecoder().decode(WatchReply.self, from: $0) }
+            let r = (message["reply"] as? Data).flatMap { d in
+                d.count <= WatchReply.maxReplyBytes ? (try? JSONDecoder().decode(WatchReply.self, from: d))?.capped : nil
+            }
             answer(id, r ?? WatchReply(say: "The iPhone's answer was unreadable."))
         }, errorHandler: { [self] _ in
             answer(id, WatchReply(say: "I can't reach your iPhone. Keep it nearby, with Recall open once."))
@@ -215,9 +217,14 @@ final class PhoneLink: NSObject, WCSessionDelegate, @unchecked Sendable {
         Task { @MainActor in handler(reply) }
     }
 
+    /// The recording has reached the iPhone (or failed for good): no copy stays on the Watch.
+    func session(_ session: WCSession, didFinish fileTransfer: WCSessionFileTransfer, error: Error?) {
+        try? FileManager.default.removeItem(at: fileTransfer.file.fileURL)
+    }
+
     func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
-        guard let id = message["id"] as? String, let data = message["reply"] as? Data,
-              let reply = try? JSONDecoder().decode(WatchReply.self, from: data) else { return }
+        guard let id = message["id"] as? String, let data = message["reply"] as? Data, data.count <= WatchReply.maxReplyBytes,
+              let reply = (try? JSONDecoder().decode(WatchReply.self, from: data))?.capped else { return }
         answer(id, reply)
     }
 

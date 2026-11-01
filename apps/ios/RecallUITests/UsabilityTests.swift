@@ -183,4 +183,17 @@ final class UsabilityTests: XCTestCase {
     func testFindWhatLeavesTheMac() { findWhatLeavesTheMac(largestText: false) }
     func testFindWhatLeavesTheMacLargestText() { findWhatLeavesTheMac(largestText: true) }
     func testShareWithARobot() { shareWithARobot(largestText: false) }
+
+    /// A pairing link from anywhere (a web page, another app) changes nothing until the person confirms which Mac.
+    func testAPairingLinkAsksBeforeItChangesTheMac() {
+        let app = launch(largestText: false)
+        app.open(URL(string: "recall://pair?url=https://not-my-mac.example:8445&key=abcdefgh1234")!)
+        let alert = app.alerts["Pair with this Mac?"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5), "a pairing link must ask first")
+        XCTAssertTrue(alert.staticTexts.containing(NSPredicate(format: "label CONTAINS 'not-my-mac.example:8445'")).firstMatch.exists)
+        XCTAssertFalse(alert.staticTexts.containing(NSPredicate(format: "label CONTAINS 'abcdefgh'")).firstMatch.exists,
+                       "the key itself is never shown")
+        alert.buttons["Cancel"].tap()
+        XCTAssertTrue(waitSpoken(app, contains: "Not paired"))
+    }
 }

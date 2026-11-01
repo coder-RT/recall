@@ -1,6 +1,7 @@
 import RecallDesign
 import RecallDomain
 import SwiftUI
+import UniformTypeIdentifiers
 import UIKit
 
 /// Where the Mac is and the shared device key (pairing, not a login). The key is kept in the Keychain.
@@ -93,13 +94,18 @@ struct SettingsView: View {
                                 Button("Paste", systemImage: "doc.on.clipboard") {
                                     guard let text = UIPasteboard.general.string else { return }
                                     model.connection.key = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                                    model.say("Key pasted. \(model.connection.keySummary)")
+                                    model.say(TextInput.keyTooLong(text)
+                                        ? "That key is longer than \(TextInput.deviceKey) characters, so it was cut. Copy it again from the Mac."
+                                        : "Key pasted. \(model.connection.keySummary)")
                                 }
                                 .accessibilityLabel("Paste the key")
                             }
                             Button("Copy", systemImage: "doc.on.doc") {
-                                UIPasteboard.general.string = model.connection.cleanKey
-                                model.say("Key copied.")
+                                // this phone only (never Handoff to other devices), and gone after two minutes
+                                UIPasteboard.general.setItems([[UTType.utf8PlainText.identifier: model.connection.cleanKey]],
+                                                              options: [.localOnly: true,
+                                                                        .expirationDate: Date().addingTimeInterval(120)])
+                                model.say("Key copied for two minutes.")
                             }
                             .accessibilityLabel("Copy the key")
                             .disabled(model.connection.cleanKey.isEmpty)

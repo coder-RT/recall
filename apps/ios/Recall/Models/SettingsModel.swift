@@ -27,15 +27,32 @@ final class SettingsModel {
 
     var issue: SetupIssue? { connection.issue }
 
-    /// recall://pair?… from the Mac's QR code.
+    /// A pairing link waiting for the person to confirm it (shown as an alert).
+    var pendingPairing: PairingLink?
+
+    /// recall://pair?… from the Mac's QR code. Nothing changes until the person confirms: any app or page can open
+    /// such a link, and a silent one would hand the device key to someone else's server.
     func pair(with link: URL) {
         do {
-            guard let paired = try pair(link) else { return }
-            connection = paired
-            speech.say(paired.issue?.message ?? "Paired with the Mac. Open Settings and test the connection.", interrupt: false)
+            guard let pairing = try pair.read(link) else { return }
+            pendingPairing = pairing
+            speech.say(pairing.summary, interrupt: false)
         } catch {
             speech.say(UserMessage.explain(error), interrupt: false)
         }
+    }
+
+    func confirmPairing() {
+        guard let pairing = pendingPairing else { return }
+        pendingPairing = nil
+        connection = pair.apply(pairing)
+        speech.say(connection.issue?.message ?? "Paired with the Mac. Open Settings and test the connection.", interrupt: false)
+    }
+
+    func cancelPairing() {
+        guard pendingPairing != nil else { return }
+        pendingPairing = nil
+        speech.say("Not paired. Your Mac's address and key are unchanged.", interrupt: false)
     }
 
     /// The result stays on screen (to read or copy); only success is spoken.

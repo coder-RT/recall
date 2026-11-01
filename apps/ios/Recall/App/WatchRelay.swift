@@ -32,7 +32,9 @@ final class WatchRelay: NSObject, WCSessionDelegate, @unchecked Sendable {
     // a spoken question: the recording arrives as a file; the answer goes back as a message carrying the same id
     func session(_ session: WCSession, didReceive file: WCSessionFile) {
         let id = file.metadata?["id"] as? String ?? ""
-        let audio = try? Data(contentsOf: file.fileURL)
+        // a question is a few seconds of 16 kHz audio; anything far bigger isn't one, and isn't read into memory
+        let size = (try? file.fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        let audio = size <= WatchReply.maxAudioBytes ? try? Data(contentsOf: file.fileURL) : nil
         Task {
             let reply = await answer(.ask(audioFile: id), home: await home(), audio: audio)
             guard let data = try? JSONEncoder().encode(reply) else { return }

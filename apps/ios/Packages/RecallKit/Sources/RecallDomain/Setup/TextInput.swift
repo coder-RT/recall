@@ -21,9 +21,18 @@ public enum TextInput {
         return String(String(String.UnicodeScalarView(kept)).prefix(limit))
     }
 
+    /// A pasted key longer than the field keeps: say so, rather than silently pairing with a cut key.
+    public static func keyTooLong(_ text: String) -> Bool {
+        text.trimmingCharacters(in: .whitespacesAndNewlines).count > deviceKey
+    }
+
     /// A home name as the Mac accepts it: lowercase letters, digits and dashes ("My Flat" → "my-flat").
     public static func homeId(_ text: String) -> String {
-        let words = text.lowercased().split { !($0.isASCII && ($0.isLetter || $0.isNumber)) }
+        // "Küche" becomes "kuche", "Łódź" "lodz" and "Квартира" "kvartira", rather than vanishing into the default
+        // home (ICU's Any-Latin, then Latin-ASCII for letters like Ł that aren't a base letter plus an accent)
+        let latin = text.applyingTransform(.toLatin, reverse: false) ?? text
+        let plain = latin.applyingTransform(StringTransform("Latin-ASCII"), reverse: false) ?? latin
+        let words = plain.lowercased().split { !($0.isASCII && ($0.isLetter || $0.isNumber)) }
         return String(words.joined(separator: "-").prefix(homeId))
     }
 }

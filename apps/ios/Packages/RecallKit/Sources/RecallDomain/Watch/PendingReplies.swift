@@ -26,5 +26,18 @@ public final class PendingReplies<Handler>: @unchecked Sendable {
 }
 
 public extension WatchReply {
+    /// Limits on what crosses between the Watch and the iPhone: a question of a few seconds, a reply of a few things.
+    static let maxAudioBytes = 2 * 1024 * 1024
+    static let maxReplyBytes = 256 * 1024
+    static let maxThings = 100
+
+    /// The reply with at most `maxThings` things for the dial and a sentence of reasonable length.
+    var capped: WatchReply {
+        var r = self
+        r.things = things.map { Array($0.prefix(Self.maxThings)) }
+        r.say = say.map { $0.count > 400 ? String($0.prefix(399)) + "…" : $0 }
+        return r
+    }
+
     static let phoneDidNotAnswer = WatchReply(say: "Your iPhone didn't answer. Try again with it nearby.")
 }

@@ -197,7 +197,7 @@ private struct ScanRow: View {
                     ShareLink(item: url) { Image(systemName: "square.and.arrow.up").foregroundStyle(Tokens.accent) }
                         .buttonStyle(.glass).buttonBorderShape(.circle).controlSize(.large)
                         .accessibilityLabel("Share the scan")
-                        .accessibilityHint("Send this scan with AirDrop or save it to Files.")
+                        .accessibilityHint("Sends the scan's photos of your home, its depth and path, with AirDrop or to Files. Share only with people you trust.")
                 }
             }
             if !history.earlier.isEmpty {

@@ -37,7 +37,9 @@ public final class WavRecorder: NSObject, VoiceInput {
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
         let handler = finished
         finished = nil
-        handler?(ok ? try? Data(contentsOf: file) : nil)
+        let audio = ok ? try? Data(contentsOf: file) : nil
+        try? FileManager.default.removeItem(at: file)  // the question is in memory now; no copy is left on the phone
+        handler?(audio)
     }
 }
 

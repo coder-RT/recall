@@ -8,7 +8,17 @@ public struct PairDevice: Sendable {
 
     /// The new connection, nil when the link isn't a pairing link; throws when it's an incomplete one.
     public func callAsFunction(_ link: URL) throws -> Connection? {
-        guard let pairing = try PairingLink(link) else { return nil }
+        guard let pairing = try read(link) else { return nil }
+        return apply(pairing)
+    }
+
+    /// The link's pairing, not yet applied: any app or web page can open a recall:// link, so the person confirms
+    /// which Mac first (the old address and key stay until they do).
+    public func read(_ link: URL) throws -> PairingLink? { try PairingLink(link) }
+
+    /// Uses the pairing the person confirmed.
+    @discardableResult
+    public func apply(_ pairing: PairingLink) -> Connection {
         var c = store.load()
         c.address = pairing.address
         c.key = pairing.key

@@ -72,10 +72,12 @@ layers = [
   "recall_api.adapters",
   "recall_api.application",
   "recall_api.domain",
+  # generic helpers (ids, the request id): anything may use them, they use nothing of ours
+  "recall_api.util",
 ]
 
 [[tool.importlinter.contracts]]
 name = "Domain and application stay free of frameworks and I/O"
 type = "forbidden"
-source_modules = ["recall_api.domain", "recall_api.application"]
+source_modules = ["recall_api.domain", "recall_api.application", "recall_api.util"]
 forbidden_modules = ["fastapi", "sqlalchemy", "httpx", "openai", "torch", "boto3", "starlette", "uvicorn"]

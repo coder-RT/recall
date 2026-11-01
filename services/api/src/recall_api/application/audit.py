@@ -18,6 +18,10 @@ class Auditor:
         self.store, self.clock, self.new_id, self.retention = store, clock, new_id, timedelta(days=retention_days)
         self._written = 0
 
+    def recent(self, limit: int = 50, action: str | None = None, actor: str | None = None, since=None):
+        """The newest events, for the owner's audit view (read-only)."""
+        return self.store.recent(limit, action, actor, since)
+
     def __call__(
         self,
         action: Action,

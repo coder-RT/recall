@@ -14,17 +14,15 @@ from recall_api.domain.memory import Home, Trust
 from .deps import container, require_device_key
 from .models import ArLabels, CompassRoute, ObjectCorrection, ObjectLocation, RobotExport, RoomModel, TrustUpdate
 from .models import Trust as TrustLevel
-from .robots import export_document
 
 router = APIRouter(tags=["homes"], dependencies=[Depends(require_device_key)])
 
 
 @router.get("/homes/{home_id}/room", response_model=RoomModel)
 def get_room(home_id: str, c=Depends(container)) -> RoomModel:
-    home = c.homes.get(home_id)
-    if home is None or home.room_model is None:
+    r = c.get_room(home_id)
+    if r is None:
         raise HTTPException(404, {"error": "not_found", "detail": "No processed scan for this home yet."})
-    r = home.room_model
     return RoomModel(
         floor_polygon=[list(p) for p in r.floor_polygon],
         walls=[{"start": list(w.start), "end": list(w.end), "height_m": w.height_m} for w in r.walls],
@@ -40,7 +38,7 @@ def get_room(home_id: str, c=Depends(container)) -> RoomModel:
 def get_room_map(home_id: str, room: str | None = None, c=Depends(container)) -> RobotExport:
     # the owner looking at their own home: no robot switch, and not recorded as a robot export
     try:
-        return export_document(c.export_for_robot(home_id, room))
+        return RobotExport.model_validate(c.share_robot_export.document(c.export_for_robot(home_id, room)))
     except RobotExportError as e:
         raise HTTPException(e.status, {"error": e.code, "detail": str(e)}) from e
 

@@ -15,6 +15,19 @@ class Clock(Protocol):
     def now(self) -> datetime: ...
 
 
+class RobotFormat(Protocol):
+    """Writes a robot export in the files a ROS 2 robot loads (objects.json, Nav2 map, cloud.ply, README)."""
+
+    def document(self, export) -> dict: ...
+    def package(self, export) -> bytes: ...
+
+
+class ImageCropper(Protocol):
+    """Cuts a box out of a JPEG keyframe, clamped to the picture. Pixels in, JPEG bytes out."""
+
+    def crop(self, jpeg: bytes, box: tuple[float, float, float, float]) -> bytes: ...
+
+
 class BlobStore(Protocol):
     """Episode storage: the Mac's disk by default (STORAGE=local), R2 optionally."""
 

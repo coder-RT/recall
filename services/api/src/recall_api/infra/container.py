@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from zoneinfo import ZoneInfo
 
+from recall_api.adapters.outbound.export import robot_files
 from recall_api.adapters.outbound.jobs.heartbeat import FileHeartbeat
 from recall_api.adapters.outbound.llm.openai_compatible import from_settings as llm_from_settings
 from recall_api.adapters.outbound.persistence.sqlite import (
@@ -21,6 +22,7 @@ from recall_api.adapters.outbound.persistence.sqlite import (
 from recall_api.adapters.outbound.safety.meta_model_screen import MetaModelScreener
 from recall_api.adapters.outbound.storage.local_disk import LocalDiskBlobStore
 from recall_api.adapters.outbound.storage.zip_unpacker import ZipEpisodeUnpacker
+from recall_api.adapters.outbound.vision.pillow_crop import PillowCropper
 from recall_api.adapters.outbound.vision.sam31_meta_api import Sam31MetaApi
 from recall_api.adapters.outbound.vision.spark_vision_meta_api import SparkVisionMetaApi
 from recall_api.adapters.outbound.voice.muse_transcribe import MuseTranscriber
@@ -32,11 +34,15 @@ from recall_api.application.correct_object import CorrectObject
 from recall_api.application.erase_scan import EraseScan
 from recall_api.application.explain_answer import ExplainAnswer
 from recall_api.application.export_for_robot import ExportForRobot
+from recall_api.application.get_room import GetRoom
+from recall_api.application.get_scan import GetScan
 from recall_api.application.ingest_scan import IngestScan
 from recall_api.application.list_things import ListThings
+from recall_api.application.mark_scan_failed import MarkScanFailed
 from recall_api.application.plan_compass_route import PlanCompassRoute
 from recall_api.application.plan_guidance import PlanGuidance
 from recall_api.application.robot_access import RobotAccess
+from recall_api.application.share_robot_export import ShareRobotExport
 from recall_api.application.tools import Tools
 from recall_api.application.transcribe_speech import TranscribeSpeech
 from recall_api.application.trust import TrustPolicy
@@ -88,6 +94,18 @@ class Container:
         if self.settings.pipeline_runner != "queue":
             return AlwaysAlive()
         return FileHeartbeat(self.settings.data_dir / "worker-heartbeat", self.clock)
+
+    @cached_property
+    def get_scan(self) -> GetScan:
+        return GetScan(self.scans, self.worker_status)
+
+    @cached_property
+    def mark_scan_failed(self) -> MarkScanFailed:
+        return MarkScanFailed(self.scans, audit=self.auditor)
+
+    @cached_property
+    def get_room(self) -> GetRoom:
+        return GetRoom(self.homes)
 
     @cached_property
     def upload_scan(self) -> UploadScan:
@@ -176,6 +194,10 @@ class Container:
         return ExportForRobot(self.homes, self.scans, self.objects, self.blobs, self.clock, trust=self.trust)
 
     @cached_property
+    def share_robot_export(self) -> ShareRobotExport:
+        return ShareRobotExport(self.export_for_robot, self.robot_access, robot_files, audit=self.auditor)
+
+    @cached_property
     def tools(self) -> Tools:
         return Tools(self.homes, self.objects, self.clock, self.guidance, ZoneInfo(self.settings.home_timezone),
                      scans=self.scans, trust=self.trust)  # fmt: skip
@@ -186,7 +208,7 @@ class Container:
 
     @cached_property
     def explain_answer(self) -> ExplainAnswer:
-        return ExplainAnswer(self.answer_log, self.objects, self.scans, self.blobs)
+        return ExplainAnswer(self.answer_log, self.objects, self.scans, self.blobs, PillowCropper())
 
     @cached_property
     def transcribe(self) -> TranscribeSpeech:

@@ -10,7 +10,6 @@ from recall_api.application.erase_scan import EraseError
 from recall_api.application.ingest_scan import IngestError
 from recall_api.application.upload_scan import UploadError
 from recall_api.domain.memory import Scan as ScanEntity
-from recall_api.domain.memory import ScanStatus
 
 from .deps import container, require_device_key
 from .models import Manifest, Part, PartReceipt, Scan, ScanChange, ScanCreate, ScanResult, UploadPlan
@@ -73,12 +72,12 @@ def create_scan(body: ScanCreate, c=Depends(container)) -> UploadPlan:
 
 @router.get("/scans/{scan_id}", response_model=Scan)
 def get_scan(scan_id: str, c=Depends(container)) -> Scan:
-    s = c.scans.get(scan_id)
-    if s is None:
+    state = c.get_scan(scan_id)
+    if state is None:
         raise HTTPException(404, {"error": "not_found", "detail": "No such scan."})
-    scan = _scan(s)
-    if s.status == ScanStatus.PROCESSING:
-        scan.worker_alive = c.worker_status.alive()  # waiting with nobody to process it: the phone says why
+    scan = _scan(state.scan)
+    if state.worker_alive is not None:
+        scan.worker_alive = state.worker_alive  # waiting with nobody to process it: the phone says why
     return scan
 
 

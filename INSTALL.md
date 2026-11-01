@@ -225,6 +225,37 @@ Scan the QR code it shows with the iPhone's Camera app.
 
 ---
 
+### C7. The Apple Watch (preview)
+
+Needs an Apple Watch paired with the iPhone (built for the Ultra 4; watchOS 26 or newer).
+
+1. The Watch app is part of the iPhone app: after C4 it installs on the paired Watch by itself. If it doesn't, on the
+   iPhone open the **Watch** app → Recall → **Install**.
+2. **Scan the room with Location allowed** for Recall on the iPhone. The Watch walks by compass, and north comes from
+   that scan. **Start the scan at the room's door**: the Watch's walk starts where the scan began.
+3. On the Watch, set Settings → General → Return to Clock → Recall → **After 1 hour**, so Recall stays on screen
+   while you walk.
+4. Stand at the door, with the iPhone in a pocket, and open Recall on the Watch.
+   - It says "Hi, I'm Recall. What should I find?" Say "keys", or turn the Digital Crown to pick a thing (it says
+     each name).
+   - Then press **Find it**, or double tap (pinch twice).
+5. Press **Walk there** (or double tap) and follow the wrist:
+
+   | Tap on the wrist | Meaning |
+   |---|---|
+   | left-turn pattern | turn left |
+   | right-turn pattern | turn right |
+   | a single upward tap | facing the right way |
+   | a click | each metre walked |
+   | a long buzz | arrived |
+
+   A double tap repeats the current step aloud.
+
+**Check:** the Watch says the thing's place, and "You're there" at the end.
+**If it fails:**
+- "This room was scanned without a reliable compass": rescan with Location allowed.
+- "I can't reach your iPhone": keep it nearby and open Recall on it once.
+
 ## Every test, with logs kept
 
 ```bash

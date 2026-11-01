@@ -68,6 +68,9 @@ export const en = {
     errors: {
       microphone: "The microphone isn’t available. Check this site’s microphone permission.",
       not_configured: "Voice questions aren’t set up on this server yet.",
+      disabled: "Asking by voice is paused for now. Pick a question above instead.",
+      forbidden: "Voice questions only work from this page.",
+      daily_limit: "Today’s voice questions are used up. Pick a question above, or try again tomorrow.",
       wrong_format: "That recording couldn’t be sent. Try again.",
       rate_limited: "Too many questions at once. Try again in a minute.",
       too_long: "That recording is too long.",

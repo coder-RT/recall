@@ -355,6 +355,10 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
 ### 5. Hosted version (optional)
 
 - If a hosted copy is linked at submission, it runs in replay mode: no account and no keys needed.
+- The website's "Ask by voice" is the only part that calls a paid model. It answers only the site's own pages, is
+  rate-limited per visitor by a Vercel firewall rule (`voice-transcribe`, via `@vercel/firewall`), has a daily cap
+  (`VOICE_DAILY_CAP`, default 300), and can be switched off at once with `VOICE_DEMO=off`. The preset questions always
+  work.
 - Everything also runs locally from the steps above.
 
 ### 6. Environment variables

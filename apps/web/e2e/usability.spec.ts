@@ -20,18 +20,16 @@ const focusedName = (page: Page) =>
   page.evaluate(() => (document.activeElement?.textContent ?? "").replace(/\s+/g, " ").trim());
 
 // budgets are today's measured paths (the nav comes first on a wide screen), kept as a guard against them growing
-test("keyboard only: from the top to a spoken answer in the Ask card, in at most 15 presses", async ({ page }) => {
+test("keyboard only: from the top to a spoken answer in the Ask card, in at most 18 presses", async ({ page }) => {
   await prepare(page);
   await open(page, "/");
   const wallet = en.ask.questions[2];
-  let presses = await tabTo(page, async () => (await focusedName(page)) === en.nav.tryDemo, 10);
-  await page.keyboard.press("Enter");
-  presses += 1;
-  presses += await tabTo(page, async () => (await focusedName(page)).includes(wallet.q), 3);
+  // the nav's demo button now opens the real scan, so the Ask card is reached through the hero, in page order
+  let presses = await tabTo(page, async () => (await focusedName(page)).includes(wallet.q), 17);
   await page.keyboard.press("Enter");
   presses += 1;
   await expect(page.locator("#ask").getByText(wallet.a)).toBeVisible();
-  expect(presses).toBeLessThanOrEqual(15);
+  expect(presses).toBeLessThanOrEqual(18);
 });
 
 test("keyboard only: from the top to the privacy page, in at most 9 presses", async ({ page }) => {

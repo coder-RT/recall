@@ -263,6 +263,7 @@ test("the Muse Code section shows its three tiers, the counts and the public wri
   const section = page.locator("#muse-code");
   await expect(section.getByRole("heading", { level: 2, name: en.museCode.title })).toBeAttached();
   await expect(section.locator("[data-tiers] li")).toHaveCount(3);
+  await expect(section.locator("[data-agents]")).toHaveText(en.museCode.tiers.map((t) => t.agents));
   for (const tier of en.museCode.tiers) await expect(section).toContainText(tier.name);
   await expect(section.locator("[data-stats] > div")).toHaveCount(3);
   const link = section.getByRole("link", { name: en.museCode.more });
@@ -282,4 +283,14 @@ test("the browser tab shows Recall's mark, not the framework's", async ({ page, 
   const sha = createHash("sha256").update(await ico.body()).digest("hex");
   expect(sha.startsWith("c28fdd2a4f31e2dc")).toBe(false);
   expect((await request.get("/apple-icon.png")).status()).toBe(200);
+});
+
+
+test("Try the demo and the hero both open the actual scan of the author's room", async ({ page }) => {
+  await open(page, "/");
+  await expect(page.locator("[data-try-demo]")).toHaveAttribute("href", "/homes/flat/viewer");
+  await expect(page.locator("[data-try-demo]")).toContainText(en.nav.actualScan);
+  const hero = page.locator("[data-actual-scan]");
+  await expect(hero).toHaveAttribute("href", "/homes/flat/viewer");
+  await expect(hero).toContainText(en.hero.actualScan);
 });

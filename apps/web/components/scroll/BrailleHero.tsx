@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef } from "react";
 import { AskCard } from "@/components/ui/AskCard";
 import { BrailleText } from "@/components/ui/BrailleText";
@@ -241,6 +242,10 @@ export function BrailleHero() {
             <a href="#feed" className="btn btn-ghost">
               {t.hero.browse}
             </a>
+            <Link href="/homes/flat/viewer" className="btn btn-green gap-2" data-actual-scan>
+              <span className="rounded-full bg-white px-2 py-0.5 text-xs font-bold text-cta-dark">{t.hero.actualScan}</span>
+              {t.hero.seeScan}
+            </Link>
           </div>
         </div>
 

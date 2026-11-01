@@ -6,6 +6,8 @@ import { format, getDictionary } from "@/i18n";
 import { BAND_EDGES, BANDS, bandOf } from "./bands";
 import { PUBLIC_SCANS, scanFolder } from "@/lib/scans";
 import { FoundViewer } from "./FoundViewer";
+import { extent, floorArea, perimeter } from "./scanStats";
+import { Sheets } from "./Sheets";
 import { RealScanStory } from "./RealScanStory";
 import type { FurnitureBox, RoomShape, Surface, Thing } from "./Layers";
 import { ViewerStats } from "./ViewerStats";
@@ -35,6 +37,8 @@ export interface ScanMeta {
   photo?: { frames_used: number; textured_share: number };
   /** present when the export regenerated the room (architect.json) */
   architect?: { walls: number; scanned_walls: number };
+  /** the spacing of the published points, metres */
+  voxel_m?: number;
   /** the drawing sheets (SVG) the export made */
   drawings?: { id: string; title: string; file: string; summary: string }[];
 }
@@ -84,13 +88,30 @@ export function LocalScan({ steps }: { steps: ReactNode }) {
     surfaces: s.surfaces,
     room: s.room,
     things: s.things,
+    axes: s.axes,
+    axisLabels: s.axisLabels,
+    best: s.best,
+    more: s.more,
+    camera: s.camera,
+    presets: s.presets,
+    wallOpacity: s.wallOpacity,
+    showFurniture: s.showFurniture,
+    wireframe: s.wireframe,
+    flat: s.flat,
+    cut: s.cut,
   };
   return (
     <>
       {PUBLIC_SCANS.has(homeId) && (
-        <p className="mt-4 max-w-3xl text-lg text-muted" data-real-intro>
-          {format(getDictionary().app.viewer.real.body, { date: meta.stats.captured })}
-        </p>
+        <>
+          <p className="mt-4 max-w-3xl text-lg text-muted" data-real-intro>
+            {format(getDictionary().app.viewer.real.body, { date: meta.stats.captured })}
+          </p>
+          <p className="mt-6 flex flex-wrap items-center gap-3" data-try-it>
+            <span className="rounded-full bg-cta-dark px-3 py-1 text-sm font-bold text-white">{getDictionary().app.viewer.real.tryIt}</span>
+            <span className="text-base text-ink">{getDictionary().app.viewer.real.tryHint}</span>
+          </p>
+        </>
       )}
       <FoundViewer
         src={src}
@@ -135,24 +156,29 @@ export function LocalScan({ steps }: { steps: ReactNode }) {
               <p className="mt-1 text-sm text-muted">{s.drawings.body}</p>
             </>
           )}
-          <ul className="mt-4 grid gap-6 lg:grid-cols-2">
-            {meta.drawings.map((d) => (
-              <li key={d.id} data-sheet={d.id}>
-                <figure className="overflow-hidden rounded-xl border border-fb-line bg-white">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- a local SVG sheet, not an optimisable photo */}
-                  <img src={`${src}/${d.file}`} alt={d.summary} width={1587} height={1123} className="h-auto w-full" />
-                  <figcaption className="flex items-center justify-between gap-3 border-t border-fb-line px-4 py-3 text-sm">
-                    <span className="font-semibold text-ink">
-                      {d.id} · {d.title}
-                    </span>
-                    <a href={`${src}/${d.file}`} download className="font-semibold text-fb-blue-dark underline">
-                      {format(s.drawings.download, { id: d.id })}
-                    </a>
-                  </figcaption>
-                </figure>
-              </li>
-            ))}
-          </ul>
+          {PUBLIC_SCANS.has(homeId) && (
+            <>
+              <p className="mt-3 max-w-3xl rounded-lg border-l-4 border-fb-blue bg-white px-4 py-3 text-base text-ink" data-drawings-credit>
+                {s.drawings.credit}
+              </p>
+              <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" data-drawing-stats>
+                {[
+                  [s.drawings.stats.area, `${floorArea(meta.room.floor).toFixed(1)} m²`],
+                  [s.drawings.stats.size, (([w, l]) => `${w.toFixed(2)} × ${l.toFixed(2)} m`)(extent(meta.room.floor))],
+                  [s.drawings.stats.perimeter, `${perimeter(meta.room.floor).toFixed(1)} m`],
+                  ...(meta.room.height_m ? [[s.drawings.stats.height, `${meta.room.height_m.toFixed(2)} m`]] : []),
+                  ...(meta.architect ? [[s.drawings.stats.walls, `${meta.architect.walls} (${meta.architect.scanned_walls} ${s.drawings.stats.scanned})`]] : []),
+                  [s.drawings.stats.shown, `${meta.objects.length + meta.furniture.length}`],
+                ].map(([k, v]) => (
+                  <div key={k} className="rounded-lg bg-white px-3 py-2">
+                    <dt className="text-xs text-muted">{k}</dt>
+                    <dd className="text-lg font-bold tabular-nums text-ink">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+            </>
+          )}
+          <Sheets sheets={meta.drawings} src={src} t={{ download: s.drawings.download, zoom: s.drawings.zoom, close: s.drawings.close }} />
         </section>
       )}
 

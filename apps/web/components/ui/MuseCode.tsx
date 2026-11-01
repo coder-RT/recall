@@ -21,7 +21,12 @@ export function MuseCode() {
         <ol className="mt-10 grid gap-6 md:grid-cols-3" data-tiers>
           {t.tiers.map((tier) => (
             <li key={tier.name} data-reveal className="rounded-2xl border border-fb-line bg-white p-6">
-              <p className="text-sm font-bold uppercase tracking-wide text-muted">{tier.step}</p>
+              <p className="flex flex-wrap items-center gap-2 text-sm font-bold uppercase tracking-wide text-muted">
+                {tier.step}
+                <span className="rounded-full bg-fb-blue-dark px-2.5 py-0.5 text-xs normal-case tracking-normal text-white" data-agents>
+                  {tier.agents}
+                </span>
+              </p>
               <h3 className="mt-1 text-xl font-extrabold text-fb-blue-dark">{tier.name}</h3>
               <p className="mt-2 text-lg leading-relaxed text-ink">{tier.body}</p>
             </li>

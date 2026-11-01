@@ -2,19 +2,41 @@
 /* eslint-disable react-hooks/immutability -- three.js uniforms and controls are mutable objects, updated in effects and frames, never during render */
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Color, Vector3 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { gsap, MOTION_OK } from "@/lib/gsap";
 import { useMotionPrefs } from "@/lib/motion-prefs";
-import { FloorGrid, Furniture, HeightBands, Room, Surfaces, Things, type Bounds, type FurnitureBox, type RoomShape, type Surface, type Thing, type Tokens } from "./Layers";
+import { Axes, FloorGrid, Furniture, HeightBands, Room, Surfaces, Things, type Bounds, type FurnitureBox, type RoomShape, type Surface, type Thing, type Tokens } from "./Layers";
 import { makeUniforms, MODES, RoomCloud, type CloudData, type CloudUniforms, type ColourMode } from "./RoomCloud";
-import { ArchitectRoom, kindColour, loadArchitect, loadMesh, loadPhoto, PhotoRoom, RoomModel, SurfaceMesh, type ArchitectData, type MeshData, type PhotoData } from "./RoomViews";
+import { ArchitectRoom, CUT, kindColour, loadArchitect, loadMesh, loadPhoto, PhotoRoom, RoomModel, SurfaceMesh, type ArchitectData, type MeshData, type PhotoData } from "./RoomViews";
 
 /** The ways to see the room: every measured point, the room as a plan, or the measured surface. */
 export type View = "dots" | "model" | "surface" | "photo" | "architect";
 
 const TARGET = new Vector3(0, 0, 0.9);
+
+/** Where the camera stands for each preset (the room's centre is at the origin; z is up). */
+export type Preset = "iso" | "top" | "front" | "side";
+const PRESETS: Record<Preset, [number, number, number]> = {
+  iso: [4.6, -5.8, 5.6],
+  top: [0.01, -0.6, 10.5],
+  front: [0, -9.5, 2.4],
+  side: [9.5, 0, 2.4],
+};
+/** The views that read best: every measured point, and the regenerated room. */
+export const BEST_VIEWS: View[] = ["dots", "architect"];
+
+interface Options {
+  preset: Preset;
+  axes: boolean;
+  wallOpacity: number;
+  showFurniture: boolean;
+  wireframe: boolean;
+  flat: boolean;
+  cut: number;
+}
 
 export interface ViewerStrings {
   label: string;
@@ -30,6 +52,17 @@ export interface ViewerStrings {
   surfaces: string;
   room: string;
   things: string;
+  axes: string;
+  axisLabels: { x: string; y: string; z: string; north: string };
+  best: string;
+  more: string;
+  camera: string;
+  presets: Record<Preset, string>;
+  wallOpacity: string;
+  showFurniture: string;
+  wireframe: string;
+  flat: string;
+  cut: string;
 }
 
 export interface ViewerProps {
@@ -63,7 +96,7 @@ interface Layers {
 type Model = Pick<ViewerProps, "room" | "furniture" | "things" | "selected">;
 
 /** Drag to orbit (sideways on phones, so vertical swipes still scroll the page); a slow turn until the first drag. */
-function Controls({ spin }: { spin: boolean }) {
+function Controls({ spin, preset }: { spin: boolean; preset: Preset }) {
   const { camera, gl, invalidate } = useThree();
   const controls = useMemo(() => {
     camera.up.set(0, 0, 1);
@@ -72,7 +105,7 @@ function Controls({ spin }: { spin: boolean }) {
     c.enableDamping = true;
     c.enableZoom = false;
     c.enablePan = false;
-    c.minPolarAngle = 0.35;
+    c.minPolarAngle = 0.02; // the Top preset looks straight down
     c.maxPolarAngle = 1.35;
     c.autoRotateSpeed = 0.6;
     c.update(); // aim at the room now, not on the second frame
@@ -94,6 +127,19 @@ function Controls({ spin }: { spin: boolean }) {
       controls.removeEventListener("change", redraw);
     };
   }, [controls, gl, spin, invalidate]);
+
+  // a preset moves the camera once; dragging still turns the room from there
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    camera.position.set(...PRESETS[preset]);
+    controls.autoRotate = false;
+    controls.update();
+    invalidate();
+  }, [preset, camera, controls, invalidate]);
 
   useEffect(() => () => controls.dispose(), [controls]);
   useFrame(() => controls.update());
@@ -123,9 +169,11 @@ function useTokens(): Tokens {
   return tokens;
 }
 
-function Scene({ view, mesh, photo, architect, data, uniforms, spin, layers, bounds, surfaces, model, tokens }: { view: View; mesh: MeshData | null; photo: PhotoData | null; architect: ArchitectData | null; data: CloudData; uniforms: CloudUniforms; spin: boolean; layers: Layers; bounds: Bounds; surfaces: Surface[]; model: Model; tokens: Tokens }) {
+function Scene({ view, mesh, photo, architect, data, uniforms, spin, layers, bounds, surfaces, model, tokens, options, axisLabels }: { view: View; mesh: MeshData | null; photo: PhotoData | null; architect: ArchitectData | null; data: CloudData; uniforms: CloudUniforms; spin: boolean; layers: Layers; bounds: Bounds; surfaces: Surface[]; model: Model; tokens: Tokens; options: Options; axisLabels: ViewerStrings["axisLabels"] }) {
   const { invalidate } = useThree();
-  useEffect(() => invalidate(), [model.selected, layers, view, mesh, photo, architect, invalidate]);
+  useEffect(() => invalidate(), [model.selected, layers, view, mesh, photo, architect, options, invalidate]);
+  const axes = options.axes && <Axes floor={model.room.floor} height={model.room.height_m} northDeg={model.room.north_deg} tokens={tokens} labels={axisLabels} />;
+  const controls = <Controls spin={spin} preset={options.preset} />;
   useEffect(() => {
     uniforms.uLow.value = new Color(tokens.line);
     uniforms.uHigh.value = new Color(tokens.blue);
@@ -138,9 +186,10 @@ function Scene({ view, mesh, photo, architect, data, uniforms, spin, layers, bou
   if (view === "model") {
     return (
       <>
-        <RoomModel room={model.room} furniture={model.furniture} things={model.things} selected={model.selected} tokens={tokens} />
+        <RoomModel room={model.room} furniture={model.furniture} things={model.things} selected={model.selected} tokens={tokens} wallOpacity={options.wallOpacity} showFurniture={options.showFurniture} />
         <Things items={model.things} selected={model.selected} tokens={tokens} bob={spin} />
-        <Controls spin={spin} />
+        {axes}
+        {controls}
       </>
     );
   }
@@ -149,25 +198,27 @@ function Scene({ view, mesh, photo, architect, data, uniforms, spin, layers, bou
       <>
         <PhotoRoom photo={photo} />
         <Things items={model.things} selected={model.selected} tokens={tokens} bob={spin} />
-        <Controls spin={spin} />
+        {axes}
+        {controls}
       </>
     );
   }
   if (view === "architect" && architect) {
     return (
       <>
-        <ArchitectRoom model={architect} selected={model.selected} tokens={tokens} />
+        <ArchitectRoom model={architect} selected={model.selected} tokens={tokens} cut={options.cut} />
         <Things items={model.things} selected={model.selected} tokens={tokens} bob={spin} />
-        <Controls spin={spin} />
+        {controls}
       </>
     );
   }
   if (view === "surface" && mesh) {
     return (
       <>
-        <SurfaceMesh mesh={mesh} />
+        <SurfaceMesh mesh={mesh} wireframe={options.wireframe} flat={options.flat} />
         <Things items={model.things} selected={model.selected} tokens={tokens} bob={spin} />
-        <Controls spin={spin} />
+        {axes}
+        {controls}
       </>
     );
   }
@@ -180,7 +231,8 @@ function Scene({ view, mesh, photo, architect, data, uniforms, spin, layers, bou
       {layers.room && <Room room={model.room} tokens={tokens} />}
       {layers.room && <Furniture items={model.furniture} tokens={tokens} />}
       {layers.things && <Things items={model.things} selected={model.selected} tokens={tokens} bob={spin} />}
-      <Controls spin={spin} />
+      {axes}
+      {controls}
     </>
   );
 }
@@ -204,6 +256,9 @@ export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, t
   const [data, setData] = useState<CloudData | null>(null);
   const [layers, setLayers] = useState<Layers>({ mode: "height", grid: true, bands: false, surfaces: false, room: true, things: true });
   const [view, setView] = useState<View>("dots");
+  const [options, setOptions] = useState<Options>({ preset: "iso", axes: true, wallOpacity: 0.45, showFurniture: true, wireframe: false, flat: false, cut: CUT });
+  const [moreOpen, setMoreOpen] = useState(false);
+  const set = <K extends keyof Options>(key: K, value: Options[K]) => setOptions((o) => ({ ...o, [key]: value }));
   const [mesh, setMesh] = useState<MeshData | null>(null);
   const [photo, setPhoto] = useState<PhotoData | null>(null);
   const [architect, setArchitect] = useState<ArchitectData | null>(null);
@@ -298,8 +353,8 @@ export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, t
   const chip = "flex cursor-pointer items-center gap-2 rounded-full border border-fb-line bg-white px-3 py-1.5 text-sm text-ink has-checked:border-fb-blue has-checked:bg-fb-blue-pale";
 
   return (
-    <div className="flex size-full flex-col">
-      <div ref={root} role="img" aria-label={`${t.label} ${t.viewNotes[view]}`} data-viewer data-mode={layers.mode} data-view={view} className="relative min-h-0 flex-1">
+    <div className="flex flex-col">
+      <div ref={root} role="img" aria-label={`${t.label} ${t.viewNotes[view]}`} data-viewer data-mode={layers.mode} data-view={view} className="relative aspect-[4/5] sm:aspect-[4/3]">
         {data ? (
           <Canvas
             frameloop={still ? "demand" : "always"}
@@ -307,7 +362,7 @@ export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, t
             camera={{ position: [4.6, -5.8, 5.6], fov: 34, near: 0.1, far: 60 }}
             gl={{ antialias: true, alpha: true, preserveDrawingBuffer: true }}
           >
-            <Scene view={view} mesh={mesh} photo={photo} architect={architect} data={data} uniforms={uniforms} spin={!still} layers={layers} bounds={bounds} surfaces={surfaces} model={{ room, furniture, things, selected }} tokens={tokens} />
+            <Scene view={view} mesh={mesh} photo={photo} architect={architect} data={data} uniforms={uniforms} spin={!still} layers={layers} bounds={bounds} surfaces={surfaces} model={{ room, furniture, things, selected }} tokens={tokens} options={options} axisLabels={t.axisLabels} />
           </Canvas>
         ) : (
           <p className="grid size-full place-items-center text-sm text-muted">{t.loading}</p>
@@ -317,9 +372,15 @@ export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, t
         <fieldset className="flex w-full flex-wrap items-center gap-2">
           <legend className="float-left mr-1 text-sm font-semibold text-muted">{t.view}</legend>
           {views.map((v) => (
-            <label key={v} className={chip}>
+            <label key={v} className={chip} data-best={BEST_VIEWS.includes(v) || undefined}>
               <input type="radio" name={`${id}-view`} value={v} checked={view === v} onChange={() => setView(v)} className={check} />
               {t.views[v]}
+              {BEST_VIEWS.includes(v) && (
+                <span className="rounded-full bg-cta-dark px-2 py-0.5 text-xs font-bold text-white">
+                  <span aria-hidden>★ </span>
+                  {t.best}
+                </span>
+              )}
             </label>
           ))}
           <p className="w-full text-sm text-muted" aria-live="polite">
@@ -358,6 +419,84 @@ export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, t
         </fieldset>
           </>
         )}
+        <div className="w-full">
+          <button
+            type="button"
+            aria-expanded={moreOpen}
+            aria-controls={`${id}-more`}
+            onClick={() => setMoreOpen((o) => !o)}
+            className="flex min-h-11 items-center gap-2 text-sm font-semibold text-fb-blue-dark underline"
+          >
+            <span aria-hidden className={`inline-block transition-transform motion-reduce:transition-none ${moreOpen ? "rotate-90" : ""}`}>
+              ▸
+            </span>
+            {t.more}
+          </button>
+          <AnimatePresence initial={false}>
+            {moreOpen && (
+              <motion.div
+                id={`${id}-more`}
+                data-more-options
+                key="more"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className="overflow-hidden"
+              >
+                <div className="flex flex-wrap gap-x-6 gap-y-3 pt-2">
+                  <fieldset className="flex flex-wrap items-center gap-2">
+                    <legend className="float-left mr-1 text-sm font-semibold text-muted">{t.camera}</legend>
+                    {(Object.keys(PRESETS) as Preset[]).map((p) => (
+                      <label key={p} className={chip}>
+                        <input type="radio" name={`${id}-preset`} value={p} checked={options.preset === p} onChange={() => set("preset", p)} className={check} />
+                        {t.presets[p]}
+                      </label>
+                    ))}
+                  </fieldset>
+                  {view !== "architect" && (
+                    <label className={chip}>
+                      <input type="checkbox" checked={options.axes} onChange={() => set("axes", !options.axes)} className={check} />
+                      {t.axes}
+                    </label>
+                  )}
+                  {view === "model" && (
+                    <>
+                      <label className="flex items-center gap-2 text-sm text-ink">
+                        {t.wallOpacity}
+                        <input type="range" min={0.15} max={1} step={0.05} value={options.wallOpacity} onChange={(e) => set("wallOpacity", Number(e.target.value))} className="accent-fb-blue" />
+                        <span className="tabular-nums text-muted">{Math.round(options.wallOpacity * 100)}%</span>
+                      </label>
+                      <label className={chip}>
+                        <input type="checkbox" checked={options.showFurniture} onChange={() => set("showFurniture", !options.showFurniture)} className={check} />
+                        {t.showFurniture}
+                      </label>
+                    </>
+                  )}
+                  {view === "surface" && (
+                    <>
+                      <label className={chip}>
+                        <input type="checkbox" checked={options.wireframe} onChange={() => set("wireframe", !options.wireframe)} className={check} />
+                        {t.wireframe}
+                      </label>
+                      <label className={chip}>
+                        <input type="checkbox" checked={options.flat} onChange={() => set("flat", !options.flat)} className={check} />
+                        {t.flat}
+                      </label>
+                    </>
+                  )}
+                  {view === "architect" && (
+                    <label className="flex items-center gap-2 text-sm text-ink">
+                      {t.cut}
+                      <input type="range" min={0.6} max={2.4} step={0.1} value={options.cut} onChange={(e) => set("cut", Number(e.target.value))} className="accent-fb-blue" />
+                      <span className="tabular-nums text-muted">{options.cut.toFixed(1)} m</span>
+                    </label>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );

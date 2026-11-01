@@ -2,7 +2,7 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
-import { BoxGeometry, Color, EdgesGeometry, type Group, PlaneGeometry } from "three";
+import { BoxGeometry, BufferGeometry, CanvasTexture, Color, EdgesGeometry, Float32BufferAttribute, type Group, PlaneGeometry, SRGBColorSpace } from "three";
 import { BAND_EDGES } from "./bands";
 
 export interface Surface {
@@ -92,6 +92,10 @@ export interface RoomShape {
   walls: { start: number[]; end: number[]; height_m: number }[];
   /** floor to ceiling, metres (newer exports) */
   height_m?: number;
+  /** magnetic north, degrees clockwise from +y, when the scan measured it */
+  north_deg?: number | null;
+  /** the room's name (newer exports) */
+  name?: string;
 }
 
 export interface FurnitureBox {
@@ -109,6 +113,8 @@ export interface Thing {
   confidence: number;
   /** how many of the scan's photos showed it (newer exports) */
   photos?: number | null;
+  /** the room it was seen in (newer exports) */
+  room?: string | null;
 }
 
 /** The room model the pipeline built: floor outline at z = 0 and the walls as thin translucent sheets. */
@@ -234,5 +240,91 @@ function Arrow({ thing, chosen, colour, edge, bob }: { thing: Thing; chosen: boo
         <lineBasicMaterial color={colour} depthTest={false} transparent opacity={chosen ? 0.9 : 0.5} toneMapped={false} />
       </line>
     </>
+  );
+}
+
+
+/** A text label that always faces the camera: a sprite carrying a small canvas. */
+function Label({ text, at, colour, size = 0.34 }: { text: string; at: [number, number, number]; colour: string; size?: number }) {
+  const { texture, aspect } = useMemo(() => {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d")!;
+    const font = "600 64px system-ui, -apple-system, sans-serif";
+    ctx.font = font;
+    const w = Math.ceil(ctx.measureText(text).width) + 24;
+    canvas.width = w;
+    canvas.height = 88;
+    ctx.font = font;
+    ctx.fillStyle = colour;
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, 12, 46);
+    const tex = new CanvasTexture(canvas);
+    tex.colorSpace = SRGBColorSpace;
+    return { texture: tex, aspect: w / 88 };
+  }, [text, colour]);
+  return (
+    <sprite position={at} scale={[size * aspect, size, 1]}>
+      <spriteMaterial map={texture} transparent depthWrite={false} />
+    </sprite>
+  );
+}
+
+function Line({ points, colour }: { points: number[]; colour: string }) {
+  const geometry = useMemo(() => {
+    const g = new BufferGeometry();
+    g.setAttribute("position", new Float32BufferAttribute(points, 3));
+    return g;
+  }, [points]);
+  return (
+    <lineSegments geometry={geometry}>
+      <lineBasicMaterial color={colour} />
+    </lineSegments>
+  );
+}
+
+/**
+ * The room's axes from its corner on the floor: x and y along the floor and z up, every metre marked, and magnetic
+ * north when the scan measured it (`north_deg` is clockwise from +y, as the API's routes use it).
+ */
+export function Axes({ floor, height, northDeg, tokens, labels }: { floor: number[][]; height?: number; northDeg?: number | null; tokens: Tokens; labels: { x: string; y: string; z: string; north: string } }) {
+  // from the floor outline's corner, so the axes hug the room rather than the padded scan bounds
+  const x0 = Math.min(...floor.map((p) => p[0]));
+  const y0 = Math.min(...floor.map((p) => p[1]));
+  const x1 = x0 + Math.ceil(Math.max(...floor.map((p) => p[0])) - x0);
+  const y1 = y0 + Math.ceil(Math.max(...floor.map((p) => p[1])) - y0);
+  const z1 = Math.max(2, Math.ceil(height ?? 2.5));
+  const segments = useMemo(() => {
+    const p: number[] = [x0, y0, 0, x1, y0, 0, x0, y0, 0, x0, y1, 0, x0, y0, 0, x0, y0, z1];
+    const tick = 0.08;
+    for (let x = x0 + 1; x <= x1; x++) p.push(x, y0 - tick, 0, x, y0 + tick, 0);
+    for (let y = y0 + 1; y <= y1; y++) p.push(x0 - tick, y, 0, x0 + tick, y, 0);
+    for (let z = 1; z <= z1; z++) p.push(x0 - tick, y0, z, x0 + tick, y0, z);
+    return p;
+  }, [x0, y0, x1, y1, z1]);
+  const north = northDeg == null ? null : ((northDeg * Math.PI) / 180);
+  const cx = (x0 + x1) / 2;
+  const cy = (y0 + y1) / 2;
+  return (
+    <group data-axes>
+      <Line points={segments} colour={tokens.blueDark} />
+      <Label text={labels.x} at={[x1 + 0.55, y0, 0.05]} colour={tokens.blueDark} />
+      <Label text={labels.y} at={[x0, y1 + 0.55, 0.05]} colour={tokens.blueDark} />
+      <Label text={labels.z} at={[x0, y0, z1 + 0.4]} colour={tokens.blueDark} />
+      {Array.from({ length: x1 - x0 }, (_, i) => (
+        <Label key={`x${i}`} text={`${i + 1}`} at={[x0 + i + 1, y0 - 0.3, 0.02]} colour={tokens.muted} size={0.24} />
+      ))}
+      {Array.from({ length: y1 - y0 }, (_, i) => (
+        <Label key={`y${i}`} text={`${i + 1}`} at={[x0 - 0.3, y0 + i + 1, 0.02]} colour={tokens.muted} size={0.24} />
+      ))}
+      {Array.from({ length: z1 }, (_, i) => (
+        <Label key={`z${i}`} text={`${i + 1}`} at={[x0 - 0.3, y0, i + 1]} colour={tokens.muted} size={0.24} />
+      ))}
+      {north !== null && (
+        <>
+          <Line points={[cx, cy, 0.02, cx + Math.sin(north) * 1.2, cy + Math.cos(north) * 1.2, 0.02]} colour={tokens.cta} />
+          <Label text={labels.north} at={[cx + Math.sin(north) * 1.45, cy + Math.cos(north) * 1.45, 0.08]} colour={tokens.cta} size={0.4} />
+        </>
+      )}
+    </group>
   );
 }

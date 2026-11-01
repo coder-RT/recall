@@ -115,6 +115,9 @@ def main() -> None:
     conf_u8 = (rank / max(len(rank) - 1, 1) * 255).astype(np.uint8)
 
     room = result["room"]
+    # the room's name is in the scan folder's name: scans/<time>_<room-slug>_<id>/episode
+    slug = ep.resolve().parent.name.split("_")[1] if "_" in ep.resolve().parent.name else "room"
+    room_name = slug.replace("-", " ").capitalize()
     meta = {
         "count": int(len(kept)),
         "voxel_m": round(voxel, 4),
@@ -122,6 +125,7 @@ def main() -> None:
         "bounds": {"min": np.round(kept.min(0), 3).tolist(), "max": np.round(kept.max(0), 3).tolist()},
         "surfaces": find_surfaces(points[voxel_downsample(points, 0.02)]),
         "room": {
+            "name": room_name,
             "floor": [_xy(p, shift) for p in room["floor_polygon"]],
             "walls": [
                 {"start": _xy(w["start"], shift), "end": _xy(w["end"], shift), "height_m": round(w["height_m"], 2)}
@@ -147,6 +151,7 @@ def main() -> None:
                 "size": [round(v, 3) for v in t["size_m"]] if t.get("size_m") else None,
                 "confidence": t["confidence"],
                 "photos": t.get("sightings"),  # how many photos showed it: the evidence the trust level uses
+                "room": room_name,  # one room per scan; the viewer groups things by room, like the app
             }
             for t in sorted(result["objects"], key=lambda t: -t["confidence"])
         ],
@@ -175,9 +180,6 @@ def main() -> None:
                 if photo:
                     meta["photo"] = photo
     if args.architect:
-        # the room's name is in the scan folder's name: scans/<time>_<room-slug>_<id>/episode
-        slug = ep.resolve().parent.name.split("_")[1] if "_" in ep.resolve().parent.name else "room"
-        room_name = slug.replace("-", " ").capitalize()
         meta["architect"], meta["drawings"] = architect_view(ep, args.out_dir, result, meta, points, colors, room_name)
         if args.public:  # the sheets were drawn from height tints, not the scan's photo colours: say so
             for d in meta["drawings"]:

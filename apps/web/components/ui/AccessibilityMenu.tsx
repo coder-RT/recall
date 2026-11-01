@@ -37,7 +37,10 @@ function Switch({ label, hint, checked, onChange }: { label: string; hint: strin
 
 /** The section in the middle of the screen, read heading first. */
 function readCurrentSection() {
-  const el = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
+  // look through this menu's own panel, which can sit over the middle of the screen
+  const el = document
+    .elementsFromPoint(window.innerWidth / 2, window.innerHeight / 2)
+    .find((e) => !e.closest("[data-a11y-panel]"));
   const section = el?.closest("section, footer");
   if (section) speakLong(textOf(section).slice(0, 2000));
 }
@@ -115,7 +118,7 @@ export function AccessibilityMenu() {
       <AnimatePresence>
         {open && (
           <motion.div
-            ref={panel}
+            ref={panel} data-a11y-panel
             id={`${titleId}-panel`}
             role="dialog"
             aria-labelledby={titleId}

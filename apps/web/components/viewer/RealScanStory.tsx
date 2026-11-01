@@ -4,21 +4,10 @@ import { format, getDictionary } from "@/i18n";
 import { site } from "@/lib/site";
 import { bandOf } from "./bands";
 import type { ScanMeta } from "./LocalScan";
+import { density, extent, floorArea, meanConfidence, perimeter, waiting } from "./scanStats";
 
 const t = getDictionary().app.viewer.story;
 const bandNames = getDictionary().app.viewer.scan.bandNames;
-
-/** Floor area from the room's outline (shoelace), in square metres. */
-function floorArea(meta: ScanMeta) {
-  const p = meta.room.floor;
-  let a = 0;
-  for (let i = 0; i < p.length; i++) {
-    const [x1, y1] = p[i];
-    const [x2, y2] = p[(i + 1) % p.length];
-    a += x1 * y2 - x2 * y1;
-  }
-  return Math.abs(a) / 2;
-}
 
 /** A section with one big heading, the way the rest of the page reads. */
 function Section({ id, title, lead, children }: { id: string; title: string; lead: string; children: React.ReactNode }) {
@@ -33,7 +22,7 @@ function Section({ id, title, lead, children }: { id: string; title: string; lea
   );
 }
 
-function Table({ head, rows, label }: { head: string[]; rows: (string | number)[][]; label: string }) {
+function Table({ head, rows, label }: { head: string[]; rows: React.ReactNode[][]; label: string }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-fb-line bg-white">
       <table className="w-full text-left text-sm">
@@ -88,6 +77,7 @@ export function RealScanStory({ meta, src, part }: { meta: ScanMeta; src: string
     }),
     r.runs,
   ]);
+  const [w, l] = extent(meta.room.floor);
   const measured: (string | number)[][] = [
     [t.measured.frames, meta.stats.frames],
     ...(minutes ? [[t.measured.walk, format(t.measured.minutes, { n: minutes })]] : []),
@@ -95,11 +85,20 @@ export function RealScanStory({ meta, src, part }: { meta: ScanMeta; src: string
     [t.measured.total, format(t.measured.seconds, { n: meta.stats.total_s })],
     [t.measured.samCalls, meta.stats.sam_calls.toLocaleString("en")],
     [t.measured.points, meta.count.toLocaleString("en")],
-    [t.measured.floor, format(t.measured.area, { n: floorArea(meta).toFixed(1) })],
+    [t.measured.floor, format(t.measured.area, { n: floorArea(meta.room.floor).toFixed(1) })],
+    [t.measured.size, format(t.measured.sizeValue, { w: w.toFixed(2), l: l.toFixed(2) })],
+    [t.measured.perimeter, format(t.measured.metres, { n: perimeter(meta.room.floor).toFixed(1) })],
     ...(meta.room.height_m ? [[t.measured.height, format(t.measured.metres, { n: meta.room.height_m.toFixed(2) })]] : []),
     [t.measured.walls, meta.room.walls.length],
     [t.measured.furniture, meta.furniture.length],
     [t.measured.things, things.length],
+    [t.measured.waiting, waiting(things)],
+    [t.measured.sure, `${Math.round(meanConfidence(things) * 100)}%`],
+    [t.measured.flats, meta.surfaces.length],
+    ...(meta.voxel_m ? [[t.measured.spacing, format(t.measured.cm, { n: (meta.voxel_m * 100).toFixed(1) })]] : []),
+    [t.measured.density, Math.round(density(meta.count, meta.room.floor)).toLocaleString("en")],
+    ...(meta.mesh ? [[t.measured.triangles, meta.mesh.triangles.toLocaleString("en")]] : []),
+    ...(meta.room.north_deg != null ? [[t.measured.north, format(t.measured.degrees, { n: Math.round(meta.room.north_deg) })]] : []),
   ];
   const found = things.map((o) => [
     [o.color, o.label].filter(Boolean).join(" "),
@@ -114,7 +113,27 @@ export function RealScanStory({ meta, src, part }: { meta: ScanMeta; src: string
     return (
       <div data-real-scan-story="after">
         <Section id="robots-title" title={t.robots.title} lead={t.robots.lead}>
-          <Table label={t.robots.title} head={t.robots.head} rows={t.robots.rows.map((r) => [r.file, r.what])} />
+          <Table
+            label={t.robots.title}
+            head={t.robots.head}
+            rows={t.robots.rows.map((r) => [
+              r.file,
+              r.what,
+              <span key="d" className="flex flex-wrap gap-x-3">
+                {r.files.map((f) => (
+                  <a key={f} href={`${src}/robot/${f}`} download data-robot-file={f} className="font-semibold text-fb-blue-dark underline">
+                    {f}
+                  </a>
+                ))}
+              </span>,
+            ])}
+          />
+          <p className="mt-4 flex flex-wrap items-center gap-4">
+            <a href={`${src}/robot/recall-living-room.zip`} download className="btn btn-blue" data-robot-zip>
+              {t.robots.all}
+            </a>
+            <span className="text-sm text-muted">{t.robots.real}</span>
+          </p>
           <p className="mt-4 text-sm text-muted">{t.robots.fetch}</p>
         </Section>
 
@@ -137,9 +156,23 @@ export function RealScanStory({ meta, src, part }: { meta: ScanMeta; src: string
           </a>
         </Section>
 
-        <p className="mt-12 text-sm text-muted" data-privacy-note>
-          {format(t.privacy, { src })}
-        </p>
+        <aside aria-labelledby="public-data-title" className="mt-12 rounded-2xl border-2 border-fb-blue bg-white p-6" data-privacy-note>
+          <h2 id="public-data-title" className="flex items-center gap-2 text-xl font-extrabold text-fb-blue-dark">
+            <svg aria-hidden viewBox="0 0 24 24" className="size-6 fill-current">
+              <path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3Zm-1.2 14.2-3.5-3.5 1.4-1.4 2.1 2.1 4.6-4.6 1.4 1.4-6 6Z" />
+            </svg>
+            {t.privacyTitle}
+          </h2>
+          <p className="mt-2 text-base text-ink">{format(t.privacy, { src })}</p>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {t.privacyItems.map((item) => (
+              <li key={item} className="rounded-full bg-fb-blue-pale px-3 py-1 text-sm font-semibold text-fb-blue-dark">
+                {item}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-sm font-semibold text-ink">{t.privacyNever}</p>
+        </aside>
       </div>
     );
   }
@@ -147,6 +180,15 @@ export function RealScanStory({ meta, src, part }: { meta: ScanMeta; src: string
     <div data-real-scan-story="before">
       <Section id="models-title" title={t.models.title} lead={t.models.lead}>
         <Table label={t.models.title} head={t.models.head} rows={models} />
+      </Section>
+
+      <Section id="agents-title" title={t.agents.title} lead={t.agents.lead}>
+        <Table label={t.agents.title} head={t.agents.head} rows={t.agents.rows.map((r) => [r.agent, r.job, r.model, r.may, r.runs])} />
+        <p className="mt-3 text-sm">
+          <a href={`${site.repo}/blob/main/docs/muse.md#part-b-how-muse-code-tested-recall`} className="font-semibold text-fb-blue-dark underline">
+            {t.agents.link}
+          </a>
+        </p>
       </Section>
 
       <Section id="measured-title" title={t.measured.title} lead={format(t.measured.lead, { date: meta.stats.captured })}>

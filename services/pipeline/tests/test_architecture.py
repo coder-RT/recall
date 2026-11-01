@@ -115,3 +115,17 @@ def test_magnetic_north_turns_into_the_home_frame_and_labels_the_plan():
     walls = arch.walls_of(plan, [])
     svg = drawings.plan_sheet(plan, walls, [], [], "Room", "2026-10-31", 2.5, 0.0, "x", north_deg=90.0).svg
     assert "magnetic north" in svg and "scan north" not in svg
+
+
+def test_a_long_list_of_things_stays_left_of_the_title_block():
+    plan = Polygon([(0, 0), (3.5, 0), (3.5, 7.4), (0, 7.4)])
+    walls = arch.walls_of(plan, [])
+    items = [drawings.Item(i + 1, f"grey thing {i + 1}", "near the desk, waist height", (1, 1, 0.8)) for i in range(28)]
+    root = ET.fromstring(drawings.plan_sheet(plan, walls, [], items, "Room", "2026-11-01", 2.5, 0.0, "x").svg)
+    listed = [t for t in root.iter("{http://www.w3.org/2000/svg}text") if (t.text or "").endswith("waist height")]
+    assert len(listed) == 28
+    x1 = drawings.AREA[2]
+    # each line starts a column that ends before the title block (columns are a third of the legend's width)
+    col_w = (x1 - (drawings.AREA[0] + 60)) / 3
+    assert all(float(t.get("x")) + col_w <= x1 + 0.01 for t in listed)
+    assert max(float(t.get("y")) for t in listed) <= drawings.AREA[3]

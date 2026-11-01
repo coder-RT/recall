@@ -5,7 +5,7 @@ PIPE := services/pipeline
 WEB := apps/web
 REDOCLY := npx -y @redocly/cli@2.72.1
 
-.PHONY: help setup dev worker robot-export regression viewer live demo record probes diagrams pair rerun test lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
+.PHONY: help setup dev worker robot-export regression viewer live demo record probes diagrams pair rerun test test-all lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -67,6 +67,9 @@ rerun: ## Replay a stored episode into the Rerun viewer: make rerun EPISODE=<pat
 test: ## Unit, integration and contract tests for both services
 	cd $(API) && uv run pytest
 	cd $(PIPE) && uv run pytest
+
+test-all: ## Every suite (API, pipeline, lint, imports, web, iOS unit + UI), logs kept in data/test-runs/ (gitignored): make test-all [SUITES="api pipeline"]
+	python3 scripts/test_all.py
 
 lint: ## ruff for both services, ESLint for the web app
 	cd $(API) && uv run ruff check . && uv run ruff format --check .

@@ -346,9 +346,11 @@ recall/
 
 ### Make targets
 
-`setup dev demo live probes rerun test lint lint-imports migrate bundle-spec gen-models gen-swift-client eval`
+`setup dev demo live probes rerun test test-all lint lint-imports migrate bundle-spec gen-models gen-swift-client eval`
 
 - `demo`: replay from `samples/replay/`, no keys, output labelled as recorded. `live`: real Meta model calls with `.env`.
+- `test-all`: every suite (API, pipeline, lint, imports, web, iOS unit + UI) under `caffeinate`; each run's logs and
+  summary go to `data/test-runs/` (gitignored) with a line in `runs.jsonl` and `history.md`. `SUITES="api pipeline"` picks some.
 - `probes`: one small real call per external model or service (Meta Model API, Baseten Spark Open, Muse Voice Transcribe, SAM 3.1,
   R2) that prints what worked and appends the result to `docs/verification.md`; needs `.env`; never run in CI.
 - `rerun EPISODE=<path>`: replay a stored episode into the Rerun viewer (`RERUN=1`); dev only, never needed for tests or `make demo`.

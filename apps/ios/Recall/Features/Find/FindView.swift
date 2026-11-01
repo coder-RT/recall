@@ -57,6 +57,8 @@ struct FindView: View {
             }
             // a room that's gone (erased, or renamed) stops filtering the list
             .onChange(of: rooms) { if let room, !rooms.contains(room) { self.room = nil } }
+            // a scan finished processing (a rescan, or a new room): its room's map has changed on the Mac
+            .onChange(of: processed) { maps.forget() }
         }
     }
 
@@ -64,6 +66,8 @@ struct FindView: View {
     private var rooms: [String] {
         ThingGroups.rooms(things.things, scanned: scans.scans.filter { $0.state == .processed }.map(\.room))
     }
+
+    private var processed: [String] { scans.scans.filter { $0.state == .processed }.map(\.id) }
 
     private var shown: [Thing] { room.map { r in things.things.filter { $0.room == r } } ?? things.things }
 
@@ -150,7 +154,7 @@ private struct RoomMapCard: View {
             .overlay(RoundedRectangle(cornerRadius: Tokens.cardRadius).stroke(Tokens.accent, lineWidth: picked ? 3 : 0))
         }
         .buttonStyle(.plain)
-        .task { await maps.load(room) }
+        .task(id: maps.generation) { await maps.load(room) }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(room) map, \(things)")
         .accessibilityValue(picked ? "Selected" : "Not selected")

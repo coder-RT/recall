@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from zoneinfo import ZoneInfo
 
+from recall_api.adapters.outbound.jobs.heartbeat import FileHeartbeat
 from recall_api.adapters.outbound.llm.openai_compatible import from_settings as llm_from_settings
 from recall_api.adapters.outbound.persistence.sqlite import (
     SqliteAnswerLog,
@@ -80,6 +81,13 @@ class Container:
     def clock(self):
         at = self.settings.frozen_clock
         return FrozenClock(at) if at else SystemClock()
+
+    @cached_property
+    def worker_status(self):
+        """The queue's worker heartbeat; without a queue the pipeline runs as a subprocess of the API, always there."""
+        if self.settings.pipeline_runner != "queue":
+            return AlwaysAlive()
+        return FileHeartbeat(self.settings.data_dir / "worker-heartbeat", self.clock)
 
     @cached_property
     def upload_scan(self) -> UploadScan:
@@ -214,3 +222,10 @@ class Container:
         if key is None:
             raise RuntimeError("META_MUSE_API_KEY is not set")
         return MuseTranscriber(key.get_secret_value())
+
+
+class AlwaysAlive:
+    """WorkerStatus when the pipeline runs inside the API's own process tree (no separate worker to stop)."""
+
+    def alive(self) -> bool:
+        return True

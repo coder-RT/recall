@@ -195,7 +195,7 @@ extension RecallAPI: ConnectionCheck, ScanProcessing, ScanServer {
                            name: c.name, color: c.color, from: c.from, to: c.to)
             }
             return ScanReport(ScanStatus(rawValue: s.status.rawValue) ?? .failed, detail: s.detail, changes: changes,
-                              fresh: s.fresh ?? false)
+                              fresh: s.fresh ?? false, workerAlive: s.workerAlive)
         case .notFound: throw RecallError.server("The Mac doesn't know this scan.")
         case .undocumented(let code, _): throw RecallError.status(code)
         }

@@ -87,6 +87,12 @@ class Scan(BaseModel):
     room: str
     status: Status1
     detail: Annotated[str | None, Field(description="Why it failed, in one sentence")] = None
+    worker_alive: Annotated[
+        bool | None,
+        Field(
+            description="While processing: whether the Mac's scan worker is running (its heartbeat is under 90 s old). false means the scan waits until someone runs make worker; null when not processing"
+        ),
+    ] = None
     frame_count: int | None = None
     object_count: int | None = None
     aligned_to: Annotated[
@@ -120,6 +126,18 @@ class Grade(StrEnum):
     redo = "redo"
 
 
+class Step(BaseModel):
+    step: Annotated[
+        int,
+        Field(
+            description="0 start, 1 turn around, 2 along the walls, 3 sweep down, 4 back to start, 5 finish; -1 recognise"
+        ),
+    ]
+    seconds: float
+    completed: bool
+    detail: Annotated[str, Field(description="e.g. Wall sides seen 9 of 9")]
+
+
 class CaptureMetrics(BaseModel):
     directions_covered: Annotated[int, Field(description="Camera headings in 12 sectors of 30 degrees", ge=0, le=12)]
     keyframes_kept: int
@@ -139,6 +157,13 @@ class CaptureMetrics(BaseModel):
     loop_closed: Annotated[bool | None, Field(description="The scan ended within a metre of where it started")] = None
     compass_spread_deg: float | None = None
     grade: Grade
+    duration_s: Annotated[float | None, Field(description="How long the scan took, seconds")] = None
+    points: Annotated[int | None, Field(description="LiDAR depth samples taken while scanning (for the report)")] = None
+    steps: Annotated[
+        list[Step] | None, Field(description="How each voice-led step went: done, or moved on when its time ran out")
+    ] = None
+    zones_seen: Annotated[int | None, Field(description="1 m floor columns x 5 height bands the LiDAR saw")] = None
+    zones_total: Annotated[int | None, Field(description="Zones in the columns the scan reached (columns x 5)")] = None
 
 
 class Image(BaseModel):

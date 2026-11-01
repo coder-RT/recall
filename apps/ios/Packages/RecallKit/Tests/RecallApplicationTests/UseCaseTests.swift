@@ -250,3 +250,37 @@ struct UseCaseTests {
         #expect(memory.things.map(\.id) == ["2"])
     }
 }
+
+@Suite("A scan waiting with no worker")
+@MainActor
+struct WorkerStoppedTests {
+    private let waiting = Scan(id: "w", room: "Living room", createdAt: .now, grade: .good, directions: 12, frames: 160,
+                               state: .processing)
+
+    @Test func itSaysSoOnceWhenTheWorkerIsntRunning() async {
+        let speech = FakeSpeech()
+        let track = TrackProcessing(processing: FakeProcessing(reports: ["w": ScanReport(.processing, workerAlive: false)]),
+                                    memory: FakeHomeMemory(), speech: speech)
+        let out = await track([waiting], home: "flat")
+        #expect(out["w"]?.workerStopped == true && out["w"]?.state == .processing)
+        #expect(speech.lines == [Scan.workerStoppedMessage])
+        var known = waiting
+        known.workerStopped = true
+        #expect(await track([known], home: "flat").isEmpty)  // already said: nothing new
+        #expect(speech.lines.count == 1)
+    }
+
+    @Test func itClearsOnceTheWorkerRunsAgain() async {
+        var known = waiting
+        known.workerStopped = true
+        let track = TrackProcessing(processing: FakeProcessing(reports: ["w": ScanReport(.processing, workerAlive: true)]),
+                                    memory: FakeHomeMemory(), speech: FakeSpeech())
+        #expect(await track([known], home: "flat")["w"]?.workerStopped == false)
+    }
+
+    @Test func aMacThatDoesntSayChangesNothing() async {
+        let track = TrackProcessing(processing: FakeProcessing(reports: ["w": ScanReport(.processing)]),
+                                    memory: FakeHomeMemory(), speech: FakeSpeech())
+        #expect(await track([waiting], home: "flat").isEmpty)
+    }
+}

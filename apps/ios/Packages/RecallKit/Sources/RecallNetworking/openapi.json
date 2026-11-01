@@ -1446,6 +1446,13 @@
             "type": "string",
             "description": "Why it failed, in one sentence"
           },
+          "worker_alive": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "While processing: whether the Mac's scan worker is running (its heartbeat is under 90 s old). false means the scan waits until someone runs make worker; null when not processing"
+          },
           "frame_count": {
             "type": "integer"
           },
@@ -1573,6 +1580,51 @@
               "usable",
               "redo"
             ]
+          },
+          "duration_s": {
+            "type": "number",
+            "description": "How long the scan took, seconds"
+          },
+          "points": {
+            "type": "integer",
+            "description": "LiDAR depth samples taken while scanning (for the report)"
+          },
+          "steps": {
+            "type": "array",
+            "description": "How each voice-led step went: done, or moved on when its time ran out",
+            "items": {
+              "type": "object",
+              "required": [
+                "step",
+                "seconds",
+                "completed",
+                "detail"
+              ],
+              "properties": {
+                "step": {
+                  "type": "integer",
+                  "description": "0 start, 1 turn around, 2 along the walls, 3 sweep down, 4 back to start, 5 finish; -1 recognise"
+                },
+                "seconds": {
+                  "type": "number"
+                },
+                "completed": {
+                  "type": "boolean"
+                },
+                "detail": {
+                  "type": "string",
+                  "description": "e.g. Wall sides seen 9 of 9"
+                }
+              }
+            }
+          },
+          "zones_seen": {
+            "type": "integer",
+            "description": "1 m floor columns x 5 height bands the LiDAR saw"
+          },
+          "zones_total": {
+            "type": "integer",
+            "description": "Zones in the columns the scan reached (columns x 5)"
           }
         }
       },

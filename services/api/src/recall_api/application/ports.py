@@ -151,6 +151,12 @@ class AuditLog(Protocol):
     def prune(self, before: datetime) -> int: ...
 
 
+class WorkerStatus(Protocol):
+    """Whether the scan worker (the job queue and the pipeline) is running, so a waiting scan can say why."""
+
+    def alive(self) -> bool: ...
+
+
 class OwnerSettings(Protocol):
     """Settings the owner changes from the phone, kept on the Mac (strings, missing = default)."""
 

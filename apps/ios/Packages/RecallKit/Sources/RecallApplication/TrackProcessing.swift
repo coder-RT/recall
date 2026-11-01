@@ -19,8 +19,10 @@ public struct TrackProcessing {
         public let state: UploadState
         public let changes: [ScanChange]
         public let fresh: Bool
-        public init(_ state: UploadState, changes: [ScanChange] = [], fresh: Bool = false) {
-            self.state = state; self.changes = changes; self.fresh = fresh
+        /// Still processing, and whether the Mac's worker has stopped (so the scan only waits).
+        public var workerStopped = false
+        public init(_ state: UploadState, changes: [ScanChange] = [], fresh: Bool = false, workerStopped: Bool = false) {
+            self.state = state; self.changes = changes; self.fresh = fresh; self.workerStopped = workerStopped
         }
     }
 
@@ -38,7 +40,12 @@ public struct TrackProcessing {
                 out[scan.id] = Outcome(.failed(reason: report.detail ?? "The Mac couldn't process this scan."))
                 speech.say("Processing \(scan.room) failed. The reason is on the scan.", interrupt: false)
             default:
-                break
+                // waiting with no worker: say so once, and again only after it was running in between
+                let stopped = report.workerAlive == false
+                if stopped != scan.workerStopped {
+                    out[scan.id] = Outcome(.processing, workerStopped: stopped)
+                    if stopped { speech.say(Scan.workerStoppedMessage, interrupt: false) }
+                }
             }
         }
         return out

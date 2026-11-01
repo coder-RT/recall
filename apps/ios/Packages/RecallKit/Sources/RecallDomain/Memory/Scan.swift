@@ -52,6 +52,11 @@ public struct Scan: Identifiable, Sendable, Equatable {
     public var changes: [ScanChange] = []
     /// Scanned before but not recognised: the Mac started this room's memory afresh.
     public var fresh = false
+    /// Waiting to be processed with nobody to process it: the Mac's scan worker isn't running.
+    public var workerStopped = false
+
+    /// What to do about a stopped worker, shown and copied on the scan.
+    public static let workerStoppedMessage = "Your Mac's scan worker isn't running, so this scan is waiting. On the Mac, run make worker (or make live)."
 
     public init(id: String, room: String, createdAt: Date, grade: ScanGrade, directions: Int, frames: Int,
                 state: UploadState = .notUploaded, alignedTo: String? = nil) {
@@ -102,9 +107,13 @@ public struct ScanReport: Sendable, Equatable {
     public let detail: String?
     public let changes: [ScanChange]
     public let fresh: Bool
+    /// While processing: whether the Mac's scan worker is running (nil: the Mac didn't say).
+    public let workerAlive: Bool?
 
-    public init(_ status: ScanStatus, detail: String? = nil, changes: [ScanChange] = [], fresh: Bool = false) {
+    public init(_ status: ScanStatus, detail: String? = nil, changes: [ScanChange] = [], fresh: Bool = false,
+                workerAlive: Bool? = nil) {
         self.status = status; self.detail = detail; self.changes = changes; self.fresh = fresh
+        self.workerAlive = workerAlive
     }
 }
 

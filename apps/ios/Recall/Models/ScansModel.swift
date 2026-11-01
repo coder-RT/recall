@@ -38,6 +38,7 @@ final class ScansModel {
                 if let i = scans.firstIndex(where: { $0.id == id }) {
                     scans[i].changes = outcome.changes
                     scans[i].fresh = outcome.fresh
+                    scans[i].workerStopped = outcome.workerStopped
                 }
                 apply(id, outcome.state, announce: false)
             }

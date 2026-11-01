@@ -167,6 +167,7 @@ private struct ScanRow: View {
                 Text("\(scan.frames) frames · \(scan.directions) of 12 directions")
                     .font(.footnote).foregroundStyle(Tokens.muted)
                 if scan.state != .notUploaded { UploadStatus(state: scan.state) }
+                if scan.isProcessing && scan.workerStopped { WorkerStopped() }
             }
             .contentShape(.rect)
             .accessibilityElement(children: .combine)
@@ -476,5 +477,27 @@ private struct ChangeRow: View {
         case .new: Tokens.goText
         case .gone: Tokens.danger
         }
+    }
+}
+
+
+/// A scan waiting with nobody to process it: the Mac's scan worker isn't running. Says what to run, and copies it.
+private struct WorkerStopped: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(Scan.workerStoppedMessage, systemImage: "exclamationmark.triangle.fill")
+                .font(.subheadline).foregroundStyle(Tokens.danger)
+                .fixedSize(horizontal: false, vertical: true)
+            Button { UIPasteboard.general.string = "make worker" } label: {
+                Label("Copy \"make worker\"", systemImage: "doc.on.doc").font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Tokens.accent).frame(minHeight: 44)
+            }
+            .accessibilityHint("Copies the command to run in the recall folder on your Mac.")
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Tokens.canvas, in: .rect(cornerRadius: 12))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("worker-stopped")
     }
 }

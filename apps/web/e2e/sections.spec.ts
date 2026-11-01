@@ -254,3 +254,25 @@ test.describe("contact form", () => {
     await expect(form.getByRole("alert")).toHaveText(en.contact.errors.rate_limited);
   });
 });
+
+
+test("the Muse Code section shows its three tiers, the counts and the public write-up", async ({ page }) => {
+  await open(page, "/");
+  const section = page.locator("#muse-code");
+  await expect(section.getByRole("heading", { level: 2, name: en.museCode.title })).toBeAttached();
+  await expect(section.locator("[data-tiers] li")).toHaveCount(3);
+  for (const tier of en.museCode.tiers) await expect(section).toContainText(tier.name);
+  await expect(section.locator("[data-stats] > div")).toHaveCount(3);
+  const link = section.getByRole("link", { name: en.museCode.more });
+  await expect(link).toHaveAttribute("href", /\/docs\/muse\.md#part-b-how-muse-code-tested-recall$/);
+  expect(existsSync(path.join(ROOT, "docs", "muse.md"))).toBe(true);
+});
+
+test("the browser tab shows Recall's mark, not the framework's", async ({ page, request }) => {
+  await open(page, "/");
+  const icons = await page.locator("link[rel~='icon']").evaluateAll((els) => els.map((e) => e.getAttribute("href") ?? ""));
+  expect(icons.some((h) => h.startsWith("/icon.svg"))).toBe(true);
+  expect(icons.some((h) => h.includes("favicon.ico"))).toBe(false);
+  const svg = await (await request.get(icons.find((h) => h.startsWith("/icon.svg"))!)).text();
+  expect(svg).toContain("Braille cell for R");
+});

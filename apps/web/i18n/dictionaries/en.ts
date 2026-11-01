@@ -361,6 +361,24 @@ export const en = {
     note: "Only the iPhone app works today; the Watch and glasses are being built, and robots can use the shared map in a preview. Recall is an independent project, not affiliated with Apple or Meta.",
   },
 
+  museCode: {
+    eyebrow: "How it was tested",
+    title: "Tested by Meta's Muse Code, in three tiers of agents.",
+    lead: "While Recall was being built, Muse Code ran its own agents over the whole repository: one ran the tests, one read the code, one settled their disagreements, and one wrote it up. Every claim had to point at a file and a line.",
+    tiers: [
+      { step: "Tier 1", name: "Tester + Reviewer", body: "Side by side. The tester ran every suite three times and reported, never retried, when blocked; the reviewer only read code: layers, ports and the test behind each claim." },
+      { step: "Tier 2", name: "Tie-breaker", body: "Took every disagreement and re-read the code to settle it with evidence, without running anything again." },
+      { step: "Tier 3", name: "Synthesis", body: "The only agent that writes, so nothing overwrites anything: the report and the checklists." },
+    ],
+    stats: [
+      { value: "3 × 9", label: "test runs × suites" },
+      { value: "3", label: "security surfaces audited side by side" },
+      { value: "28", label: "security findings checked in the code and fixed" },
+    ],
+    honest: "Its sandbox couldn't run the iOS Simulator or open network ports, so some red results were sandbox-only; on the Mac every suite passes.",
+    more: "How Muse Code tested Recall",
+  },
+
   principles: {
     eyebrow: "Accessibility & privacy",
     title: "Built to be trusted without looking.",

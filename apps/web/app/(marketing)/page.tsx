@@ -9,6 +9,7 @@ import { CyclingQuestion } from "@/components/ui/CyclingQuestion";
 import { Devices } from "@/components/ui/Devices";
 import { ContactForm } from "@/components/ui/ContactForm";
 import { Faq } from "@/components/ui/Faq";
+import { MuseCode } from "@/components/ui/MuseCode";
 import { getDictionary } from "@/i18n";
 
 export default function LandingPage() {
@@ -68,6 +69,7 @@ export default function LandingPage() {
       <MemoryFeed />
       <ClockRoute />
       <ModelCards />
+      <MuseCode />
       <Devices />
 
       <RevealSection id="privacy" aria-labelledby="principles-title" className="scroll-mt-20 bg-white">

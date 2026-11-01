@@ -26,25 +26,27 @@ public struct TrackProcessing {
         }
     }
 
-    /// The scans whose state changed (unreachable Macs change nothing).
-    public func callAsFunction(_ scans: [Scan], home: String) async -> [String: Outcome] {
+    /// The scans whose state changed (unreachable Macs change nothing). `announce` false: update quietly (the app just
+    /// opened; what finished while it was closed shows on the cards instead of talking over the person).
+    public func callAsFunction(_ scans: [Scan], home: String, announce: Bool = true) async -> [String: Outcome] {
         var out: [String: Outcome] = [:]
+        let say = { (line: String) in if announce { speech.say(line, interrupt: false) } }
         for scan in scans where scan.isProcessing {
             guard let report = try? await processing.status(scan: scan.id) else { continue }
             switch report.status {
             case .processed:
                 out[scan.id] = Outcome(.processed, changes: report.changes, fresh: report.fresh)
                 let things = (try? await memory.things(home: home)) ?? []
-                speech.say(Self.announce(scan, report: report, things: things), interrupt: false)
+                say(Self.announce(scan, report: report, things: things))
             case .failed:
                 out[scan.id] = Outcome(.failed(reason: report.detail ?? "The Mac couldn't process this scan."))
-                speech.say("Processing \(scan.room) failed. The reason is on the scan.", interrupt: false)
+                say("Processing \(scan.room) failed. The reason is on the scan.")
             default:
                 // waiting with no worker: say so once, and again only after it was running in between
                 let stopped = report.workerAlive == false
                 if stopped != scan.workerStopped {
                     out[scan.id] = Outcome(.processing, workerStopped: stopped)
-                    if stopped { speech.say(Scan.workerStoppedMessage, interrupt: false) }
+                    if stopped { say(Scan.workerStoppedMessage) }
                 }
             }
         }

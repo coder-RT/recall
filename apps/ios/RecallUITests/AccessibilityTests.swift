@@ -307,6 +307,11 @@ final class AccessibilityTests: XCTestCase {
         XCTAssertTrue(card.descendants(matching: .any)["White mug: New, on the desk."].exists)
         XCTAssertTrue(card.descendants(matching: .any)["Grey bag: Gone from near the desk."].exists)
         XCTAssertTrue(app.buttons["Hear what changed again"].exists)
+        // the speaker is a toggle: it reads, then a second tap stops it
+        app.buttons["Hear what changed again"].tap()
+        XCTAssertTrue(app.buttons["Stop reading"].waitForExistence(timeout: 2))
+        app.buttons["Stop reading"].tap()
+        XCTAssertTrue(app.buttons["Hear what changed again"].waitForExistence(timeout: 2))
         XCTAssertEqual(app.buttons.matching(identifier: "Scan again").count, 1)  // the room's current scan only
         XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "what-changed").count, 1)
         shot("ios-what-changed")

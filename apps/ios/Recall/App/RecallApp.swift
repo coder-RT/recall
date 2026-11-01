@@ -40,6 +40,7 @@ private struct ThemedRoot: View {
     @Environment(ScansModel.self) private var scans
     @Environment(\.container) private var container
     @Environment(\.colorSchemeContrast) private var systemContrast
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage(Theme.appearanceKey) private var appearance = Appearance.system
     @AppStorage(Theme.highContrastKey) private var highContrast = false
 
@@ -72,6 +73,8 @@ private struct ThemedRoot: View {
         .id(highContrast)
         .onChange(of: highContrast, initial: true) { Theme.highContrast = highContrast }
         .task { await scans.start() }
+        // back from the background: what finished meanwhile updates the cards without talking
+        .onChange(of: scenePhase) { _, phase in if phase == .active { scans.becameActive() } }
         .onOpenURL { settings.pair(with: $0) }
     }
 }

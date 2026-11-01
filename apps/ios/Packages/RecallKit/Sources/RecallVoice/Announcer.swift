@@ -5,14 +5,27 @@ import UIKit
 /// Speaks short lines. With VoiceOver on, lines go through VoiceOver (the user's own voice and rate); otherwise through
 /// AVSpeechSynthesizer, an OS feature, not a speech model (CLAUDE.md rule 8).
 @MainActor
-public final class Announcer: SpeechOutput {
+public final class Announcer: NSObject, SpeechOutput, AVSpeechSynthesizerDelegate {
     private let synth = AVSpeechSynthesizer()
     public var rate: Float = AVSpeechUtteranceDefaultSpeechRate
     /// Sees every line as it is spoken (the UI tests' log of what was said; nil in the app).
     public var onSay: ((String) -> Void)?
+    public var onFinished: (() -> Void)?
 
-    public init() {
+    public override init() {
+        super.init()
+        synth.delegate = self
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+    }
+
+    public var isSpeaking: Bool { synth.isSpeaking }
+
+    nonisolated public func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        Task { @MainActor in if !self.synth.isSpeaking { self.onFinished?() } }
+    }
+
+    nonisolated public func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+        Task { @MainActor in if !self.synth.isSpeaking { self.onFinished?() } }
     }
 
     public func say(_ text: String, interrupt: Bool = false) {

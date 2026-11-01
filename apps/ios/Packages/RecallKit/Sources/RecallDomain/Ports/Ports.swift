@@ -138,6 +138,10 @@ public protocol Clock: Sendable {
 @MainActor public protocol SpeechOutput: AnyObject {
     func say(_ text: String, interrupt: Bool)
     func stop()
+    /// Speaking right now (false under VoiceOver: those lines are VoiceOver's, stopped with its two-finger tap).
+    var isSpeaking: Bool { get }
+    /// Called when the current speech ends or is stopped (a speaker button turns back from Stop).
+    var onFinished: (() -> Void)? { get set }
 }
 
 @MainActor public protocol HapticsOutput: AnyObject {

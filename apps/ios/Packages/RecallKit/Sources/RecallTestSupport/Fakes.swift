@@ -114,8 +114,12 @@ public final class FakeClock: Clock, @unchecked Sendable {
 @MainActor public final class FakeSpeech: SpeechOutput {
     public private(set) var lines: [String] = []
     public init() {}
-    public func say(_ text: String, interrupt: Bool) { lines.append(text) }
-    public func stop() {}
+    public private(set) var isSpeaking = false
+    public var onFinished: (() -> Void)?
+    public func say(_ text: String, interrupt: Bool) { lines.append(text); isSpeaking = true }
+    public func stop() { isSpeaking = false; onFinished?() }
+    /// The test's stand-in for the line ending by itself.
+    public func finish() { isSpeaking = false; onFinished?() }
 }
 
 @MainActor public final class FakeHaptics: HapticsOutput {

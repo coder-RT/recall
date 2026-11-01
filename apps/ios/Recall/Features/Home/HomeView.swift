@@ -413,11 +413,13 @@ private struct WhatChanged: View {
                       systemImage: scan.fresh ? "map" : "arrow.left.arrow.right")
                     .font(.headline).foregroundStyle(Tokens.ink)
                 Spacer(minLength: 8)
-                Button { scans.sayChanges(scan) } label: {
-                    Label("Hear it again", systemImage: "speaker.wave.2.fill").labelStyle(.iconOnly)
+                let speaking = scans.speakingScan == scan.id
+                Button { scans.toggleChanges(scan) } label: {
+                    Label(speaking ? "Stop" : "Hear it again", systemImage: speaking ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                        .labelStyle(.iconOnly)
                         .font(.title3).foregroundStyle(Tokens.accent).frame(minWidth: 44, minHeight: 44)
                 }
-                .accessibilityLabel("Hear what changed again")
+                .accessibilityLabel(speaking ? "Stop reading" : "Hear what changed again")
             }
             if scan.fresh {
                 Text(ChangeSummary.freshBody)

@@ -284,3 +284,20 @@ struct WorkerStoppedTests {
         #expect(await track([waiting], home: "flat").isEmpty)
     }
 }
+
+@Suite("Quiet when the app opens")
+@MainActor
+struct QuietOpenTests {
+    @Test func aScanThatFinishedWhileClosedUpdatesWithoutTalking() async {
+        let speech = FakeSpeech()
+        let scan = Scan(id: "q", room: "Living room", createdAt: .now, grade: .good, directions: 12, frames: 160,
+                        state: .processing)
+        let track = TrackProcessing(processing: FakeProcessing(reports: ["q": ScanReport(.processed, fresh: true)]),
+                                    memory: FakeHomeMemory(), speech: speech)
+        let quiet = await track([scan], home: "flat", announce: false)
+        #expect(quiet["q"]?.state == .processed && quiet["q"]?.fresh == true)  // the card still updates
+        #expect(speech.lines.isEmpty)
+        _ = await track([scan], home: "flat")  // while the app is open, a finished scan is still said
+        #expect(speech.lines.count == 1)
+    }
+}

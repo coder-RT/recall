@@ -163,8 +163,8 @@ final class WalkSensors: NSObject, CLLocationManagerDelegate {
 /// The iPhone, over WatchConnectivity: requests go out, replies come back (a spoken question goes as a file, and its
 /// answer arrives later as a message with the same id).
 final class PhoneLink: NSObject, WCSessionDelegate, @unchecked Sendable {
-    private var waiting: [String: @MainActor (WatchReply) -> Void] = [:]
-    private let lock = NSLock()
+    typealias Reply = @MainActor (WatchReply) -> Void
+    private let waiting = PendingReplies<Reply>()
 
     func activate() {
         guard WCSession.isSupported() else { return }
@@ -178,11 +178,12 @@ final class PhoneLink: NSObject, WCSessionDelegate, @unchecked Sendable {
               let data = try? JSONEncoder().encode(request) else {
             return reply(WatchReply(say: "I can't reach your iPhone. Keep it nearby, with Recall installed."))
         }
-        WCSession.default.sendMessage(["request": data], replyHandler: { answer in
-            let r = (answer["reply"] as? Data).flatMap { try? JSONDecoder().decode(WatchReply.self, from: $0) }
-            Task { @MainActor in reply(r ?? WatchReply(say: "The iPhone's answer was unreadable.")) }
-        }, errorHandler: { _ in
-            Task { @MainActor in reply(WatchReply(say: "I can't reach your iPhone. Keep it nearby, with Recall open once.")) }
+        let id = wait(for: reply)
+        WCSession.default.sendMessage(["request": data], replyHandler: { [self] message in
+            let r = (message["reply"] as? Data).flatMap { try? JSONDecoder().decode(WatchReply.self, from: $0) }
+            answer(id, r ?? WatchReply(say: "The iPhone's answer was unreadable."))
+        }, errorHandler: { [self] _ in
+            answer(id, WatchReply(say: "I can't reach your iPhone. Keep it nearby, with Recall open once."))
         })
     }
 
@@ -191,16 +192,33 @@ final class PhoneLink: NSObject, WCSessionDelegate, @unchecked Sendable {
         guard WCSession.default.activationState == .activated else {
             return reply(WatchReply(say: "I can't reach your iPhone. Keep it nearby, with Recall installed."))
         }
-        let id = UUID().uuidString
-        lock.withLock { waiting[id] = reply }
+        let id = wait(for: reply)
         WCSession.default.transferFile(audio, metadata: ["id": id])
+    }
+
+    /// Registers `reply` under a new id and answers it with `phoneDidNotAnswer` if the iPhone stays silent, so the
+    /// Watch never stays on "thinking".
+    @MainActor
+    private func wait(for reply: @escaping @MainActor (WatchReply) -> Void) -> String {
+        let id = UUID().uuidString
+        waiting.put(id, reply)
+        Task { [self] in
+            try? await Task.sleep(for: PendingReplies<Reply>.timeout)
+            answer(id, .phoneDidNotAnswer)
+        }
+        return id
+    }
+
+    /// Answers `id` once; a reply after the timeout (or a timeout after the reply) finds nothing and is dropped.
+    private func answer(_ id: String, _ reply: WatchReply) {
+        guard let handler = waiting.take(id) else { return }
+        Task { @MainActor in handler(reply) }
     }
 
     func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
         guard let id = message["id"] as? String, let data = message["reply"] as? Data,
               let reply = try? JSONDecoder().decode(WatchReply.self, from: data) else { return }
-        let handler = lock.withLock { waiting.removeValue(forKey: id) }
-        Task { @MainActor in handler?(reply) }
+        answer(id, reply)
     }
 
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {}

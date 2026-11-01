@@ -5,6 +5,7 @@ import { MemoryFeed } from "@/components/scroll/MemoryFeed";
 import { ModelCards } from "@/components/scroll/ModelCards";
 import { RevealSection } from "@/components/scroll/RevealSection";
 import { StoryVideo } from "@/components/scroll/story/StoryVideo";
+import { Devices } from "@/components/ui/Devices";
 import { Faq } from "@/components/ui/Faq";
 import { getDictionary } from "@/i18n";
 
@@ -46,6 +47,7 @@ export default function LandingPage() {
       <MemoryFeed />
       <ClockRoute />
       <ModelCards />
+      <Devices />
 
       <RevealSection id="privacy" aria-labelledby="principles-title" className="scroll-mt-20 bg-white">
         <div className="mx-auto max-w-6xl px-4 py-24">

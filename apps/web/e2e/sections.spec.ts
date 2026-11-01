@@ -1,6 +1,10 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { en } from "../i18n/dictionaries/en";
 import { open, prepare, scrollEdgeTo } from "./helpers";
+
+const ROOT = path.resolve(__dirname, "../../..");
 
 /** The problem section, How it works, the model cards, principles and the FAQ. */
 
@@ -73,7 +77,7 @@ test.describe("How it works", () => {
 });
 
 test.describe("model cards", () => {
-  test("list each model with its job, its code path and a planned badge", async ({ page }) => {
+  test("list each model with its job, its real code path and a working badge", async ({ page }) => {
     await open(page, "/#models");
     const cards = page.locator("#models li");
     await expect(cards).toHaveCount(en.models.items.length);
@@ -81,7 +85,8 @@ test.describe("model cards", () => {
       await expect(cards.nth(i)).toContainText(m.name);
       await expect(cards.nth(i)).toContainText(m.role);
       await expect(cards.nth(i)).toContainText(m.path);
-      await expect(cards.nth(i)).toContainText(en.models.planned);
+      await expect(cards.nth(i)).toContainText(en.models.working);
+      expect(existsSync(path.join(ROOT, m.path)), m.path).toBe(true); // the path is real
       await expect(cards.nth(i).locator("svg")).toBeVisible();
     }
     await expect(page.getByText(en.models.status)).toBeVisible();
@@ -102,6 +107,29 @@ test.describe("model cards", () => {
     expect(hidden).toBe(0);
     await expect(page.locator("#models").getByText(en.models.glyph.label, { exact: true })).toBeVisible();
     await context.close();
+  });
+});
+
+test.describe("where Recall runs", () => {
+  test("four devices, each with its honest status; only the iPhone is available now", async ({ page }) => {
+    await open(page, "/#devices");
+    const cards = page.locator("#devices [data-device]");
+    await expect(cards).toHaveCount(4);
+    const status = (id: string) => page.locator(`#devices [data-device="${id}"] [data-status]`);
+    await expect(status("iphone")).toHaveText(en.devices.status.available);
+    await expect(status("watch")).toHaveText(en.devices.status.next);
+    await expect(status("glasses")).toHaveText(en.devices.status.planned);
+    await expect(status("robots")).toHaveText(en.devices.status.preview);
+    await expect(page.locator("#devices").getByText(en.devices.note)).toBeVisible();
+    await expect(page.locator('#devices [data-device="robots"] a')).toHaveAttribute("href", "/privacy");
+  });
+
+  test("nothing on the page says the Watch works today", async ({ page }) => {
+    await open(page, "/");
+    const body = (await page.locator("main").innerText()).replace(/\s+/g, " ");
+    for (const m of body.matchAll(/[^.]*Apple Watch[^.]*\./g)) {
+      expect(m[0], m[0]).not.toMatch(/optional|available now|on your Apple Watch|tap pattern on your/i);
+    }
   });
 });
 

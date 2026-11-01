@@ -70,6 +70,8 @@ paths:
     $ref: paths/answers.yaml#/evidence
   /observations/{observation_id}/crop:
     $ref: paths/answers.yaml#/crop
+  /homes/{home_id}/room-map:
+    $ref: paths/homes.yaml#/room_map
   /homes/{home_id}/robot-export:
     $ref: paths/homes.yaml#/robot_export
   /a2a/home-memory:

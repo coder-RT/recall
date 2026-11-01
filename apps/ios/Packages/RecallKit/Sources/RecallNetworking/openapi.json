@@ -618,6 +618,54 @@
         }
       }
     },
+    "/homes/{home_id}/room-map": {
+      "get": {
+        "tags": [
+          "homes"
+        ],
+        "operationId": "getRoomMap",
+        "summary": "One room's map and the things in it, for the owner's phone (the same document a robot gets)",
+        "description": "The owner's view of a room: the occupancy map, the things on it and the room outline, in the robot export's format. Device key only; works whether robot access is on or off, and isn't recorded as a robot export. `room` picks a room; the default is the newest processed scan's.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/home_id"
+          },
+          {
+            "name": "room",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The room's map",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RobotExport"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "The scan's point cloud is missing; process the scan again",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/homes/{home_id}/robot-export": {
       "get": {
         "tags": [

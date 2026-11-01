@@ -131,6 +131,22 @@ def test_endpoint_is_off_by_default_and_needs_a_key(tmp_path):
     assert datetime.fromisoformat(body["generated_at"]).tzinfo == UTC
 
 
+def test_the_owner_sees_each_rooms_map_without_robot_access_or_an_audit_entry(tmp_path):
+    s = Settings(RECALL_DATA_DIR=tmp_path, RECALL_DEVICE_KEY="owner", RECALL_ROBOT_KEY="robot",
+                 ROBOT_EXPORT_ENABLED=False, RECALL_TRACES="off")  # fmt: skip
+    app = create_app(s)
+    app.state.container.__dict__["export_for_robot"] = _exporter(tmp_path)[0]
+    client = TestClient(app)
+    owner = {"Authorization": "Bearer owner"}
+    r = client.get("/homes/flat/room-map", params={"room": "Office"}, headers=owner)
+    assert r.status_code == 200, r.text
+    assert r.json()["room"] == "Office" and r.json()["objects"][0]["label"] == "keys"
+    assert client.get("/homes/flat/room-map", params={"room": "Kitchen"}, headers=owner).status_code == 404
+    # the robot key never reads it, and looking at your own map isn't robot activity
+    assert client.get("/homes/flat/room-map", headers={"Authorization": "Bearer robot"}).status_code == 401
+    assert not [e for e in client.get("/audit", headers=owner).json() if e["action"] == "robot_export.read"]
+
+
 def test_a_damaged_line_in_the_walk_is_skipped(tmp_path):
     from recall_api.application import scan_geometry
     from recall_api.domain.memory import Scan, ScanStatus

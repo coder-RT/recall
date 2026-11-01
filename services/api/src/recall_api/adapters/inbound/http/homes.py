@@ -5,11 +5,13 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Response
 
 from recall_api.application.correct_object import CorrectionError, CorrectionInput
+from recall_api.application.export_for_robot import RobotExportError
 from recall_api.domain.memory import Home, TrackedObject
 from recall_api.domain.spatial import relate, shelf_level
 
 from .deps import container, require_device_key
-from .models import ObjectCorrection, ObjectLocation, RoomModel
+from .models import ObjectCorrection, ObjectLocation, RobotExport, RoomModel
+from .robots import export_document
 
 REVIEW_BELOW = 0.7  # confidence under this asks the user to check
 
@@ -31,6 +33,15 @@ def get_room(home_id: str, c=Depends(container)) -> RoomModel:
         height_m=r.height_m,
         north_deg=r.north_deg,
     )
+
+
+@router.get("/homes/{home_id}/room-map", response_model=RobotExport)
+def get_room_map(home_id: str, room: str | None = None, c=Depends(container)) -> RobotExport:
+    # the owner looking at their own home: no robot switch, and not recorded as a robot export
+    try:
+        return export_document(c.export_for_robot(home_id, room))
+    except RobotExportError as e:
+        raise HTTPException(e.status, {"error": e.code, "detail": str(e)}) from e
 
 
 def _location(obj: TrackedObject, home: Home, scans=None) -> ObjectLocation | None:

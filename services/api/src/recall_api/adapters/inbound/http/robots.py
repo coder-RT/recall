@@ -32,6 +32,11 @@ def get_robot_export(home_id: str, request: Request, room: str | None = None, c=
         raise HTTPException(err.status, {"error": err.code, "detail": str(err)}) from err
     c.auditor(Action.ROBOT_EXPORT_READ, who, target_type="home", target_id=home_id, room=e.room,
               things=len(e.objects), scan_id=e.scan_id)  # fmt: skip
+    return export_document(e)
+
+
+def export_document(e) -> RobotExport:
+    """The export as JSON: the robot's document, the map inline (PGM as base64) and the room outline."""
     w, h = e.map.size
     m = {**e.map.yaml_fields("map.pgm"), "width": w, "height": h, "pgm_base64": base64.b64encode(e.map.pgm()).decode()}
     return RobotExport.model_validate({**document(e), "map": m, "room_model": e.room_model})

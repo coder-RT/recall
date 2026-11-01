@@ -22,15 +22,16 @@ public struct Connection: Sendable, Equatable {
         return url
     }
 
-    /// localhost, a .local name, or a private IPv4 address (10/8, 172.16/12, 192.168/16, 127/8, 169.254/16).
+    /// localhost, a .local name, a private IPv4 address (10/8, 172.16/12, 192.168/16, 127/8, 169.254/16), or Tailscale
+    /// (a *.ts.net name or 100.64/10): Tailscale encrypts the traffic itself (WireGuard), so plain http is safe there.
     static func isLocal(_ hostAndPort: String) -> Bool {
         let host = String(hostAndPort.split(separator: "/").first ?? "").split(separator: ":").first.map(String.init) ?? ""
         let h = host.lowercased()
-        if h == "localhost" || h.hasSuffix(".local") { return true }
+        if h == "localhost" || h.hasSuffix(".local") || h.hasSuffix(".ts.net") { return true }
         let n = h.split(separator: ".").compactMap { Int($0) }
         guard n.count == 4, n.allSatisfy({ (0...255).contains($0) }) else { return false }
         return n[0] == 10 || n[0] == 127 || (n[0] == 192 && n[1] == 168) || (n[0] == 172 && (16...31).contains(n[1]))
-            || (n[0] == 169 && n[1] == 254)
+            || (n[0] == 169 && n[1] == 254) || (n[0] == 100 && (64...127).contains(n[1]))
     }
 
     /// The key without the spaces or newline a paste brings along.

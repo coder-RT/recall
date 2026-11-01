@@ -19,6 +19,10 @@ struct ConnectionTests {
         #expect(url("172.40.1.1:8000") == "https://172.40.1.1:8000")  // not a private range
         #expect(url("rachits-mac.local:8000") == "http://rachits-mac.local:8000")
         #expect(url("localhost:8000") == "http://localhost:8000")
+        // Tailscale: encrypted by the tailnet itself, and the Mac serves plain http there
+        #expect(url("100.80.5.54:8000") == "http://100.80.5.54:8000")
+        #expect(url("rachits-macbook-pro-2.tail67b272.ts.net:8000") == "http://rachits-macbook-pro-2.tail67b272.ts.net:8000")
+        #expect(url("100.200.1.1:8000") == "https://100.200.1.1:8000")  // outside 100.64/10
         #expect(url("http://mac.example.com") == "http://mac.example.com")  // a typed scheme is kept
     }
 

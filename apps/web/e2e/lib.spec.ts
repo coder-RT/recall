@@ -5,6 +5,7 @@ import { en } from "../i18n/dictionaries/en";
 import { brailleCells, matrixDots, wordWidth } from "../lib/braille";
 import { oncePerPass } from "../lib/once-per-pass";
 import { PIXEL_GRID, PIXEL_ICON_NAMES, pixelRects } from "../lib/pixel-icons";
+import { clientKey, DailyCap, dailyCapFrom, sameSite, voiceDisabled, WindowLimit } from "../lib/voice-guard";
 
 /** Pure logic and content checks: no browser needed. */
 
@@ -76,5 +77,46 @@ test.describe("story script", () => {
     expect(times).toEqual([...times].sort((a, b) => a - b));
     expect(Math.max(...times)).toBeLessThan(STORY_SECONDS);
     times.slice(1).forEach((t, i) => expect(t - times[i], `gap before line ${i + 2}`).toBeGreaterThanOrEqual(0.6));
+  });
+});
+
+test.describe("voice route guards", () => {
+  test("the off switch", () => {
+    expect(voiceDisabled({ VOICE_DEMO: "off" })).toBe(true);
+    expect(voiceDisabled({ VOICE_DEMO: "OFF" })).toBe(true);
+    expect(voiceDisabled({})).toBe(false);
+    expect(voiceDisabled({ VOICE_DEMO: "on" })).toBe(false);
+  });
+
+  test("only this site's own pages may call it", () => {
+    const h = (o: Record<string, string>) => new Headers(o);
+    expect(sameSite(h({ origin: "https://recall.example", host: "recall.example" }))).toBe(true);
+    expect(sameSite(h({ origin: "https://evil.example", host: "recall.example" }))).toBe(false);
+    expect(sameSite(h({ host: "recall.example" }))).toBe(false); // scripts often send no Origin
+    expect(sameSite(h({ origin: "not a url", host: "recall.example" }))).toBe(false);
+  });
+
+  test("the client is never taken from X-Forwarded-For, which the client can write", () => {
+    const spoofed = new Headers({ "x-forwarded-for": "1.2.3.4", "x-real-ip": "203.0.113.9" });
+    expect(clientKey(spoofed, true)).toBe("203.0.113.9");
+    expect(clientKey(spoofed, false)).toBe("local");
+    expect(clientKey(new Headers({ "x-forwarded-for": "1.2.3.4" }), true)).toBe("local");
+  });
+
+  test("the fallback limit counts per client per window", () => {
+    const limit = new WindowLimit(2, 60_000);
+    expect([limit.over("a", 0), limit.over("a", 1), limit.over("a", 2)]).toEqual([false, false, true]);
+    expect(limit.over("b", 3)).toBe(false); // someone else
+    expect(limit.over("a", 61_000)).toBe(false); // a minute later
+  });
+
+  test("the daily cap stops at the cap and starts again the next UTC day", () => {
+    const cap = new DailyCap(2);
+    const d1 = new Date("2026-11-01T10:00:00Z");
+    expect([cap.reached(d1), cap.reached(d1), cap.reached(d1)]).toEqual([false, false, true]);
+    expect(cap.reached(new Date("2026-11-02T00:00:01Z"))).toBe(false);
+    expect(dailyCapFrom({ VOICE_DAILY_CAP: "50" })).toBe(50);
+    expect(dailyCapFrom({ VOICE_DAILY_CAP: "nonsense" })).toBe(300);
+    expect(dailyCapFrom({})).toBe(300);
   });
 });

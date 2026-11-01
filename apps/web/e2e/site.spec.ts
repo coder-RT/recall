@@ -90,20 +90,34 @@ test.describe("privacy note", () => {
 });
 
 test.describe("voice API", () => {
-  test("rejects anything that isn't a WAV", async ({ request }) => {
-    const res = await request.post("/api/voice/transcribe", { headers: { "content-type": "text/plain" }, data: "hello" });
+  // a browser always sends Origin on a POST; the route answers only this site's own pages
+  const own = (baseURL?: string) => new URL(baseURL ?? "http://localhost:3000").origin;
+
+  test("refuses calls that don't come from this site's pages", async ({ request, baseURL }) => {
+    const wav = { "content-type": "audio/wav" };
+    for (const headers of [wav, { ...wav, origin: "https://elsewhere.example" }]) {
+      const res = await request.post("/api/voice/transcribe", { headers, data: Buffer.alloc(4000) });
+      expect(res.status()).toBe(403);
+      expect(await res.json()).toEqual({ error: "forbidden" });
+    }
+    const ok = await request.post("/api/voice/transcribe", { headers: { ...wav, origin: own(baseURL) }, data: Buffer.alloc(100) });
+    expect(ok.status()).toBe(400); // past the check: too short, and no speech service was called
+  });
+
+  test("rejects anything that isn't a WAV", async ({ request, baseURL }) => {
+    const res = await request.post("/api/voice/transcribe", { headers: { "content-type": "text/plain", origin: own(baseURL) }, data: "hello" });
     expect(res.status()).toBe(415);
     expect(await res.json()).toEqual({ error: "wrong_format" });
   });
 
-  test("rejects an empty recording without calling the speech service", async ({ request }) => {
-    const res = await request.post("/api/voice/transcribe", { headers: { "content-type": "audio/wav" }, data: Buffer.alloc(100) });
+  test("rejects an empty recording without calling the speech service", async ({ request, baseURL }) => {
+    const res = await request.post("/api/voice/transcribe", { headers: { "content-type": "audio/wav", origin: own(baseURL) }, data: Buffer.alloc(100) });
     expect(res.status()).toBe(400);
     expect(await res.json()).toEqual({ error: "too_short" });
   });
 
   test("every error code it can return has a message for visitors", () => {
-    for (const code of ["not_configured", "wrong_format", "rate_limited", "too_long", "too_short", "unreachable", "failed"]) {
+    for (const code of ["disabled", "not_configured", "forbidden", "wrong_format", "rate_limited", "daily_limit", "too_long", "too_short", "unreachable", "failed"]) {
       expect(en.ask.errors[code as keyof typeof en.ask.errors]).toBeTruthy();
     }
   });

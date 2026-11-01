@@ -40,6 +40,7 @@ Direct dependencies only. Licences below are as published by each project.
 | What | Used for | Licence |
 |---|---|---|
 | Next.js | Web framework | MIT |
+| `@vercel/firewall` 1.2.6 | The voice demo route asks Vercel's firewall rule `voice-transcribe` whether a visitor is over the limit | Apache-2.0 (npm `license` field, checked 2026-11-01). Used as an npm dependency. |
 | React | UI | MIT |
 | three.js (`three` 0.186.1) | Point-cloud rendering in the 3D viewer | MIT |
 | react-three-fiber (`@react-three/fiber` 9.8.2) | React renderer for three.js (`apps/web/components/viewer/`) | MIT |

@@ -120,14 +120,15 @@ test.describe("How it works", () => {
 });
 
 test.describe("model cards", () => {
-  test("list each model with its job, its real code path and a working badge", async ({ page }) => {
+  test("list each model with its job, a GitHub link to its real code and a working badge", async ({ page }) => {
     await open(page, "/#models");
     const cards = page.locator("#models li");
     await expect(cards).toHaveCount(en.models.items.length);
     for (const [i, m] of en.models.items.entries()) {
       await expect(cards.nth(i)).toContainText(m.name);
       await expect(cards.nth(i)).toContainText(m.role);
-      await expect(cards.nth(i)).toContainText(m.path);
+      await expect(cards.nth(i)).not.toContainText(m.path); // no raw paths on the landing page
+      await expect(cards.nth(i).getByRole("link", { name: `${m.name}: ${en.models.code}` })).toHaveAttribute("href", `https://github.com/coder-RT/recall/blob/main/${m.path}`);
       await expect(cards.nth(i)).toContainText(en.models.working);
       expect(existsSync(path.join(ROOT, m.path)), m.path).toBe(true); // the path is real
       await expect(cards.nth(i).locator("svg")).toBeVisible();

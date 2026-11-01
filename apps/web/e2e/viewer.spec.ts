@@ -392,8 +392,19 @@ test("the published scan holds geometry only: no photo, no photo colours", () =>
   }
 });
 
-test("the site's install guide is the repo's INSTALL.md, word for word", () => {
+test("the site's install guide is the repo's docs/install/README.md, word for word", () => {
   const root = path.join(__dirname, "..", "..", "..");
+  const guide = fs.readFileSync(path.join(root, "docs", "install", "README.md"), "utf8");
   const served = fs.readFileSync(path.join(__dirname, "..", "public", "INSTALL.md"), "utf8");
-  expect(served).toBe(fs.readFileSync(path.join(root, "INSTALL.md"), "utf8"));
+  expect(served).toBe(guide);
+  expect(fs.readFileSync(path.join(root, "INSTALL.md"), "utf8")).toContain("docs/install/README.md");
+});
+
+test("the public install guide carries no keys, no home paths and no private links", () => {
+  const root = path.join(__dirname, "..", "..", "..");
+  const guide = fs.readFileSync(path.join(root, "docs", "install", "README.md"), "utf8");
+  expect(guide).not.toMatch(/\/Users\/|\/home\/[a-z]|docs\/private/);
+  // every key line is empty: KEY= followed by spaces and a comment, never a value
+  for (const line of guide.split("\n").filter((l) => /^[A-Z_]*KEY=/.test(l))) expect(line).toMatch(/^[A-Z_]*KEY=\s*(#|$)/);
+  expect(guide).not.toMatch(/sk-[A-Za-z0-9]{10}|re_[A-Za-z0-9]{10}|[0-9a-f]{40,}/);
 });

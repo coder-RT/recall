@@ -309,6 +309,7 @@ export const en = {
     title: "Open models for seeing, mapping, listening and talking.",
     status: "Working today in the app. The examples on this page are illustrative; measured results are in the README.",
     working: "Working today",
+    code: "See the code on GitHub",
     items: [
       { name: "SAM 3.1", kind: "see" as ModelKind, role: "Finds furniture and everyday things in every frame of the walkthrough, and checks the thing is really there when you arrive.", path: "services/pipeline/src/recall_pipeline/adapters/sam31_meta_api.py" },
       { name: "MapAnything", kind: "map" as ModelKind, role: "Turns the walkthrough into a metric 3D map, fed the phone's own depth and poses.", path: "services/pipeline/src/recall_pipeline/adapters/mapanything_local.py" },

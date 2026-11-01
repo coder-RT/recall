@@ -74,3 +74,38 @@ robot_export:
             schema: {$ref: ../schemas/Error.yaml}
       "404":
         $ref: ../schemas/Responses.yaml#/NotFound
+robot_package:
+  get:
+    tags: [robots]
+    operationId: getRobotPackage
+    summary: One room's memory for a robot as a .zip of files it loads (Nav2 map, things, room, 3D points, README)
+    description: >
+      The same content as the robot export, as files: map.pgm and map.yaml (Nav2 map server), objects.json,
+      room.json, cloud.ply (x y z, metres, z up) and README.md. Same access as the robot export: the owner's device
+      key always (to share it from the phone), a robot's key only while robot access is on. Recorded in the audit.
+    security:
+      - deviceKey: []
+    parameters:
+      - $ref: ../schemas/Params.yaml#/home_id
+      - name: room
+        in: query
+        required: false
+        schema: {type: string}
+    responses:
+      "200":
+        description: The package
+        content:
+          application/zip:
+            schema: {type: string, format: binary}
+      "403":
+        description: Robot access is off
+        content:
+          application/json:
+            schema: {$ref: ../schemas/Error.yaml}
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound
+      "409":
+        description: The scan's point cloud is missing; process the scan again
+        content:
+          application/json:
+            schema: {$ref: ../schemas/Error.yaml}

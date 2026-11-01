@@ -582,13 +582,18 @@ class RobotExport(BaseModel):
 
 
 class AskRequest(BaseModel):
-    home_id: str
+    home_id: Annotated[str, Field(pattern="^[a-z0-9-]{1,64}$")]
     question: Annotated[str, Field(max_length=300, min_length=1)]
-    session_id: Annotated[str | None, Field(description="A guidance session, if the user is already being guided")] = (
-        None
-    )
+    session_id: Annotated[
+        str | None,
+        Field(description="A guidance session, if the user is already being guided", pattern="^[A-Za-z0-9_-]{1,64}$"),
+    ] = None
     about: Annotated[
-        str | None, Field(description='The thing the last answer was about, for a follow-up ("why do you think so?")')
+        str | None,
+        Field(
+            description='The thing the last answer was about, for a follow-up ("why do you think so?")',
+            pattern="^[A-Za-z0-9_-]{1,64}$",
+        ),
     ] = None
 
 

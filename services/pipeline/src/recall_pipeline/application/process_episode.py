@@ -21,7 +21,7 @@ from recall_pipeline.application.ports import (
 from recall_pipeline.domain import home_frame, room_model
 from recall_pipeline.domain.appearance import dominant_color, vote
 from recall_pipeline.domain.lift import lift_box
-from recall_pipeline.domain.merge import Piece, merge
+from recall_pipeline.domain.merge import ObjectCluster, Piece, merge, merge_objects
 
 log = logging.getLogger("recall_pipeline")
 
@@ -54,6 +54,7 @@ class PipelineConfig:
     commit: str | None = None  # the pipeline's git commit, set by the wiring (provenance)
     cluster_eps: float = 0.25
     cluster_min: int = 1
+    object_merge_m: float = 0.45  # clusters of one thing apart after a loop walk's drift (max 13 cm measured, ×3)
     stats: dict = field(default_factory=dict)
 
 
@@ -156,11 +157,20 @@ def process_episode(
     # one thing per cluster of sightings of the same label
     things = {"landmarks": [], "objects": []}
     pieces: list[Piece] = []
+    n_clusters = 0
     for label, seen in sightings.items():
         centers = np.array([c for c, *_ in seen])
         labels = geo.clusters(centers, cfg.cluster_eps, cfg.cluster_min) if len(centers) > 1 else np.zeros(1, int)
-        for k in sorted(set(labels.tolist()) - {-1}):
-            members = [seen[i] for i in np.flatnonzero(labels == k)]
+        clusters = [[seen[i] for i in np.flatnonzero(labels == k)] for k in sorted(set(labels.tolist()) - {-1})]
+        if label not in cfg.furniture:
+            # a loop walk's repeat sightings of one thing, a little apart after drift, become one
+            n_clusters += len(clusters)
+            parts = [
+                ObjectCluster(np.median([m[0] for m in c], axis=0), vote([(m[4], m[1]) for m in c]), {m[2] for m in c})
+                for c in clusters
+            ]
+            clusters = [sum((clusters[i] for i in g), []) for g in merge_objects(parts, cfg.object_merge_m)]
+        for members in clusters:
             pts = np.concatenate([m[3] for m in members])
             lo, hi = np.percentile(pts, 5, axis=0), np.percentile(pts, 95, axis=0)
             best = max(members, key=lambda m: m[1])
@@ -182,6 +192,8 @@ def process_episode(
                     "color": vote([(m[4], m[1]) for m in members]),
                 }
             )
+
+    log.info("objects: %d clusters merged into %d", n_clusters, len(things["objects"]))
 
     # furniture: "table" and "desk" boxes of one desk, and the parts of one big piece, become one landmark
     furniture_pts: list[tuple[str, np.ndarray]] = []

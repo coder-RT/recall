@@ -1,6 +1,12 @@
-"""One landmark per piece of furniture. SAM answers per prompt, so one desk comes back as both "table" and "desk",
+"""One landmark per piece of furniture, and one object per thing.
+
+Furniture: SAM answers per prompt, so one desk comes back as both "table" and "desk",
 and a big desk seen from several sides becomes several small boxes. Boxes of the same kind that overlap or
-touch on the floor plan (and share height) are merged into one, named after the label with the most evidence."""
+touch on the floor plan (and share height) are merged into one, named after the label with the most evidence.
+
+Objects: a walk that loops back sees the same mug again after the phone's position has drifted a little, so its
+sightings form two clusters a hand's width apart. Clusters of one label that are close, the same colour and never in
+the same photo are one thing; if one photo shows both, they are two."""
 
 from __future__ import annotations
 
@@ -78,3 +84,41 @@ def merge(pieces: list[Piece]) -> list[tuple[Piece, list[str]]]:
             )
         )
     return out
+
+
+@dataclass
+class ObjectCluster:
+    centroid: np.ndarray  # (x, y, z), home frame
+    color: str | None
+    frames: set[int]  # keyframe indices it was seen in
+
+
+def merge_objects(clusters: list[ObjectCluster], within_m: float) -> list[list[int]]:
+    """Groups of cluster indices (all of one label) that are one thing: centroids within `within_m`, the same colour
+    (or one unknown), and no photo showing both. Every cluster is in exactly one group."""
+    parent = list(range(len(clusters)))
+    frames = [set(c.frames) for c in clusters]  # per group, so a merged pair isn't joined to a third seen beside it
+
+    def root(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    pairs = sorted(
+        (float(np.linalg.norm(a.centroid - b.centroid)), i, j)
+        for i, a in enumerate(clusters)
+        for j, b in enumerate(clusters)
+        if i < j
+    )
+    for d, i, j in pairs:  # closest first
+        a, b = clusters[i], clusters[j]
+        ri, rj = root(i), root(j)
+        if d > within_m or ri == rj or (a.color and b.color and a.color != b.color) or frames[ri] & frames[rj]:
+            continue
+        parent[ri] = rj
+        frames[rj] |= frames[ri]
+    groups: dict[int, list[int]] = {}
+    for i in range(len(clusters)):
+        groups.setdefault(root(i), []).append(i)
+    return list(groups.values())

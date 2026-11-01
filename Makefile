@@ -5,7 +5,7 @@ PIPE := services/pipeline
 WEB := apps/web
 REDOCLY := npx -y @redocly/cli@2.72.1
 
-.PHONY: help setup dev worker robot-export regression viewer live demo record probes diagrams pair rerun test test-all lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
+.PHONY: help setup dev worker robot-export regression viewer public-scan live demo record probes diagrams pair rerun test test-all lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -30,6 +30,14 @@ robot-export: ## One room's memory for a robot (Nav2 map, things, furniture): ma
 
 regression: ## Re-run every processed scan now (no posting; cached SAM answers) and compare with the last run
 	cd $(API) && uv run python -c "from recall_api.infra import jobs, regression; print('\n'.join(regression.run(jobs.settings, jobs.run_pipeline)))"
+
+public-scan: ## The real scan for the public site, geometry only (no photo data): make public-scan [HOME_ID=flat] -> apps/web/public/real-scan/<home>/ (review before committing)
+	@H="$(or $(HOME_ID),flat)"; \
+	ID=$$(sqlite3 data/recall.db "SELECT id FROM scans WHERE home_id = '$$H' AND status = 'processed' ORDER BY created_at DESC LIMIT 1" 2>/dev/null); \
+	E=$$(ls -d data/blobs/scans/*_$$ID/episode 2>/dev/null | head -1); \
+	if [ -z "$$ID" ] || [ ! -f "$$E/home_colors.npy" ]; then echo "No processed scan of '$$H' yet."; exit 1; fi; \
+	cd $(PIPE)/scripts && uv run --project .. python export_viewer_scan.py --public "$(CURDIR)/$$E" "$(CURDIR)/$(WEB)/public/real-scan/$$H" && \
+	echo "Review apps/web/public/real-scan/$$H/ (no photos, nothing personal) before committing it."
 
 viewer: ## Export a home's newest processed scan for /homes/<home>/viewer: make viewer [HOME_ID=flat] (gitignored output)
 	@H="$(or $(HOME_ID),flat)"; \

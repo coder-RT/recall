@@ -1,4 +1,4 @@
-"""Every test suite in one run, kept as evidence: `make test-all [SUITES="api pipeline ..."]`.
+"""Every test suite in one run, kept as evidence: `make test-all [SUITES="api pipeline ..."] [ONLY="<UI tests>"]`.
 
 Each suite's full output goes to data/test-runs/<UTC time>/<suite>.log (data/ is gitignored: logs never reach git),
 with summary.json beside them; one line per run is appended to data/test-runs/runs.jsonl and history.md. The Mac is
@@ -68,6 +68,8 @@ def counts(kind: str, text: str, code: int) -> dict:
 
 def run(name: str, folder: Path) -> dict:
     cwd, cmd, kind = SUITES[name]
+    if name == "ios-ui" and os.environ.get("ONLY"):  # e.g. ONLY="AccessibilityTests/testPrivacy UsabilityTests"
+        cmd = cmd + [f"-only-testing:RecallUITests/{t}" for t in os.environ["ONLY"].split()]
     log = folder / f"{name}.log"
     started = time.monotonic()
     with log.open("w") as f:
@@ -86,6 +88,9 @@ def run(name: str, folder: Path) -> dict:
     verdict = XCODE_DONE.search(text)
     code = (0 if verdict.group(1) == "TEST SUCCEEDED" else 1) if verdict else p.returncode
     c = counts(kind, text, code)
+    if kind in ("swift-testing", "xctest") and not c.get("passed") and not c.get("failed"):
+        first = re.search(r"^(/\S+\.swift:\d+:\d+: error: .+)$", text, re.M)  # it never ran: say why
+        c["build_error"] = first.group(1).split("/apps/")[-1] if first else "the build failed (see the log)"
     ok = code == 0 and not c.get("failed") and not c.get("broken")
     return {"suite": name, "ok": ok, "exit": code, "seconds": round(time.monotonic() - started, 1), **c,
             "log": str(log.relative_to(ROOT))}  # fmt: skip
@@ -138,6 +143,8 @@ def main() -> int:
 
 def line(r: dict) -> str:
     parts = [f"{r[k]} {k}" for k in ("passed", "failed", "skipped", "flaky", "kept", "broken") if k in r]
+    if r.get("build_error"):
+        parts.append("did not build: " + r["build_error"])
     if r.get("failing"):
         parts.append("failing: " + ", ".join(r["failing"][:5]))
     return ", ".join(parts) or ("ok" if r["ok"] else f"exit {r['exit']}")

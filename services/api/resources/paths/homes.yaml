@@ -6,6 +6,8 @@ room:
     parameters:
       - $ref: ../schemas/Params.yaml#/home_id
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: Room model
         content:
@@ -30,6 +32,8 @@ room_map:
         required: false
         schema: {type: string}
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: The room's map
         content:
@@ -61,6 +65,8 @@ robot_export:
         required: false
         schema: {type: string}
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: The export
         content:
@@ -92,6 +98,8 @@ robot_package:
         required: false
         schema: {type: string}
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: The package
         content:
@@ -124,6 +132,10 @@ ar_labels:
         required: true
         schema: {type: string, minLength: 1, maxLength: 60}
     responses:
+      "422":
+        $ref: ../schemas/Responses.yaml#/Invalid
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: The labels
         content:

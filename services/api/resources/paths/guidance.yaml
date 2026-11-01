@@ -10,6 +10,8 @@ sessions:
           schema:
             $ref: ../schemas/GuidanceRequest.yaml
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: Route
         content:
@@ -35,6 +37,8 @@ verify:
           schema:
             $ref: ../schemas/VerificationRequest.yaml
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: Verification result
         content:

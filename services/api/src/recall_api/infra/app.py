@@ -10,6 +10,7 @@ import uuid
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from recall_api.adapters.inbound.http import (
@@ -85,6 +86,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         body = exc.detail if isinstance(exc.detail, dict) else {"error": "error", "detail": str(exc.detail)}
         log.warning("refused", extra={"fields": {"path": request.url.path, "status": exc.status_code, **body}})
         return JSONResponse(body, status_code=exc.status_code)
+
+    @app.exception_handler(RequestValidationError)
+    async def _invalid(request: Request, exc: RequestValidationError) -> JSONResponse:
+        # the spec's Error shape, like every other refusal: one code, one plain sentence (FastAPI's own is a list)
+        parts = [".".join(str(x) for x in e.get("loc", ())) + ": " + str(e.get("msg", "")) for e in exc.errors()[:3]]
+        body = {"error": "invalid", "detail": "; ".join(parts) or "Invalid request."}
+        log.warning("refused", extra={"fields": {"path": request.url.path, "status": 422, **body}})
+        return JSONResponse(body, status_code=422)
 
     bundled = API_ROOT / "build" / "openapi.json"
     if bundled.exists():  # the real spec (make bundle-spec), not FastAPI's generated one

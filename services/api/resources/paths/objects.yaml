@@ -6,6 +6,8 @@ objects:
     parameters:
       - $ref: ../schemas/Params.yaml#/home_id
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: Objects
         content:
@@ -30,6 +32,8 @@ object:
         application/json:
           schema: {$ref: ../schemas/ObjectCorrection.yaml}
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: The object as it is now remembered
         content:
@@ -47,6 +51,8 @@ object:
       - $ref: ../schemas/Params.yaml#/home_id
       - $ref: ../schemas/Params.yaml#/object_id
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "204":
         description: Forgotten
       "404":
@@ -65,6 +71,8 @@ compass_route:
       - $ref: ../schemas/Params.yaml#/home_id
       - $ref: ../schemas/Params.yaml#/object_id
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: The route
         content:

@@ -4,6 +4,8 @@ sharing:
     operationId: getSharing
     summary: Robot access, and where robots reach the memory
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: Robot access
         content:
@@ -19,6 +21,8 @@ sharing:
         application/json:
           schema: {$ref: ../schemas/SharingUpdate.yaml}
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: Robot access after the change
         content:

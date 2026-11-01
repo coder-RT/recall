@@ -4,6 +4,8 @@ trust:
     operationId: getTrust
     summary: How sure Recall must be before it tells you about a thing
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: The trust level
         content:
@@ -19,6 +21,8 @@ trust:
         application/json:
           schema: {$ref: ../schemas/TrustUpdate.yaml}
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: The trust level after the change
         content:

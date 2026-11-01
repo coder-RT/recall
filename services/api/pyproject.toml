@@ -34,6 +34,7 @@ dev = [
   "ruff>=0.8",
   "import-linter>=2.1",
   "datamodel-code-generator[http]>=0.26",
+  "schemathesis>=4",
 ]
 
 [build-system]

@@ -13,6 +13,8 @@ scans:
           schema:
             $ref: ../schemas/ScanCreate.yaml
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: Upload plan
         content:
@@ -29,6 +31,8 @@ scan:
     parameters:
       - $ref: ../schemas/Params.yaml#/scan_id
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: Scan status
         content:
@@ -48,6 +52,8 @@ scan:
     parameters:
       - $ref: ../schemas/Params.yaml#/scan_id
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "204":
         description: Erased
       "404":
@@ -76,6 +82,8 @@ part:
         application/octet-stream:
           schema: {type: string, format: binary}
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: Part stored
         content:
@@ -100,6 +108,8 @@ manifest:
           schema:
             $ref: ../schemas/Manifest.yaml
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: Manifest stored
         content:
@@ -118,6 +128,8 @@ complete:
     parameters:
       - $ref: ../schemas/Params.yaml#/scan_id
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: Accepted; processing started
         content:
@@ -142,6 +154,8 @@ results:
           schema:
             $ref: ../schemas/ScanResult.yaml
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: Ingested
         content:

@@ -9,6 +9,8 @@ evidence:
         required: true
         schema: {type: string}
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: The evidence chain
         content:
@@ -27,6 +29,8 @@ crop:
         required: true
         schema: {type: string}
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: JPEG
         content:

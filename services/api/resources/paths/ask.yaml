@@ -10,6 +10,8 @@ ask:
           schema:
             $ref: ../schemas/AskRequest.yaml
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: Grounded answer
         content:

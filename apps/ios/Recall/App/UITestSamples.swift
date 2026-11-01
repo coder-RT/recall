@@ -103,6 +103,20 @@ enum UITestSamples {
         }
     }
 
+    /// Labels for "See it in AR" in the UI tests: one of each colour (the simulator has no ARKit, so only the list shows).
+    struct Labels: ArLabelsSource {
+        func arLabels(home: String, room: String) async throws -> ArLabels {
+            ArLabels(scanId: "scan-2", room: room, floorY: 0, labels: [
+                ArLabel(id: "s1", title: "beige keys", place: "near the desk, at waist height", confidence: 0.85, photos: 6,
+                        trusted: true, needsReview: false, position: SIMD3(0.5, 0.8, -1)),
+                ArLabel(id: "s2", title: "grey bag", place: "near the desk, at knee height", confidence: 0.6, photos: 3,
+                        trusted: true, needsReview: true, position: SIMD3(-0.4, 0.4, -1.2)),
+                ArLabel(id: "s9", title: "green wallet", place: "near the cabinet, at knee height", confidence: 0.55,
+                        photos: 1, trusted: false, needsReview: true, position: SIMD3(1.2, 0.4, -2)),
+            ])
+        }
+    }
+
     /// A robot package for the UI tests: a few bytes standing in for the Mac's .zip.
     struct Packages: RobotPackages {
         func robotPackage(home: String, room: String?) async throws -> Data { Data("sample robot package".utf8) }

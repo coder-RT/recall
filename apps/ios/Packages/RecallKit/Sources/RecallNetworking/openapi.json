@@ -719,6 +719,46 @@
         }
       }
     },
+    "/homes/{home_id}/ar-labels": {
+      "get": {
+        "tags": [
+          "homes"
+        ],
+        "operationId": "getArLabels",
+        "summary": "Everything Recall found in a room, placed in that room's saved AR map (for labels over the camera)",
+        "description": "Positions are in the ARKit frame of the room's newest processed scan (scan_id): the phone relocalises in that scan's room map, then draws one label per thing. trusted and needs_review follow the owner's trust level.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/home_id"
+          },
+          {
+            "name": "room",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 60
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The labels",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArLabels"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
     "/homes/{home_id}/robot-package": {
       "get": {
         "tags": [
@@ -2806,6 +2846,81 @@
           },
           "room_model": {
             "$ref": "#/components/schemas/RoomModel"
+          }
+        }
+      },
+      "ArLabels": {
+        "type": "object",
+        "required": [
+          "scan_id",
+          "room",
+          "labels"
+        ],
+        "properties": {
+          "scan_id": {
+            "type": "string",
+            "description": "The scan whose room map the positions are in"
+          },
+          "room": {
+            "type": "string"
+          },
+          "floor_y_arkit": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "The floor's height in that ARKit frame, metres"
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "object_id",
+                "title",
+                "place",
+                "confidence",
+                "trusted",
+                "needs_review",
+                "position_arkit"
+              ],
+              "properties": {
+                "object_id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string",
+                  "description": "e.g. grey bag, or the owner's own name for it"
+                },
+                "place": {
+                  "type": "string",
+                  "description": "e.g. near the desk, at knee height"
+                },
+                "confidence": {
+                  "type": "number"
+                },
+                "photos": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "trusted": {
+                  "type": "boolean"
+                },
+                "needs_review": {
+                  "type": "boolean"
+                },
+                "position_arkit": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                }
+              }
+            }
           }
         }
       },

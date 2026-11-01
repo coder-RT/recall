@@ -16,6 +16,10 @@ final class ScanModel {
     private(set) var update = CaptureUpdate(elapsed: 0, directionsCovered: 0, keyframes: 0, droppedBlurry: 0,
                                             tracking: .notAvailable, lightLux: 0)
     private(set) var cue: String?
+    /// The LiDAR points captured so far, painted on the camera.
+    let paint = PointPaint()
+    /// Camera · LiDAR · Edges.
+    var look = CameraLook.camera
     /// Stop was pressed before the room map was ready; the next press stops anyway.
     private(set) var confirmingStop = false
     private var lastSpokenDirections = 0
@@ -56,6 +60,7 @@ final class ScanModel {
     private func apply(_ u: CaptureUpdate) {
         let stepChanged = u.step != update.step
         update = u
+        paint.add(u.newPoints)
         // a problem first (it is about right now), then the next step
         switch u.signal {
         case .cue(_, let text):

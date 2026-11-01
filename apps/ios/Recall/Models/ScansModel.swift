@@ -108,6 +108,9 @@ final class ScansModel {
         scans.filter(\.isProcessed).sorted { $0.createdAt > $1.createdAt }.lazy.compactMap { self.files.roomMap(scan: $0.id) }.first
     }
 
+    /// One scan's saved room map (the AR labels are placed in it).
+    func roomMap(scan id: String) -> Data? { files.roomMap(scan: id) }
+
     /// UI tests only (launch argument `-UITestSampleThings`): a fixed list of scans. Real users never see it.
     func useForUITests(_ sample: [Scan]) { scans = sample; macReachable = false }
 

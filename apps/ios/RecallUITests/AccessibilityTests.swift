@@ -50,6 +50,13 @@ final class AccessibilityTests: XCTestCase {
                 print("AUDIT (no element; rechecked scrolled to the end) \(issue.compactDescription)")
                 return true
             }
+            // Scrolled to the end, text sitting in the fade under the clock can't be measured as it grows; the first,
+            // unscrolled audit checked the same text where it sits clear of the edge.
+            if edgesRechecked, issue.auditType == .dynamicType, let e = issue.element, e.exists,
+               e.frame.minY < Self.topEdge(app) + 44 {
+                print("AUDIT (in the top fade, checked unscrolled) \(issue.compactDescription) :: \(el)")
+                return true
+            }
             // A row cut in half by the clock at the top, or seen blurred and mirrored through the tab bar's glass at the
             // bottom, is reported as text with no element (the audit can't match half a row, or a reflection). Accepted
             // only while something really is cut by one of those edges; the same rows are audited whole when scrolled.
@@ -366,6 +373,25 @@ final class AccessibilityTests: XCTestCase {
             XCTAssertEqual(spot.title.minY - spot.header.maxY, find.title.minY - find.header.maxY, accuracy: 1,
                            "\(tab)'s title is a different distance under the logo")
         }
+    }
+
+    /// Find → a room's map → See it in AR: every thing found there, coloured by what Recall does with it, read in full
+    /// by VoiceOver. (The simulator has no ARKit, so this is the list; on the phone the same labels float in the camera.)
+    func testSeeItInARListsWhatWasFound() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-UITestSampleThings"]
+        app.launch()
+        let any = app.descendants(matching: .any)
+        let button = any["see-in-ar-Living room"]
+        XCTAssertTrue(button.waitForExistence(timeout: 5))
+        button.tap()
+        let keys = any["ar-label-s1"]
+        XCTAssertTrue(keys.waitForExistence(timeout: 5))
+        XCTAssertEqual(keys.label, "Beige keys, near the desk, at waist height. 85 percent, seen in 6 photos. Recall tells you.")
+        XCTAssertTrue(any["ar-label-s9"].label.hasSuffix("Waits for you to confirm."))
+        try audit(app)
+        any["ar-done"].tap()
+        XCTAssertTrue(button.waitForExistence(timeout: 3))
     }
 
     private func dayMonth(_ seconds: TimeInterval) -> String {

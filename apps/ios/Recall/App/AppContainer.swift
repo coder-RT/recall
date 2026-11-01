@@ -62,6 +62,18 @@ final class AppContainer {
         }
     }
 
+    /// "See it in AR" for one room: the shared locator (one ARKit session at a time), stopped from guiding first.
+    func arLabelsModel(room: String) -> ARLabelsModel {
+        idle?.cancel()
+        let scans = scans
+        return ARLabelsModel(room: room, home: settings.connection.homeId, source: arLabelsSource(), locator: locator,
+                             roomMap: { scans.roomMap(scan: $0) }, speech: speech)
+    }
+
+    func arLabelsSource() -> any ArLabelsSource {
+        UITestSamples.enabled ? UITestSamples.Labels() : server
+    }
+
     func robotPackages() -> any RobotPackages {
         UITestSamples.enabled ? UITestSamples.Packages() : server
     }
@@ -124,7 +136,7 @@ struct SystemClock: Clock {
 /// The Mac, as every Mac-facing port, reached with the current connection settings. Changing Settings swaps the
 /// client underneath; a call made before setup throws the setup issue, in words.
 final class LiveServer: HomeMemory, GuideService, Transcriber, ScanProcessing, ConnectionCheck, ScanServer, RobotSharing,
-    RoomMaps, RobotPackages, CompassRoutes, TrustSettings, PrivacySource, EvidenceSource, @unchecked Sendable {
+    RoomMaps, RobotPackages, CompassRoutes, ArLabelsSource, TrustSettings, PrivacySource, EvidenceSource, @unchecked Sendable {
     private let lock = NSLock()
     private var api: RecallAPI?
     private var issue: SetupIssue = .nothingSet
@@ -163,6 +175,9 @@ final class LiveServer: HomeMemory, GuideService, Transcriber, ScanProcessing, C
     }
     func robotPackage(home: String, room: String?) async throws -> Data {
         try await current().robotPackage(home: home, room: room)
+    }
+    func arLabels(home: String, room: String) async throws -> ArLabels {
+        try await current().arLabels(home: home, room: room)
     }
     func compassRoute(home: String, thing: String) async throws -> CompassRoute {
         try await current().compassRoute(home: home, thing: thing)

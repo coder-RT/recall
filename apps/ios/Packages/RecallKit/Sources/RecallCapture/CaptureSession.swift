@@ -21,6 +21,13 @@ public struct CaptureUpdate: Sendable, Equatable {
     public var mapReady: Bool
     /// Floor and walls the LiDAR saw, and the walked path, for the mini-map.
     public var surfaces: SurfaceCoverage
+    /// Walking speed, m/s (the readout turns amber when it's too fast for sharp photos).
+    public var speed: Double = 0
+    /// Distance to whatever is straight ahead, metres (nil: nothing in range).
+    public var centreDistance: Double?
+    /// LiDAR points sampled so far, and the newest ones (ARKit world) to paint on the camera; empty between samples.
+    public var pointsCaptured = 0
+    public var newPoints: [SIMD3<Float>] = []
 
     public init(elapsed: Double, directionsCovered: Int, keyframes: Int, droppedBlurry: Int, tracking: TrackingState,
                 signal: ScanSignals.Event? = nil, lightLux: Double, sectors: Set<Int> = [],
@@ -60,6 +67,8 @@ public final class CaptureSession: NSObject, ARSessionDelegate, @unchecked Senda
     private var lastDepthSample: Double = -1
     private var lastPosition: simd_float3?
     private var centreDepth: Double?
+    private var pointsCaptured = 0
+    private var freshPoints: [SIMD3<Float>] = []
     private var highConfidence: Double?
     private var keptSharpness: [Float] = []
     private var dropped = 0
@@ -87,7 +96,7 @@ public final class CaptureSession: NSObject, ARSessionDelegate, @unchecked Senda
         queue.sync {
             self.writer = writer
             self.heading = heading
-            startedAt = Date(); dropped = 0; keptSharpness = []
+            startedAt = Date(); dropped = 0; keptSharpness = []; pointsCaptured = 0; freshPoints = []
             alignTo = map == nil ? nil : rescan?.scanId
             recognising = alignTo != nil
             recogniseStarted = nil; alignedTo = nil
@@ -191,6 +200,8 @@ public final class CaptureSession: NSObject, ARSessionDelegate, @unchecked Senda
             centreDepth = s.centre
             highConfidence = s.high
             surfaces.add(samples: s.points, camera: position)
+            pointsCaptured += s.points.count
+            freshPoints = s.points
         }
 
         if tracking == .normal, t - lastBlurCheck >= selector.minInterval, selector.qualifies(pose, at: t),
@@ -228,9 +239,15 @@ public final class CaptureSession: NSObject, ARSessionDelegate, @unchecked Senda
                                        signal: pendingSignal, lightLux: lux ?? 0, sectors: coverage.sectors,
                                        mapStatus: mapStatus, step: guide.step, guideLine: pendingLine,
                                        mapReady: guide.mapReady, surfaces: surfaces)
+            var live = update
+            live.speed = speed
+            live.centreDistance = centreDepth
+            live.pointsCaptured = pointsCaptured
+            live.newPoints = freshPoints
+            freshPoints = []
             pendingSignal = nil
             pendingLine = nil
-            onUpdate?(update)
+            onUpdate?(live)
         }
     }
 

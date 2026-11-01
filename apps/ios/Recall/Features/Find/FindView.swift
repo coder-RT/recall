@@ -128,6 +128,8 @@ private struct RoomMapCard: View {
     let picked: Bool
     let tap: () -> Void
     @Environment(RoomMapsModel.self) private var maps
+    @Environment(\.container) private var container
+    @State private var showingAR = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -163,11 +165,27 @@ private struct RoomMapCard: View {
             .accessibilityHint(picked ? "Shows every room's things again." : "Shows only this room's things.")
             .accessibilityAddTraits(picked ? [.isButton, .isSelected] : .isButton)
             .accessibilityIdentifier("room-map-\(room)")
-            if case .ready = maps.maps[room] { RobotPackageShare(room: room) }
+            if case .ready = maps.maps[room] {
+                // the actions wrap under each other at large text sizes
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) { seeInAR; RobotPackageShare(room: room) }
+                    VStack(alignment: .leading, spacing: 8) { seeInAR; RobotPackageShare(room: room) }
+                }
+            }
         }
         .card()
         .overlay(RoundedRectangle(cornerRadius: Tokens.cardRadius).stroke(Tokens.accent, lineWidth: picked ? 3 : 0))
         .task(id: maps.generation) { await maps.load(room) }
+    }
+
+    private var seeInAR: some View {
+        Button { showingAR = true } label: { Label("See it in AR", systemImage: "arkit") }
+            .buttonStyle(SolidPillStyle(fill: Tokens.accentFill, text: Tokens.onAccent, compact: true))
+            .accessibilityHint("Labels over everything Recall found in \(room), in the camera view, with a list.")
+            .accessibilityIdentifier("see-in-ar-\(room)")
+            .fullScreenCover(isPresented: $showingAR) {
+                if let container { ARLabelsView(model: container.arLabelsModel(room: room)) { showingAR = false } }
+            }
     }
 
     private var things: String { count == 1 ? "1 thing" : "\(count) things" }

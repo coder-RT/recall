@@ -13,6 +13,11 @@ public protocol HomeMemory: Sendable {
 }
 
 /// Each room's map, with the things in it, for the owner's own screens (not recorded as a robot export).
+/// Everything found in a room, placed in that room's saved AR map (labels over the camera).
+public protocol ArLabelsSource: Sendable {
+    func arLabels(home: String, room: String) async throws -> ArLabels
+}
+
 /// Directions by compass for the Watch, from where the room's scan began (the Mac plans them).
 public protocol CompassRoutes: Sendable {
     func compassRoute(home: String, thing: String) async throws -> CompassRoute

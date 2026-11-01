@@ -347,6 +347,34 @@ extension RecallAPI: EvidenceSource {
     }
 }
 
+// MARK: ArLabelsSource
+
+extension RecallAPI: ArLabelsSource {
+    public func arLabels(home: String, room: String) async throws -> ArLabels {
+        var req = request("homes/\(home)/ar-labels", method: "GET", contentType: "application/json", body: Data())
+        if let url = req.url, var parts = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            parts.queryItems = [URLQueryItem(name: "room", value: room)]
+            req.url = parts.url
+        }
+        return try Self.arLabels(try await send(req))
+    }
+
+    static func arLabels(_ j: [String: Any]) throws -> ArLabels {
+        guard let scan = j["scan_id"] as? String, let room = j["room"] as? String,
+              let rows = j["labels"] as? [[String: Any]] else {
+            throw RecallError.server("The Mac sent labels this app can't read. Update the app.")
+        }
+        let labels: [ArLabel] = rows.compactMap { r in
+            guard let id = r["object_id"] as? String, let title = r["title"] as? String, let place = r["place"] as? String,
+                  let p = r["position_arkit"] as? [Double], p.count == 3 else { return nil }
+            return ArLabel(id: id, title: title, place: place, confidence: r["confidence"] as? Double ?? 0,
+                           photos: r["photos"] as? Int, trusted: r["trusted"] as? Bool ?? true,
+                           needsReview: r["needs_review"] as? Bool ?? false, position: SIMD3(p[0], p[1], p[2]))
+        }
+        return ArLabels(scanId: scan, room: room, floorY: j["floor_y_arkit"] as? Double, labels: labels)
+    }
+}
+
 // MARK: CompassRoutes
 
 extension RecallAPI: CompassRoutes {

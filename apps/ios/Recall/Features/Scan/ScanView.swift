@@ -2,6 +2,7 @@ import ARKit
 import RecallCapture
 import RecallDesign
 import RecallDomain
+import SceneKit
 import SwiftUI
 
 /// The capture screen. Built for use without looking: everything important is spoken; the screen is for a helper.
@@ -32,14 +33,17 @@ struct ScanView: View {
 
     private var capture: some View {
         ZStack {
-            CameraView(session: model.capture.session)
+            CameraView(session: model.capture.session, scene: model.paint.scene)
                 .ignoresSafeArea()
                 .accessibilityHidden(true)
+            LiveLook(session: model.capture.session, look: model.look)
             VStack(spacing: 12) {
                 StepCard(update: model.update, time: time)
+                LookChips(look: $model.look)
                 if let cue = model.cue { CueBanner(cue) }
                 Spacer()
                 // the panels keep their own solid fill; only the buttons are glass (see hudRim)
+                Readouts(update: model.update, points: model.paint.trail.total)
                 HStack(spacing: 16) {
                     CoverageDial(covered: model.update.sectors, count: model.update.directionsCovered)
                     MiniMap(surfaces: model.update.surfaces)
@@ -155,12 +159,14 @@ private struct MiniMap: View {
     }
 }
 
-/// ARKit's camera feed for a sighted helper. It shows our own session; nothing is added to the scene.
+/// ARKit's camera feed for a sighted helper, with the captured LiDAR points painted into the scene.
 private struct CameraView: UIViewRepresentable {
     let session: ARSession
+    let scene: SCNScene
     func makeUIView(context: Context) -> ARSCNView {
         let v = ARSCNView(frame: .zero)
         v.session = session
+        v.scene = scene
         v.automaticallyUpdatesLighting = false
         return v
     }
@@ -208,5 +214,47 @@ private struct Failed: View {
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Tokens.canvas.ignoresSafeArea())
+    }
+}
+
+
+/// The live numbers, scanner style: distance ahead, points captured, photos kept and blurry, walking speed (amber
+/// when too fast for sharp photos). Read as one sentence by VoiceOver.
+private struct Readouts: View {
+    let update: CaptureUpdate
+    let points: Int
+
+    var body: some View {
+        let fast = ScanSpeed.isTooFast(update.speed)
+        HStack(spacing: 0) {
+            cell("AHEAD", update.centreDistance.map { String(format: "%.1f m", $0) } ?? "–")
+            cell("POINTS", points >= 1000 ? "\(points / 1000) k" : "\(points)")
+            cell("PHOTOS", "\(update.keyframes)")
+            cell("BLURRY", "\(update.droppedBlurry)")
+            cell("SPEED", ScanSpeed.text(update.speed), warn: fast)
+        }
+        .padding(.vertical, 8)
+        .background(Color(red: 0.05, green: 0.08, blue: 0.14).opacity(0.85), in: .rect(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.25), lineWidth: 1))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(spoken(fast))
+        .accessibilityAddTraits(.updatesFrequently)
+        .accessibilityIdentifier("scan-readouts")
+    }
+
+    private func cell(_ name: String, _ value: String, warn: Bool = false) -> some View {
+        VStack(spacing: 2) {
+            Text(value).font(.system(.subheadline, design: .monospaced).weight(.bold))
+                .foregroundStyle(warn ? Color(red: 0.95, green: 0.7, blue: 0.24) : .white)
+                .minimumScaleFactor(0.7).lineLimit(1)
+            Text(name).font(.system(.caption2, design: .monospaced)).foregroundStyle(.white.opacity(0.7))
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func spoken(_ fast: Bool) -> String {
+        let ahead = update.centreDistance.map { String(format: "%.1f metres ahead", $0) } ?? "nothing in range ahead"
+        return "\(ahead), \(points) points, \(update.keyframes) photos kept, \(update.droppedBlurry) blurry"
+            + (fast ? ", walking too fast" : "")
     }
 }

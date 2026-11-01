@@ -5,6 +5,7 @@ import { MemoryFeed } from "@/components/scroll/MemoryFeed";
 import { ModelCards } from "@/components/scroll/ModelCards";
 import { RevealSection } from "@/components/scroll/RevealSection";
 import { StoryVideo } from "@/components/scroll/story/StoryVideo";
+import { CyclingQuestion } from "@/components/ui/CyclingQuestion";
 import { Devices } from "@/components/ui/Devices";
 import { ContactForm } from "@/components/ui/ContactForm";
 import { Faq } from "@/components/ui/Faq";
@@ -29,10 +30,29 @@ export default function LandingPage() {
             </span>
             <span className="block overflow-hidden pb-[0.08em]">
               <span data-line className="block text-fb-blue-dark">
-                {t.problem.line2}
+                <CyclingQuestion endings={t.problem.endings} />
               </span>
             </span>
           </h2>
+          <p data-reveal className="mt-6 text-2xl font-bold sm:text-3xl" data-promise>
+            {t.problem.promise.map((p, i) => (
+              <span key={p.word}>
+                {i > 0 && (
+                  <span aria-hidden="true" className="mx-3 text-muted">
+                    ·
+                  </span>
+                )}
+                <a
+                  href={p.href}
+                  aria-label={p.label}
+                  className="rounded underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-fb-blue-dark"
+                  style={{ color: PROMISE_COLOURS[i % PROMISE_COLOURS.length] }}
+                >
+                  {p.word}
+                </a>
+              </span>
+            ))}
+          </p>
           <ul className="mx-auto mt-10 grid max-w-3xl gap-4 text-left sm:grid-cols-3">
             {t.problem.points.map((line) => (
               <li key={line} data-reveal className="rounded-xl bg-fb-grey p-5 text-lg leading-snug text-ink">
@@ -60,9 +80,16 @@ export default function LandingPage() {
           </h2>
           <ul className="mt-10 grid gap-6 sm:grid-cols-2">
             {t.principles.items.map((p) => (
-              <li key={p.title} data-reveal className="rounded-2xl border border-fb-line p-6">
+              <li key={p.title} id={p.id} data-reveal className="principle-card scroll-mt-24 rounded-2xl border border-fb-line p-6">
                 <h3 className="text-xl font-extrabold text-fb-blue-dark">{p.title}</h3>
                 <p className="mt-2 text-lg leading-relaxed text-ink">{p.body}</p>
+                {"link" in p && p.link && (
+                  <p className="mt-3 text-lg">
+                    <a href={p.link.href} className="font-bold text-fb-blue-dark underline">
+                      {p.link.text}
+                    </a>
+                  </p>
+                )}
               </li>
             ))}
           </ul>
@@ -100,3 +127,6 @@ export default function LandingPage() {
     </>
   );
 }
+
+// the wordmark's letter colours (as in CyclingHeadline), each 4.5:1 or better on white
+const PROMISE_COLOURS = ["#3b5998", "#c2185b", "#7b2cbf"];

@@ -117,6 +117,14 @@ export const en = {
     eyebrow: "The everyday problem",
     line1: "“Where did I",
     line2: "put my keys?”",
+    // the same things the hero names; screen readers hear only the first, so the heading stays one question
+    endings: ["put my keys?”", "leave my glasses?”", "put my wallet?”", "put my passport?”", "leave my charger?”"],
+    // three true words, each a link to the card on this page that says why
+    promise: [
+      { word: "Private", href: "#private", label: "Private: why" },
+      { word: "Never guesses", href: "#never-guesses", label: "Never guesses: why" },
+      { word: "Voice-first", href: "#voice-first", label: "Voice-first: why" },
+    ],
     points: [
       "Searching by touch takes time, and moved things are easy to miss.",
       "Asking someone else every time costs a little independence.",
@@ -165,12 +173,12 @@ export const en = {
       {
         title: "Walk through once",
         body: "Walk each room once, led step by step: turn round, walk the walls about a metre away, sweep the tables and floor, end where you began. Recall says how high to hold the phone, shows what the LiDAR has covered on a neon grid of height zones, then grades the scan with tips for next time. It remembers the rooms, the furniture and where your things are, in 3D, with real distances.",
-        meta: "LiDAR + camera · about 2 minutes a room",
+        meta: "LiDAR + Meta's MapAnything & SAM 3.1 · about 2 minutes a room",
       },
       {
         title: "Ask out loud",
         body: "“Where are my keys?” Recall finds the last place it saw them and describes it the way you would: landmark first, then shelf and height.",
-        meta: "Voice in, voice out",
+        meta: "Voice in, voice out · Meta's Muse Voice Transcribe + Muse Spark Open",
       },
       {
         title: "Hear the way there",
@@ -325,7 +333,7 @@ export const en = {
         name: "iPhone",
         status: "available",
         pitch: "The whole of Recall today, by voice and without looking.",
-        points: ["Scan a room with LiDAR, led step by step by voice", "Ask out loud; hear clock-face turns with compass points", "A blue arrow over the thing on the camera, for a helper"],
+        points: ["Scan a room with LiDAR + Meta models, led step by step by voice", "Ask out loud; hear clock-face turns with compass points", "A blue arrow over the thing on the camera, for a helper"],
       },
       {
         id: "watch",
@@ -357,10 +365,10 @@ export const en = {
     eyebrow: "Accessibility & privacy",
     title: "Built to be trusted without looking.",
     items: [
-      { title: "VoiceOver first", body: "Every screen works without sight. Every control has a spoken label. Nothing depends on colour alone." },
-      { title: "Geometry decides", body: "Places, distances and times come from the 3D map. Meta's language model understands your question, picks the tools that look them up and words the answer, so it never has to guess a location. Ask why, and it tells you what the camera saw and when." },
-      { title: "Your home stays yours", body: "Your scans and memory live on your own computer (a Mac today), not on a Recall server. Delete a scan and it is erased everywhere it was kept." },
-      { title: "Honest when unsure", body: "If something has not been seen, or was seen long ago, Recall says so and suggests which room to walk through." },
+      { id: "voice-first", title: "VoiceOver first", body: "Every screen works without sight. Every control has a spoken label. Nothing depends on colour alone. Ask out loud and hear the way.", link: { text: "Try asking", href: "#ask" } },
+      { id: "never-guesses", title: "Geometry decides", body: "Places, distances and times come from the 3D map. Meta's language model understands your question, picks the tools that look them up and words the answer, so it never has to guess a location. Ask why, and it tells you what the camera saw and when." },
+      { id: "private", title: "Your home stays yours", body: "Your scans and memory live on your own computer (a Mac today), not on a Recall server. Delete a scan and it is erased everywhere it was kept.", link: { text: "What is sent where", href: "/privacy" } },
+      { id: "honest", title: "Honest when unsure", body: "If something has not been seen, or was seen long ago, Recall says so and suggests which room to walk through." },
     ],
     more: "What is sent where",
   },
@@ -372,7 +380,7 @@ export const en = {
         q: "Who is Recall for?",
         a: "Blind and low-vision people who want to find everyday things at home on their own, without asking someone or searching by touch.",
       },
-      { q: "Do I need special hardware?", a: "An iPhone with LiDAR. Apple Watch support is coming next." },
+      { q: "Do I need special hardware?", a: "An iPhone with LiDAR: the LiDAR measures, and Meta's models build the 3D map (MapAnything) and find your things in it (SAM 3.1). Apple Watch support is coming next." },
       {
         q: "Does it work with Meta AI glasses?",
         a: "Not yet. It's planned: ask through the glasses and hear the answer in their speakers. Today Recall runs on the iPhone.",

@@ -17,6 +17,48 @@ test("problem section asks the question and lists the three everyday problems", 
   for (const point of en.problem.points) await expect(page.getByText(point)).toBeAttached();
 });
 
+test("the question's ending changes to other things Recall finds", async ({ page }) => {
+  await open(page, "/");
+  const ending = page.locator("#problem-title [data-cycling-ending]");
+  await ending.scrollIntoViewIfNeeded();
+  const first = await ending.textContent();
+  expect(first).toBe(en.problem.endings[0]);
+  await expect(ending).not.toHaveText(first!, { timeout: 4000 });
+  expect(en.problem.endings).toContain(await ending.textContent());
+  // the heading's name stays one steady question
+  await expect(page.getByRole("heading", { level: 2, name: `${en.problem.line1} ${en.problem.endings[0]}` })).toBeAttached();
+});
+
+test("with reduced motion the question stays on keys", async ({ browser }) => {
+  const context = await browser.newContext({ reducedMotion: "reduce" });
+  const page = await context.newPage();
+  await prepare(page);
+  await open(page, "/");
+  const ending = page.locator("#problem-title [data-cycling-ending]");
+  await ending.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(3200);
+  await expect(ending).toHaveText(en.problem.endings[0]);
+  await context.close();
+});
+
+test("each of the three words links to the card that says why", async ({ page }) => {
+  await open(page, "/");
+  const links = page.locator("[data-promise] a");
+  await expect(links).toHaveCount(3);
+  await links.first().scrollIntoViewIfNeeded(); // the line reveals as it comes into view
+  for (const [i, p] of en.problem.promise.entries()) {
+    await expect(links.nth(i)).toHaveText(p.word);
+    await expect(links.nth(i)).toHaveAttribute("href", p.href);
+    await expect(page.getByRole("link", { name: p.label })).toBeVisible();
+    const card = en.principles.items.find((c) => `#${c.id}` === p.href);
+    expect(card, `${p.href} has a card`).toBeTruthy();
+    await expect(page.locator(p.href)).toContainText(card!.title);
+  }
+  await page.getByRole("link", { name: en.problem.promise[0].label }).click();
+  await expect(page).toHaveURL(/#private$/);
+  await expect(page.locator("#private")).toBeInViewport();
+});
+
 test.describe("How it works", () => {
   const active = (page: Page) => page.locator("#how [data-step]").evaluateAll((els) => els.map((el) => (el as HTMLElement).dataset.active === "true"));
 

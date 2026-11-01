@@ -49,6 +49,19 @@ body {
   border-radius: 4px;
 }
 
+/* A principle card reached from the problem section's words: a steady blue edge (kept with reduced motion), plus a
+   short glow that the reduced-motion rules below switch off. */
+.principle-card:target {
+  border-color: var(--color-fb-blue);
+  box-shadow: 0 0 0 3px var(--color-fb-blue-pale);
+  animation: card-arrive 1.4s ease-out;
+}
+@keyframes card-arrive {
+  from {
+    box-shadow: 0 0 0 10px var(--color-fb-blue-pale);
+  }
+}
+
 /* Reduced motion: either the OS setting or the site toggle (data-reduce-motion on <html>). */
 @media (prefers-reduced-motion: reduce) {
   html {
@@ -100,6 +113,10 @@ html[data-contrast="high"] [data-site-nav] {
 }
 html[data-contrast="high"] a {
   text-decoration: underline;
+}
+/* the problem section's three words carry the wordmark's colours inline; in high contrast they are plain yellow */
+html[data-contrast="high"] [data-promise] a {
+  color: var(--color-fb-blue) !important;
 }
 html[data-contrast="high"] :focus-visible {
   outline-width: 4px;

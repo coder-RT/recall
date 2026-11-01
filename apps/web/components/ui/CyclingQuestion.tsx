@@ -34,7 +34,7 @@ export function CyclingQuestion({ endings }: { endings: string[] }) {
   return (
     <>
       <span className="sr-only">{endings[0]}</span>
-      <span ref={ref} aria-hidden="true" className="relative inline-grid align-baseline">
+      <span ref={ref} aria-hidden="true" className="relative grid max-w-full [overflow-wrap:anywhere]">
         {/* the longest ending holds the width, so the heading never jumps */}
         <span className="invisible col-start-1 row-start-1">{endings.reduce((a, b) => (b.length > a.length ? b : a))}</span>
         <AnimatePresence mode="wait" initial={false}>

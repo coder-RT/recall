@@ -34,11 +34,11 @@ export default function LandingPage() {
               </span>
             </span>
           </h2>
-          <p data-reveal className="mt-6 text-2xl font-bold sm:text-3xl" data-promise>
+          <p data-reveal className="mt-6 flex flex-wrap justify-center gap-x-3 text-2xl font-bold [overflow-wrap:anywhere] sm:text-3xl" data-promise>
             {t.problem.promise.map((p, i) => (
-              <span key={p.word}>
+              <span key={p.word} className="min-w-0">
                 {i > 0 && (
-                  <span aria-hidden="true" className="mx-3 text-muted">
+                  <span aria-hidden="true" className="mr-3 text-muted">
                     ·
                   </span>
                 )}

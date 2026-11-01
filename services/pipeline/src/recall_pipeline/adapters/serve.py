@@ -24,11 +24,23 @@ from recall_pipeline.adapters.run import ROOT, _env
 log = logging.getLogger("recall_pipeline.serve")
 
 
+def free_gpu_cache() -> None:
+    """Return the Apple GPU's cached memory, only where there is one. `torch.mps.empty_cache()` on a machine without
+    MPS can kill the process with a signal, which no `try` catches, so the check comes first."""
+    try:
+        import torch
+    except ImportError:
+        return
+    if torch.backends.mps.is_available():
+        torch.mps.empty_cache()
+
+
 class WarmModel:
     """The loaded reconstructor, loaded on first use and dropped after `idle` seconds without a job."""
 
-    def __init__(self, load, idle: float) -> None:
+    def __init__(self, load, idle: float, free_cache=None) -> None:
         self._load, self.idle = load, idle
+        self._free_cache = free_cache or free_gpu_cache
         self._model = None
         self._used = time.monotonic()
         self._lock = threading.Lock()
@@ -55,10 +67,7 @@ class WarmModel:
                 return False
             self._model = None
         gc.collect()
-        with contextlib.suppress(Exception):
-            import torch
-
-            torch.mps.empty_cache()
+        self._free_cache()
         log.info("model unloaded after %.0f min idle", self.idle / 60)
         return True
 

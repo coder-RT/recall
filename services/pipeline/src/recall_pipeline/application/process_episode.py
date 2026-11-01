@@ -7,6 +7,7 @@ import time
 from collections import defaultdict
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
+from typing import NamedTuple
 
 import numpy as np
 
@@ -24,6 +25,17 @@ from recall_pipeline.domain.lift import lift_box
 from recall_pipeline.domain.merge import ObjectCluster, Piece, merge, merge_objects
 
 log = logging.getLogger("recall_pipeline")
+
+
+class Sighting(NamedTuple):
+    """One SAM box lifted into 3D: where, how sure, in which view, its points, its colour and its box in the photo."""
+
+    center: np.ndarray  # median of its points, home frame
+    score: float
+    frame: int  # the view's keyframe index
+    points: np.ndarray
+    color: str | None
+    box: tuple
 
 
 @dataclass
@@ -125,7 +137,7 @@ def process_episode(
     debug.points("cloud", home_cloud)
 
     # SAM 3.1 boxes on a subset of views, lifted to 3D with depth + pose
-    sightings: dict[str, list[tuple[np.ndarray, float, int, np.ndarray, str | None, tuple]]] = defaultdict(list)
+    sightings: dict[str, list[Sighting]] = defaultdict(list)
     sam_views = [v for v in views if v.index in pending] or views[:: cfg.sam_every]
     calls = 0
     for n, v in enumerate(sam_views, 1):
@@ -149,7 +161,7 @@ def process_episode(
                     continue
                 pts = home_frame.apply(T, lifted.points)
                 color = dominant_color(rgb, b.box) if concept in cfg.objects else None
-                sightings[concept].append((np.median(pts, axis=0), b.score, v.index, pts, color, b.box))
+                sightings[concept].append(Sighting(np.median(pts, axis=0), b.score, v.index, pts, color, b.box))
         log.info("SAM view %d/%d done, %d sightings so far", n, len(sam_views), sum(map(len, sightings.values())))
     pool.shutdown()
     t_sam = time.perf_counter() - t1  # wall time from the first SAM call, which overlaps the reconstruction
@@ -159,37 +171,41 @@ def process_episode(
     pieces: list[Piece] = []
     n_clusters = 0
     for label, seen in sightings.items():
-        centers = np.array([c for c, *_ in seen])
+        centers = np.array([s.center for s in seen])
         labels = geo.clusters(centers, cfg.cluster_eps, cfg.cluster_min) if len(centers) > 1 else np.zeros(1, int)
         clusters = [[seen[i] for i in np.flatnonzero(labels == k)] for k in sorted(set(labels.tolist()) - {-1})]
         if label not in cfg.furniture:
             # a loop walk's repeat sightings of one thing, a little apart after drift, become one
             n_clusters += len(clusters)
             parts = [
-                ObjectCluster(np.median([m[0] for m in c], axis=0), vote([(m[4], m[1]) for m in c]), {m[2] for m in c})
+                ObjectCluster(
+                    np.median([m.center for m in c], axis=0),
+                    vote([(m.color, m.score) for m in c]),
+                    {m.frame for m in c},
+                )
                 for c in clusters
             ]
-            clusters = [sum((clusters[i] for i in g), []) for g in merge_objects(parts, cfg.object_merge_m)]
+            clusters = [[m for i in g for m in clusters[i]] for g in merge_objects(parts, cfg.object_merge_m)]
         for members in clusters:
-            pts = np.concatenate([m[3] for m in members])
+            pts = np.concatenate([m.points for m in members])
             lo, hi = np.percentile(pts, 5, axis=0), np.percentile(pts, 95, axis=0)
-            best = max(members, key=lambda m: m[1])
-            score = float(np.mean([m[1] for m in members]))
+            best = max(members, key=lambda m: m.score)
+            score = float(np.mean([m.score for m in members]))
             if label in cfg.furniture:
-                pieces.append(Piece(label, lo, hi, score, len(members), int(best[2]), pts))
+                pieces.append(Piece(label, lo, hi, score, len(members), best.frame, pts))
                 continue
             things["objects"].append(
                 {
                     "label": label,
-                    "centroid": np.round(np.median([m[0] for m in members], axis=0), 3).tolist(),
+                    "centroid": np.round(np.median([m.center for m in members], axis=0), 3).tolist(),
                     "bbox_min": np.round(lo, 3).tolist(),
                     "bbox_max": np.round(hi, 3).tolist(),
                     "size_m": np.round(hi - lo, 3).tolist(),
                     "confidence": round(score, 3),
                     "sightings": len(members),
-                    "keyframe_index": int(best[2]),
-                    "box": [round(float(v), 1) for v in best[5]],
-                    "color": vote([(m[4], m[1]) for m in members]),
+                    "keyframe_index": best.frame,
+                    "box": [round(float(v), 1) for v in best.box],
+                    "color": vote([(m.color, m.score) for m in members]),
                 }
             )
 

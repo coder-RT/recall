@@ -581,6 +581,24 @@ class RobotExport(BaseModel):
     room_model: RoomModel
 
 
+class Label(BaseModel):
+    object_id: str
+    title: Annotated[str, Field(description="e.g. grey bag, or the owner's own name for it")]
+    place: Annotated[str, Field(description="e.g. near the desk, at knee height")]
+    confidence: float
+    photos: int | None = None
+    trusted: bool
+    needs_review: bool
+    position_arkit: Annotated[list[float], Field(max_length=3, min_length=3)]
+
+
+class ArLabels(BaseModel):
+    scan_id: Annotated[str, Field(description="The scan whose room map the positions are in")]
+    room: str
+    floor_y_arkit: Annotated[float | None, Field(description="The floor's height in that ARKit frame, metres")] = None
+    labels: list[Label]
+
+
 class Leg(BaseModel):
     bearing_deg: Annotated[float, Field(description="Magnetic bearing, clockwise from north", ge=0.0, le=360.0)]
     metres: Annotated[float, Field(ge=0.0)]

@@ -109,3 +109,25 @@ robot_package:
         content:
           application/json:
             schema: {$ref: ../schemas/Error.yaml}
+ar_labels:
+  get:
+    tags: [homes]
+    operationId: getArLabels
+    summary: Everything Recall found in a room, placed in that room's saved AR map (for labels over the camera)
+    description: >
+      Positions are in the ARKit frame of the room's newest processed scan (scan_id): the phone relocalises in that
+      scan's room map, then draws one label per thing. trusted and needs_review follow the owner's trust level.
+    parameters:
+      - $ref: ../schemas/Params.yaml#/home_id
+      - name: room
+        in: query
+        required: true
+        schema: {type: string, minLength: 1, maxLength: 60}
+    responses:
+      "200":
+        description: The labels
+        content:
+          application/json:
+            schema: {$ref: ../schemas/ArLabels.yaml}
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound

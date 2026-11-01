@@ -74,6 +74,8 @@ paths:
     $ref: paths/answers.yaml#/crop
   /homes/{home_id}/room-map:
     $ref: paths/homes.yaml#/room_map
+  /homes/{home_id}/ar-labels:
+    $ref: paths/homes.yaml#/ar_labels
   /homes/{home_id}/robot-package:
     $ref: paths/homes.yaml#/robot_package
   /homes/{home_id}/robot-export:

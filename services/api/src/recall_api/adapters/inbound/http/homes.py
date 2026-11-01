@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 
+from recall_api.application.ar_labels import NoRoomScan
 from recall_api.application.correct_object import CorrectionError, CorrectionInput
 from recall_api.application.export_for_robot import RobotExportError
 from recall_api.application.list_things import NoSuchHome, ThingView
@@ -11,7 +12,7 @@ from recall_api.application.plan_compass_route import CompassRouteError
 from recall_api.domain.memory import Home, Trust
 
 from .deps import container, require_device_key
-from .models import CompassRoute, ObjectCorrection, ObjectLocation, RobotExport, RoomModel, TrustUpdate
+from .models import ArLabels, CompassRoute, ObjectCorrection, ObjectLocation, RobotExport, RoomModel, TrustUpdate
 from .models import Trust as TrustLevel
 from .robots import export_document
 
@@ -127,3 +128,14 @@ def get_compass_route(home_id: str, object_id: str, c=Depends(container)) -> Com
     except CompassRouteError as e:
         raise HTTPException(e.status, {"error": e.code, "detail": str(e)}) from e
     return CompassRoute(object_id=r.object_id, label=r.label, color=r.color, start=r.start, place=r.place, legs=r.legs)
+
+
+@router.get("/homes/{home_id}/ar-labels", response_model=ArLabels)
+def get_ar_labels(home_id: str, room: str, c=Depends(container)) -> ArLabels:
+    _home(c, home_id)
+    try:
+        r = c.ar_labels(home_id, room)
+    except NoRoomScan as e:
+        raise HTTPException(404, {"error": "not_found", "detail": f"No processed scan of {room} yet."}) from e
+    return ArLabels(scan_id=r.scan_id, room=r.room, floor_y_arkit=r.floor_y_arkit,
+                    labels=[vars(x) | {"position_arkit": list(x.position_arkit)} for x in r.labels])  # fmt: skip

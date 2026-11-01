@@ -1,0 +1,20 @@
+type: object
+required: [scan_id, room, labels]
+properties:
+  scan_id: {type: string, description: "The scan whose room map the positions are in"}
+  room: {type: string}
+  floor_y_arkit: {type: [number, "null"], description: "The floor's height in that ARKit frame, metres"}
+  labels:
+    type: array
+    items:
+      type: object
+      required: [object_id, title, place, confidence, trusted, needs_review, position_arkit]
+      properties:
+        object_id: {type: string}
+        title: {type: string, description: "e.g. grey bag, or the owner's own name for it"}
+        place: {type: string, description: "e.g. near the desk, at knee height"}
+        confidence: {type: number}
+        photos: {type: [integer, "null"]}
+        trusted: {type: boolean}
+        needs_review: {type: boolean}
+        position_arkit: {type: array, items: {type: number}, minItems: 3, maxItems: 3}

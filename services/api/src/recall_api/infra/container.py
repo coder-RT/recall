@@ -24,6 +24,7 @@ from recall_api.adapters.outbound.vision.sam31_meta_api import Sam31MetaApi
 from recall_api.adapters.outbound.vision.spark_vision_meta_api import SparkVisionMetaApi
 from recall_api.adapters.outbound.voice.muse_transcribe import MuseTranscriber
 from recall_api.application.answer_external_query import AnswerExternalQuery
+from recall_api.application.ar_labels import ArLabelsInRoom
 from recall_api.application.ask_where_is import AskWhereIs
 from recall_api.application.audit import Auditor
 from recall_api.application.correct_object import CorrectObject
@@ -114,6 +115,10 @@ class Container:
     @cached_property
     def guidance(self) -> PlanGuidance:
         return PlanGuidance(self.homes, self.scans, self.objects, self.blobs, new_id, trust=self.trust)
+
+    @cached_property
+    def ar_labels(self) -> ArLabelsInRoom:
+        return ArLabelsInRoom(self.list_things, self.scans)
 
     @cached_property
     def compass_route(self) -> PlanCompassRoute:

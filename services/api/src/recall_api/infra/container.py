@@ -32,6 +32,7 @@ from recall_api.application.explain_answer import ExplainAnswer
 from recall_api.application.export_for_robot import ExportForRobot
 from recall_api.application.ingest_scan import IngestScan
 from recall_api.application.list_things import ListThings
+from recall_api.application.plan_compass_route import PlanCompassRoute
 from recall_api.application.plan_guidance import PlanGuidance
 from recall_api.application.robot_access import RobotAccess
 from recall_api.application.tools import Tools
@@ -113,6 +114,10 @@ class Container:
     @cached_property
     def guidance(self) -> PlanGuidance:
         return PlanGuidance(self.homes, self.scans, self.objects, self.blobs, new_id, trust=self.trust)
+
+    @cached_property
+    def compass_route(self) -> PlanCompassRoute:
+        return PlanCompassRoute(self.homes, self.scans, self.objects, self.blobs, trust=self.trust)
 
     @cached_property
     def owner_settings(self) -> SqliteOwnerSettings:

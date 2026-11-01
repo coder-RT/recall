@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
 from typing import Any
 
@@ -12,7 +11,7 @@ from recall_api.application import scan_geometry
 from recall_api.application.ports import BlobStore
 from recall_api.application.trust import TrustPolicy
 from recall_api.domain.memory import Scan
-from recall_api.domain.navigation import FloorGrid, NavConfig, NoSafePath, plan, simplify, to_clock_steps
+from recall_api.domain.navigation import FloorGrid, NavConfig, NoSafePath, bearing, plan, simplify, to_clock_steps
 from recall_api.domain.ports import HomeRepository, ScanRepository, TrackedObjectRepository
 from recall_api.domain.spatial import relate
 
@@ -41,7 +40,7 @@ def _bearing(room, x: float, y: float) -> float | None:
     cy = sum(p[1] for p in room.floor_polygon) / len(room.floor_polygon)
     if abs(x - cx) + abs(y - cy) < 1e-6:
         return None
-    return round((math.degrees(math.atan2(x - cx, y - cy)) - room.north_deg) % 360, 1)
+    return bearing(x - cx, y - cy, room.north_deg)
 
 
 class PlanGuidance:

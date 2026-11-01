@@ -84,6 +84,8 @@ paths:
     $ref: paths/a2a.yaml#/home_memory_card
   /homes/{home_id}/objects/{object_id}:
     $ref: paths/objects.yaml#/object
+  /homes/{home_id}/objects/{object_id}/compass-route:
+    $ref: paths/objects.yaml#/compass_route
   /ask:
     $ref: paths/ask.yaml#/ask
   /guidance/sessions:

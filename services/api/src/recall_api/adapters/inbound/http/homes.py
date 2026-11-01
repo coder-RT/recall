@@ -7,10 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from recall_api.application.correct_object import CorrectionError, CorrectionInput
 from recall_api.application.export_for_robot import RobotExportError
 from recall_api.application.list_things import NoSuchHome, ThingView
+from recall_api.application.plan_compass_route import CompassRouteError
 from recall_api.domain.memory import Home, Trust
 
 from .deps import container, require_device_key
-from .models import ObjectCorrection, ObjectLocation, RobotExport, RoomModel, TrustUpdate
+from .models import CompassRoute, ObjectCorrection, ObjectLocation, RobotExport, RoomModel, TrustUpdate
 from .models import Trust as TrustLevel
 from .robots import export_document
 
@@ -117,3 +118,12 @@ def get_trust(c=Depends(container)) -> TrustLevel:
 def set_trust(body: TrustUpdate, c=Depends(container)) -> TrustLevel:
     level = c.trust.set(Trust(body.level.value))
     return TrustLevel(level=level.value, min_photos=level.min_photos)
+
+
+@router.get("/homes/{home_id}/objects/{object_id}/compass-route", response_model=CompassRoute)
+def get_compass_route(home_id: str, object_id: str, c=Depends(container)) -> CompassRoute:
+    try:
+        r = c.compass_route(home_id, object_id)
+    except CompassRouteError as e:
+        raise HTTPException(e.status, {"error": e.code, "detail": str(e)}) from e
+    return CompassRoute(object_id=r.object_id, label=r.label, color=r.color, start=r.start, place=r.place, legs=r.legs)

@@ -111,3 +111,21 @@ def _say_m(m: float) -> str:
     if m < 1:
         return f"{int(round(m * 10)) * 10} centimetres"
     return f"{m:.1f} metres".replace(".0 metres", " metres")
+
+
+def bearing(dx: float, dy: float, north_deg: float) -> float:
+    """The magnetic compass bearing (clockwise from north, 0 to 360) of a direction (dx, dy) in the home frame, where
+    `north_deg` is magnetic north measured clockwise from the home frame's +y."""
+    return round((math.degrees(math.atan2(dx, dy)) - north_deg) % 360, 1)
+
+
+def compass_legs(waypoints: list[tuple[float, float]], north_deg: float) -> list[dict]:
+    """A simplified path as legs to walk: a bearing and metres each, very short legs folded into the next."""
+    legs: list[dict] = []
+    for (x0, y0), (x1, y1) in zip(waypoints, waypoints[1:], strict=False):
+        dx, dy = x1 - x0, y1 - y0
+        metres = math.hypot(dx, dy)
+        if metres < 0.2:
+            continue
+        legs.append({"bearing_deg": bearing(dx, dy, north_deg), "metres": round(metres, 1)})
+    return legs

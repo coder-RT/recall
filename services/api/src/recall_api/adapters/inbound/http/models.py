@@ -581,6 +581,22 @@ class RobotExport(BaseModel):
     room_model: RoomModel
 
 
+class Leg(BaseModel):
+    bearing_deg: Annotated[float, Field(description="Magnetic bearing, clockwise from north", ge=0.0, le=360.0)]
+    metres: Annotated[float, Field(ge=0.0)]
+
+
+class CompassRoute(BaseModel):
+    object_id: str
+    label: Annotated[str, Field(description="e.g. keys")]
+    color: str | None = None
+    start: Annotated[
+        str, Field(description="Where to stand first, in words, e.g. where you started the scan of Living room")
+    ]
+    place: Annotated[str, Field(description="Where the thing is, in words, e.g. near the desk, at knee height")]
+    legs: Annotated[list[Leg], Field(min_length=1)]
+
+
 class AskRequest(BaseModel):
     home_id: Annotated[str, Field(pattern="^[a-z0-9-]{1,64}$")]
     question: Annotated[str, Field(max_length=300, min_length=1)]

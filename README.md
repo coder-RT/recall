@@ -4,7 +4,8 @@
 
 <h1 align="center">RECALL</h1>
 
-<p align="center"><strong>Recall remembers where you put things, and walks you back to them.</strong></p>
+<p align="center"><strong>Recall remembers where you put things, and walks you back to them.</strong><br>
+Built first for blind and low-vision people, useful to anyone who misplaces things.</p>
 
 <p align="center"><strong>LiDAR + Meta models:</strong> the iPhone's LiDAR measures, Meta's MapAnything builds the 3D map,
 SAM 3.1 finds your things in it, and Muse Voice Transcribe + Muse Spark Open hear the question and answer it.<br>
@@ -39,6 +40,7 @@ Indie track · Theme: <strong>Build for Your World</strong></p>
   <img src="https://img.shields.io/badge/Muse_Spark_Open-Meta_model-0467df?logo=meta&logoColor=white" alt="Muse Spark Open">
   <img src="https://img.shields.io/badge/Muse_Glimmer-Meta_model-0467df?logo=meta&logoColor=white" alt="Muse Glimmer">
   <img src="https://img.shields.io/badge/Muse_Voice_Transcribe-Meta_model-0467df?logo=meta&logoColor=white" alt="Muse Voice Transcribe">
+  <img src="https://img.shields.io/badge/Baseten-serves_Muse_Spark_Open-1f2937" alt="Baseten: serves Muse Spark Open">
 </p>
 
 <p align="center">
@@ -71,7 +73,7 @@ Indie track · Theme: <strong>Build for Your World</strong></p>
 
 | Criterion | Where to look |
 |---|---|
-| **Impact** (30 %) | [Why I built it](#why-i-built-it): a true story · [What it is](#what-it-is): for blind and low-vision people, voice first · [Privacy](docs/privacy.md): the home stays on your own computer · the [tester session plan](evals/usability/) |
+| **Impact** (30 %) | [Why I built it](#why-i-built-it): a true story · [What it is](#what-it-is): built first for blind and low-vision people, for anyone who misplaces things, voice first · [Privacy](docs/privacy.md): the home stays on your own computer · the [tester session plan](evals/usability/) |
 | **Use of Meta AI tooling** (25 %) | [Only Meta models, each with one job](#how-it-works-the-meta-models): MapAnything, SAM 3.1, Muse Spark Open (Muse Glimmer on your own Mac), Muse Voice Transcribe, Muse Spark 1.1 · [Recall's three agents](#recalls-three-agents) · [Sharing with robots](#sharing-with-robots) over A2A |
 | **Demo** (25 %) | The screenshots below are real output · `make demo` replays a real run with no keys · [How to run it](#how-to-run-it) |
 | **Technical depth** (20 %) | [Architecture](docs/architecture.md) · [28 decisions](docs/decisions.md) · [Guardrails](#guardrails): geometry decides the facts, the model only phrases them · [Algorithms](#algorithms) · tests on every part ([Results so far](#results-so-far)) |
@@ -131,7 +133,7 @@ floor, furniture and walls as cells, and the things as dots: no photos of the ho
   </tr>
 </table>
 
-![The landing page hero](docs/media/hero.png)
+![The landing page: "Find your keys", RECALL in Braille, built first for blind and low-vision people and useful to anyone who forgets where they put things, the Ask Recall card, and Try the demo · Actual scan](docs/media/hero.png)
 
 ## What it is
 
@@ -220,7 +222,8 @@ evals/        questions, usability plan
 
 ## Why I built it
 
-- The question "where did I put my keys?" is asked in every home, and for someone who is blind or has low vision it can end a morning.
+- I lose things too: keys, glasses, the charger. For me it's a few minutes of searching. For someone who is blind or has low vision it can mean searching by touch, or asking for help, every day.
+- So Recall is designed for the hardest case first: no screen needed, voice in and out, directions you can follow with your eyes closed. Built that way, it's simply quicker for everyone (the curb-cut effect).
 - A home barely changes; what moves are the small things. That calls for a memory of the space, not a smarter camera.
 - The pieces now exist as open Meta models: metric 3D from photos (MapAnything), find anything by name (SAM 3.1), a language model that can call tools and phrase a short spoken answer (Muse Spark Open / Glimmer).
 - I wanted the result measured on real objects in a real flat, with the numbers published, rather than demonstrated on slides.
@@ -570,7 +573,8 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
 - **Cost, measured:** a room scan is **456** SAM 3.1 calls and **48 MB** on disk; a question is **2** Muse Spark Open calls, about **2,460 + 261 tokens**.
 - **Flat surfaces:** the geometry-only detector found **12 level patches** in the room; the two largest sit at the heights of the two measured desks.
 - **Viewer:** about 150k points, the gather animation, photo and confidence colouring, and the floor grid, height bands and surfaces as layers, on a phone and a laptop.
-- **Tests:** API 142, pipeline 45 (including a synthetic room run through the whole pipeline), website 164 (accessibility with axe, WCAG 2.2 AA, reduced motion, no-JavaScript, and keyboard-only and 200 % text usability); on the iPhone, 123 unit tests and 27 UI tests: accessibility audits and usability tasks done with VoiceOver labels at default and largest text.
+- **Tests (2 November):** API 202 (including Schemathesis against the spec), pipeline 59 (including a synthetic room run through the whole pipeline), website 190 (accessibility with axe, WCAG 2.2 AA, reduced motion, no-JavaScript, keyboard-only and 200 % text usability, security headers); on the iPhone, 182 unit tests and 31 UI tests: accessibility audits and usability tasks done with VoiceOver labels at default and largest text; the Watch app builds.
+- **Usability, honestly:** the checks above are automated. In person, the author's screen-off run (VoiceOver Screen Curtain: the screen stays black) is planned, and a session with blind and low-vision testers is planned; its plan is ready in `evals/usability/`.
 
 **Planned evaluation:** median position error against hand-measured positions, questions answered correctly, Verifier precision, and time to find an object by touch versus with Recall, scored without AI; the dated table will live in `evals/results.md`. The session plan for a blind or low-vision tester is in `evals/usability/`.
 
@@ -694,12 +698,12 @@ Watch app all run.
 
 Planned next, not built or not working yet (updated before submission; removed if everything works):
 
-- The Apple Watch app (taps and Digital Crown repeat) and Meta AI glasses.
-- The ROS 2 robot example skill (in progress).
+- The Apple Watch app on a real Ultra 4 (built and unit-tested, in preview) and Meta AI glasses (planned).
+- A physical robot running the ROS 2 example (the example and the robot package are in the repo).
 - The tape-measured 20 cm accuracy check with the phone's depth and poses.
 - Quantitative evaluations and the Verifier precision figure.
-- The usability session with a blind or low-vision tester (plan ready in `evals/usability/`).
-- Daily spend caps on model calls (today only the website's voice route is rate-limited).
+- The usability session with blind and low-vision testers (plan ready in `evals/usability/`), and the author's screen-off run.
+- Daily spend caps on model calls (the API and the website's voice route are rate-limited per key or visitor; there is no daily cap yet).
 - The 3-minute demo video.
 
 ## Contributing

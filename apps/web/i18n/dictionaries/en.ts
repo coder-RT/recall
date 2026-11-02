@@ -45,7 +45,7 @@ export const en = {
     tagline: "Recall remembers where you put things, and walks you back to them.",
     brailleCaption: "RECALL in Braille",
     capitalsNote: "(the first two cells mean all capitals)",
-    intro: "For blind and low-vision people. Walk through your home once with an iPhone, then ask “where are my keys?” and hear the way there.",
+    intro: "Built first for blind and low-vision people, and useful to anyone who forgets where they put things. Walk through your home once with an iPhone, then ask “where are my keys?” and hear the way there.",
     seeHow: "See how it works",
     seeScan: "See a real room, scanned",
     actualScan: "Actual scan",
@@ -418,9 +418,9 @@ export const en = {
     items: [
       {
         q: "Who is Recall for?",
-        a: "Blind and low-vision people who want to find everyday things at home on their own, without asking someone or searching by touch.",
+        a: "Anyone who loses track of everyday things at home, and above all blind and low-vision people, for whom searching by touch or asking for help costs the most. Recall is designed for them first: every step works by voice, without looking. That is also why it is quick for everyone else.",
       },
-      { q: "Do I need special hardware?", a: "An iPhone with LiDAR: the LiDAR measures, and Meta's models build the 3D map (MapAnything) and find your things in it (SAM 3.1). Apple Watch support is coming next." },
+      { q: "Do I need special hardware?", a: "An iPhone with LiDAR: the LiDAR measures, and Meta's models build the 3D map (MapAnything) and find your things in it (SAM 3.1). The Apple Watch Ultra 4 app is in preview." },
       {
         q: "Does it work with Meta AI glasses?",
         a: "Not yet. It's planned: ask through the glasses and hear the answer in their speakers. Today Recall runs on the iPhone.",

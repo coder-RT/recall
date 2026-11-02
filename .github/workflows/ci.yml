@@ -40,6 +40,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
+      # Open3D's Linux wheel loads the system's EGL and OpenGL libraries even when nothing is drawn
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libegl1 libgl1 libgomp1
       - run: uvx ruff check . && uvx ruff format --check .
       - run: >-
           uv run --no-project --python 3.12 --with numpy --with scipy --with shapely --with pytest --with httpx

@@ -500,7 +500,7 @@ export const en = {
     kept: [
       "On your Mac: every scan you upload (photos, LiDAR depth, the phone's path through the room), the 3D map, the things and furniture found, your own names and notes for things, and the activity log.",
       "On your iPhone: your scans until you delete them, the room map used to find your way, and the Mac's address. The device key is in the iPhone's Keychain.",
-      "Between them: your home network, or an encrypted tunnel you set up yourself (Tailscale or Cloudflare Tunnel). Every request needs the device key.",
+      "Between them: your home network, or an encrypted tunnel you set up yourself (Tailscale or Cloudflare Tunnel). Every request needs the device key. While Recall finds the room, about one camera photo a second goes to your Mac (only there), to be matched against your scans; it is not stored.",
     ],
     sentTitle: "What leaves your Mac, to whom, and when",
     sentLabels: { to: "To", when: "When" },

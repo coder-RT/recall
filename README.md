@@ -429,6 +429,7 @@ routes match it. While `make demo` or `make live` runs, **Swagger UI** is at `ht
 | `DELETE /scans/{scan_id}` | Erase a scan from your computer, with what only it found |
 | `GET /homes/{home_id}/objects`, `GET /homes/{home_id}/room`, `GET /homes/{home_id}/room-map` | What Recall found, the room model, and each room's map for Find |
 | `POST /guidance/sessions`, `POST /guidance/sessions/{session_id}/verify` | Directions, and the arrival check |
+| `POST /homes/{home_id}/locate` | Where am I? One camera photo matched against the room scans: the room, the pose, what to point at |
 | `GET /privacy`, `GET /audit` | What is sent where right now; who did what |
 | `GET /homes/{home_id}/robot-export`, `/a2a/home-memory` | For robots: the Nav2 map, and the Home Memory agent ([Agent Card](services/api/resources/agents/home-memory.card.json)) |
 
@@ -451,6 +452,15 @@ Every route except `/health` needs a key: the owner's device key, or a robot's o
   4. *Not found is a fixed sentence,* never the model's: "I haven't seen that yet."
   5. *Tested:* `tests/unit/test_grounding.py` (an invented place or number is caught) and `tests/unit/test_ask_where_is.py` (an invented place is corrected, then replaced by the tool facts; a place with no sighting behind it is never said).
 - **Every answer is traceable.** Sightings are append-only. Every answer is logged with its model and tool steps and the sightings it rests on, and **Why?** on the phone (or `GET /answers/{answer_id}/evidence`, or asking the Guide "why?") leads back to the camera's view, the scan and the models that made it. An answer that names a place with no sighting behind it is never said.
+- **Recognising the room from anywhere, never on one photo's word.** ARKit's own match of the saved room map is
+  the main signal. While it hasn't matched, the phone sends about one photo a second to the Mac, which matches it
+  against every room's scan photos with classic ORB features, the scan's own LiDAR depth and PnP (OpenCV, no model;
+  `adapters/outbound/vision/orb_place_matcher.py`). The phone uses a photo pose only when **two fixes in a row agree**
+  within 25 cm and 10°, and ARKit's own match replaces it the moment it comes. The Mac also says which room the photo
+  shows ("You seem to be in Bedroom, not Living room") and what to point at ("the TV"). Each time ARKit recognises
+  the room, the map it grew is kept on the phone, so the next visit matches from there too. Measured on the real
+  living-room scans: held-out photos 1.2 cm median error; photos from other sessions fix 59% of the time, 89% of
+  them right; 22 to 35 ms per match ([evals/results.md](evals/results.md)).
 - **The Verifier can only downgrade.** The vision model may turn a result into "uncertain"; only SAM plus geometry can confirm.
 - **Two checks on the door.** A robot or outside app can send only one object name (letters, digits, spaces and hyphens, at most 40 characters, `services/api/resources/agents/find-object.input.schema.json`); free text is refused and never reaches a model or a tool. Then Muse Spark Open (or Glimmer) must answer `{"verdict": "safe", ...}` in strict JSON; anything else, a timeout or "injection" refuses. Measured: 21 ordinary names allowed, 18 instruction-like names refused, none wrong.
 - **Privacy and security.** See [Security and privacy](#security-and-privacy): what stays on the Mac, what is sent where, and how the home's memory is protected.
@@ -553,7 +563,9 @@ erDiagram
 - **Indexes:** scans, landmarks, objects and rejections by home; observations and set-asides by object; audit events
   by time and by action; the answer log by home and time.
 - **The job queue** is a separate SQLite file (`data/jobs.db`, Huey) that holds only queued scan jobs.
-- **Not in SQL:** the scan files (`data/blobs` on the Mac, or Cloudflare R2). On the iPhone there is no database:
+- **Not in SQL:** the scan files (`data/blobs` on the Mac, or Cloudflare R2), and each scan's `place_index.npz` beside
+  them (ORB descriptors of the keyframes and their 3D points, for the photo matcher; built by the pipeline, or
+  `make place-index`). On the iPhone there is no database:
   scans are folders in Application Support, the device key is in the Keychain, and the Mac's address is in
   UserDefaults.
 

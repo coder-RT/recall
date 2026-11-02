@@ -15,7 +15,8 @@ nobody else holds your scans or your memory. Some steps use **Meta's models onli
 - **On your iPhone**: your scans until you delete them, the room map used to find your way, and the Mac's address.
   The device key is in the iPhone's Keychain.
 - Between them: your home network, or an encrypted tunnel you set up yourself (Tailscale or Cloudflare Tunnel). Every
-  request needs the device key.
+  request needs the device key. While Recall finds the room, about one camera photo a second goes to your Mac (only
+  there), to be matched against your scans; it is not stored.
 
 ## What leaves your Mac, to whom, and when
 

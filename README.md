@@ -192,7 +192,7 @@ services/
   api/        FastAPI: domain/ → application/ → adapters/ + infra/ ; resources/ = the OpenAPI spec (source of truth)
   pipeline/   the scan pipeline, same layers: MapAnything, SAM 3.1, planes, merging, the room model
 docs/         architecture, privacy, verification, Meta Muse (docs/muse.md)
-evals/        questions, usability plan
+evals/        questions, usability plan, results and the replay scripts
 ```
 
 - **Hexagonal (ports and adapters) in every service**: domain ← application ← adapters and infra.
@@ -378,14 +378,18 @@ runs its software or its models; every model Recall itself calls is a Meta model
 1. The phone sends a spoken question to the Mac, and Muse Voice Transcribe turns it into text (typed questions skip this).
 2. The phone says what it is looking for at once ("Looking for your keys.").
 3. The Guide calls `find_object`, which returns each match with its room, landmark, relation ("on the desk"), shelf level, height band and when it was seen; one call usually answers. The answer is logged with the sightings behind it, and **Why?** reads them out.
-4. **Take me there**: `localize` from the phone's ARKit pose, `plan_route` over an occupancy grid, clock-face steps spoken as you walk.
+4. **Take me there**: the phone recognises the room (ARKit's match of the saved room map, helped by a photo match on
+   the Mac about once a second, trusted only when two fixes agree, and spoken hints such as "point the phone at the
+   TV"; landmark directions if neither matches), then `localize` from the phone's pose, `plan_route` over an
+   occupancy grid, clock-face steps spoken as you walk.
 5. On arrival the Verifier checks the camera frame; if the thing is nearby, memory moves it.
 
 **OS and browser features (not model calls)**
 
 | Feature | Used for | Where |
 |---|---|---|
-| LiDAR depth, ARKit tracking, ARWorldMap | Capture in metres; relocalisation for live guidance | iPhone |
+| LiDAR depth, ARKit tracking, ARWorldMap | Capture in metres; relocalisation for live guidance; the map grows on each visit | iPhone |
+| OpenCV ORB features + PnP (classic geometry, not a model) | Recognising the room from one camera photo, beside ARKit | Mac (`services/api/.../vision/orb_place_matcher.py`) |
 | ARKit poses, compass (magnetic north, no location) | Speed and turn rate for scan coaching come from the ARKit poses; the scan learns where north lies in the room, so directions can say "north-east" | iPhone |
 | Haptics | Turn and arrival cues | iPhone (Apple Watch planned) |
 | VoiceOver, Dynamic Type | The app is usable without looking | iPhone |
@@ -580,6 +584,10 @@ erDiagram
 - **Spatial relations:** "on" (within 5 cm of a surface and inside its footprint), left or right of a landmark's front, nearest landmark within 1.5 m, and five height bands (floor, knee, waist, chest, head).
 - **What changed:** a rescan matches each kind of thing with the room's last scan by optimal assignment on 3D distance; moved more than 30 cm, new, or gone is decided by geometry, and things outside the rescan's view are left alone.
 - **Navigation:** an occupancy grid at 10 cm from the point cloud, obstacles widened by a 0.3 m body radius and paths kept to the middle of free space, A* to a reachable cell near the object, simplified to turns and spoken as clock-face steps. A gap too narrow gives "no safe path" and landmark directions instead.
+- **Recognising the room:** after processing, each scan's keyframes become ORB features lifted to 3D with the phone's
+  LiDAR depth and ARKit pose (`place_index.npz`). One camera photo is matched against them (ratio test, PnP with
+  RANSAC; at least 30 inliers within 4 px), giving the room and the camera's pose in the room map's world. The phone
+  trusts two fixes in a row that agree within 25 cm and 10°, and ARKit's own match replaces them.
 - **Arrival check:** SAM 3.1's box in one camera frame, lifted to 3D with the LiDAR depth; within 30 cm of the remembered place is confirmed.
 - **Viewer:** voxel downsampling to about 150k points; a vertex shader that gathers every point from a scattered shell to its real position, floor first.
 
@@ -593,14 +601,18 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
 - **Without a model:** LiDAR depth back-projected with the ARKit poses put all 10 objects of the living room within **2 to 7 cm** of the MapAnything run, in **0.2 s**.
 - **Answer time:** the Guide on Muse Spark Open answers in **2.3 s** median, **2.7 s** p90 (10 real questions, one tool call each); the phone speaks an acknowledgement at once.
 - **Arrival check:** on the real keys, SAM 3.1 plus the LiDAR depth put them **3 cm** from the remembered place, in **4.9 s**.
+- **Recognising the room from a photo** ([evals/results.md](evals/results.md)): held-out photos of the living room
+  came out **1.2 cm** (median) and **0.55°** from ARKit's own poses; photos from other sessions gave a fix **59 %** of
+  the time and **89 %** of those fixes were right, so the phone waits for two that agree; **22 to 35 ms** per match on
+  the M5 Pro. On the way: none of five rescans of that room was recognised by ARKit alone, the problem this fixes.
 - **Robot screening:** **21** ordinary object names allowed and **18** instruction-like names refused, none wrong.
 - **Cost, measured:** a room scan is **456** SAM 3.1 calls and **48 MB** on disk; a question is **2** Muse Spark Open calls, about **2,460 + 261 tokens**.
 - **Flat surfaces:** the geometry-only detector found **12 level patches** in the room; the two largest sit at the heights of the two measured desks.
 - **Viewer:** about 150k points, the gather animation, photo and confidence colouring, and the floor grid, height bands and surfaces as layers, on a phone and a laptop.
-- **Tests (2 November):** API 202 (including Schemathesis against the spec), pipeline 59 (including a synthetic room run through the whole pipeline), website 190 (accessibility with axe, WCAG 2.2 AA, reduced motion, no-JavaScript, keyboard-only and 200 % text usability, security headers); on the iPhone, 182 unit tests and 31 UI tests: accessibility audits and usability tasks done with VoiceOver labels at default and largest text; the Watch app builds.
+- **Tests (2 November):** API 213 (including Schemathesis against the spec), pipeline 64 (including a synthetic room run through the whole pipeline), website 194 (accessibility with axe, WCAG 2.2 AA, reduced motion, no-JavaScript, keyboard-only and 200 % text usability, security headers); on the iPhone, 197 unit tests and 34 UI tests (2 skipped): accessibility audits and usability tasks done with VoiceOver labels at default and largest text; the Watch app builds.
 - **Usability, honestly:** the checks above are automated. In person, the author's screen-off run (VoiceOver Screen Curtain: the screen stays black) is planned, and a session with blind and low-vision testers is planned; its plan is ready in `evals/usability/`.
 
-**Planned evaluation:** median position error against hand-measured positions, questions answered correctly, Verifier precision, and time to find an object by touch versus with Recall, scored without AI; the dated table will live in `evals/results.md`. The session plan for a blind or low-vision tester is in `evals/usability/`.
+**Planned evaluation:** median position error against hand-measured positions, questions answered correctly, Verifier precision, and time to find an object by touch versus with Recall, scored without AI. The dated table is [`evals/results.md`](evals/results.md); recognising the room from a photo is its first entry. The session plan for a blind or low-vision tester is in `evals/usability/`.
 
 ## Installation
 
@@ -726,6 +738,8 @@ Planned next, not built or not working yet (updated before submission; removed i
 - A physical robot running the ROS 2 example (the example and the robot package are in the repo).
 - The tape-measured 20 cm accuracy check with the phone's depth and poses.
 - Quantitative evaluations and the Verifier precision figure.
+- Timing room recognition on the iPhone from five start spots, and whether a grown room map matches from a spot that
+  failed before (the photo matcher is measured on the Mac only so far).
 - The usability session with blind and low-vision testers (plan ready in `evals/usability/`), and the author's screen-off run.
 - Daily spend caps on model calls (the API and the website's voice route are rate-limited per key or visitor; there is no daily cap yet).
 - The 3-minute demo video.

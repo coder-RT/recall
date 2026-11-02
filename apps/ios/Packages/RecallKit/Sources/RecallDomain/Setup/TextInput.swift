@@ -21,6 +21,11 @@ public enum TextInput {
         return String(String(String.UnicodeScalarView(kept)).prefix(limit))
     }
 
+    /// A line break typed into a one-line field: Return was pressed (fields that grow with large text type it).
+    public static func pressedReturn(_ typed: String, multiline: Bool) -> Bool {
+        !multiline && typed.contains(where: \.isNewline)
+    }
+
     /// A pasted key longer than the field keeps: say so, rather than silently pairing with a cut key.
     public static func keyTooLong(_ text: String) -> Bool {
         text.trimmingCharacters(in: .whitespacesAndNewlines).count > deviceKey

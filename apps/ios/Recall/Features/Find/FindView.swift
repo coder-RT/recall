@@ -59,6 +59,7 @@ struct FindView: View {
             .onChange(of: rooms) { if let room, !rooms.contains(room) { self.room = nil } }
             // a scan finished processing (a rescan, or a new room): its room's map has changed on the Mac
             .onChange(of: processed) { maps.forget() }
+            .keyboardDismissable()  // scroll or Done hides the keyboard; a tap outside does too (KeyboardDismissal)
         }
     }
 

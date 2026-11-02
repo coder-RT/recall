@@ -63,6 +63,7 @@ struct FoundView: View {
             .task { if !things.loaded { await things.refresh() } }
             .refreshable { await things.refresh() }
             .sheet(item: $editing) { EditThingView(thing: $0) }
+            .keyboardDismissable()  // scroll or Done hides the keyboard; a tap outside does too (KeyboardDismissal)
         }
     }
 

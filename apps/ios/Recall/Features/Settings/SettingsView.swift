@@ -169,6 +169,7 @@ struct SettingsView: View {
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                 canPaste = UIPasteboard.general.hasStrings  // copied on the Mac, then back in the app
             }
+            .keyboardDismissable()  // scroll or Done hides the keyboard; a tap outside does too (KeyboardDismissal)
         }
     }
 

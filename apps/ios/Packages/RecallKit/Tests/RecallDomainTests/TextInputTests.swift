@@ -20,6 +20,12 @@ struct TextInputTests {
         #expect(TextInput.clean("a\u{200F}b\u{2066}c", limit: 60) == "abc")
     }
 
+    @Test func returnInAOneLineFieldIsNoticedNotInANote() {
+        #expect(TextInput.pressedReturn("keys\n", multiline: false))
+        #expect(!TextInput.pressedReturn("keys", multiline: false))
+        #expect(!TextInput.pressedReturn("in the\nblue pouch", multiline: true))  // a note may have lines
+    }
+
     @Test func aKeyLongerThanTheFieldIsNoticed() {
         #expect(TextInput.keyTooLong(String(repeating: "k", count: 129)))
         #expect(!TextInput.keyTooLong(String(repeating: "k", count: 128) + "\n"))

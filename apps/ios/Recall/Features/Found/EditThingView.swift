@@ -114,6 +114,7 @@ struct EditThingView: View {
             .confirmationDialog("Forget the \(thing.title)?", isPresented: $confirmRemove, titleVisibility: .visible) {
                 Button("Forget it", role: .destructive) { Task { await remove() } }
             }
+            .keyboardDismissable()  // scroll or Done hides the keyboard; a tap outside does too (KeyboardDismissal)
         }
     }
 

@@ -60,6 +60,7 @@ struct RoomNameView: View {
                 ToolbarItem(placement: .confirmationAction) { Button(role: .confirm) { go() } label: { Text("Start").foregroundStyle(Tokens.onGo) }
                     .buttonStyle(.glassProminent).tint(Tokens.go) }
             }
+            .keyboardDismissable()  // scroll or Done hides the keyboard; a tap outside does too (KeyboardDismissal)
         }
     }
 

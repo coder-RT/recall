@@ -196,4 +196,24 @@ final class UsabilityTests: XCTestCase {
         alert.buttons["Cancel"].tap()
         XCTAssertTrue(waitSpoken(app, contains: "Not paired"))
     }
+
+    /// The keyboard goes away the ways people expect: a tap outside the field, or Return.
+    func testTheKeyboardHidesOnATapOutsideOrReturn() {
+        let app = launch(largestText: false)
+        app.tabBars.buttons["Found"].tap()
+        let search = app.textFields["search"].exists ? app.textFields["search"] : app.textViews["search"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        let keyboard = app.keyboards.firstMatch
+
+        search.tap()
+        search.typeText("re")
+        XCTAssertTrue(keyboard.waitForExistence(timeout: 3))
+        app.staticTexts["Found"].firstMatch.tap()  // the screen's title: outside the field
+        XCTAssertTrue(keyboard.waitForNonExistence(timeout: 3), "a tap outside hides the keyboard")
+
+        search.tap()
+        XCTAssertTrue(keyboard.waitForExistence(timeout: 3))
+        search.typeText("\n")  // Return (Search)
+        XCTAssertTrue(keyboard.waitForNonExistence(timeout: 3), "Return hides the keyboard")
+    }
 }

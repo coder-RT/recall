@@ -74,7 +74,10 @@ private struct ThemedRoot: View {
         .onChange(of: highContrast, initial: true) { Theme.highContrast = highContrast }
         .task { await scans.start() }
         // back from the background: what finished meanwhile updates the cards without talking
-        .onChange(of: scenePhase) { _, phase in if phase == .active { scans.becameActive() } }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { scans.becameActive(); KeyboardDismissal.shared.install() }
+        }
+        .task { KeyboardDismissal.shared.install() }  // a tap outside a text field hides the keyboard, everywhere
         .onOpenURL { settings.pair(with: $0) }
         .alert("Pair with this Mac?", isPresented: Binding(get: { settings.pendingPairing != nil },
                                                            set: { if !$0 { settings.cancelPairing() } }),

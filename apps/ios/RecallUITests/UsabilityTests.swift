@@ -183,4 +183,68 @@ final class UsabilityTests: XCTestCase {
     func testFindWhatLeavesTheMac() { findWhatLeavesTheMac(largestText: false) }
     func testFindWhatLeavesTheMacLargestText() { findWhatLeavesTheMac(largestText: true) }
     func testShareWithARobot() { shareWithARobot(largestText: false) }
+
+    /// A pairing link from anywhere (a web page, another app) changes nothing until the person confirms which Mac.
+    func testAPairingLinkAsksBeforeItChangesTheMac() {
+        let app = launch(largestText: false)
+        app.open(URL(string: "recall://pair?url=https://not-my-mac.example:8445&key=abcdefgh1234")!)
+        let alert = app.alerts["Pair with this Mac?"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5), "a pairing link must ask first")
+        XCTAssertTrue(alert.staticTexts.containing(NSPredicate(format: "label CONTAINS 'not-my-mac.example:8445'")).firstMatch.exists)
+        XCTAssertFalse(alert.staticTexts.containing(NSPredicate(format: "label CONTAINS 'abcdefgh'")).firstMatch.exists,
+                       "the key itself is never shown")
+        alert.buttons["Cancel"].tap()
+        XCTAssertTrue(waitSpoken(app, contains: "Not paired"))
+    }
+
+    /// The keyboard goes away the ways people expect: a tap outside the field, or Return.
+    func testTheKeyboardHidesOnATapOutsideOrReturn() {
+        let app = launch(largestText: false)
+        app.tabBars.buttons["Found"].tap()
+        let search = app.textFields["search"].exists ? app.textFields["search"] : app.textViews["search"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        let keyboard = app.keyboards.firstMatch
+
+        search.tap()
+        search.typeText("re")
+        XCTAssertTrue(keyboard.waitForExistence(timeout: 3))
+        app.staticTexts["Found"].firstMatch.tap()  // the screen's title: outside the field
+        XCTAssertTrue(keyboard.waitForNonExistence(timeout: 3), "a tap outside hides the keyboard")
+
+        search.tap()
+        XCTAssertTrue(keyboard.waitForExistence(timeout: 3))
+        search.typeText("\n")  // Return (Search)
+        XCTAssertTrue(keyboard.waitForNonExistence(timeout: 3), "Return hides the keyboard")
+    }
+
+    /// The Mac address is hidden by default behind an eye button, like the key.
+    func testTheMacAddressIsHiddenUntilShown() {
+        let app = launch(largestText: false)
+        app.tabBars.buttons["Settings"].tap()
+        let toggle = app.buttons["macAddress.toggle"]
+        guard toggle.waitForExistence(timeout: 5) else { return }  // nothing paired in this run: nothing to hide
+        let address = app.descendants(matching: .any)["macAddress"].firstMatch
+        XCTAssertTrue(address.label.contains("hidden"), "hidden by default")
+        toggle.tap()
+        XCTAssertTrue(app.textFields["macAddress"].exists || app.textViews["macAddress"].exists, "shown as an editable field")
+        toggle.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["macAddress"].firstMatch.label.contains("hidden"))
+    }
+
+    /// Settings → Appearance and voice: Automatic, Female or Male, the voice that will speak, and a sample to hear.
+    func testTheVoiceCanBeChosenAndHeard() {
+        let app = launch(largestText: false)
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["appearance"].tap()
+        let male = app.buttons["voice-male"]
+        for _ in 0..<3 where !male.isHittable { app.swipeUp() }
+        XCTAssertTrue(male.waitForExistence(timeout: 5))
+        male.tap()
+        XCTAssertTrue(male.isSelected)
+        let hear = app.buttons["voice.hear"]
+        XCTAssertTrue(hear.label.contains("Speaking in "))
+        hear.tap()
+        XCTAssertTrue(waitSpoken(app, contains: "Your keys are on the desk"))
+        app.buttons["voice-automatic"].tap()  // leave the simulator as it was
+    }
 }

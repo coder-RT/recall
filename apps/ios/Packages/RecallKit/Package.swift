@@ -5,7 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "RecallKit",
-    platforms: [.iOS("26.0"), .macOS("15.0")],  // macOS only so `swift test` can check the pure targets on the Mac
+    platforms: [.iOS("26.0"), .watchOS("26.0"), .macOS("15.0")],  // watchOS: the Watch app uses RecallDomain; macOS for `swift test`
     products: [
         .library(name: "RecallDomain", targets: ["RecallDomain"]),
         .library(name: "RecallCapture", targets: ["RecallCapture"]),

@@ -258,9 +258,16 @@ def plan_sheet(
     # legend of things
     ly = y1 - 38
     body.append(_t(x0 + 60, ly, "Things", 3, "start", "bold"))
+    # three columns that end before the title block; past 7 rows each, the lines get tighter, never wider
+    cols = 3
+    col_w = (x1 - (x0 + 60)) / cols
+    rows = max(7, -(-len(items) // cols))
+    step = min(4.4, 33 / rows)
+    size = min(2.4, step * 0.55)
     for i, it in enumerate(items):
-        col, row = divmod(i, 7)
-        body.append(_t(x0 + 60 + col * 88, ly + 5 + row * 4.4, f"{it.number}  {it.title}, {it.place}", 2.4, "start"))
+        col, row = divmod(i, rows)
+        line = f"{it.number}  {it.title}, {it.place}"
+        body.append(_t(x0 + 60 + col * col_w, ly + 5 + row * step, line, size, "start"))
 
     area, perimeter = plan.area, plan.length
     scanned = sum(w.length for w in walls if w.scanned)

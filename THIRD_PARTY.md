@@ -19,6 +19,7 @@ Library versions are pinned in the lockfiles (`pnpm-lock.yaml`, `uv.lock`).
 | What | Where | Terms |
 |---|---|---|
 | Thing icons (keys, wallet, bag, backpack, book, bottle, glasses, phone, remote, mug, laptop, headphones, charger, watch, passport, and the box for unsure things) | `apps/ios/Recall/Resources/Assets.xcassets/Things`, drawn by `apps/ios/scripts/make_thing_icons.py` | Drawn for Recall; Apache-2.0 with the rest of the repo. No third-party art |
+| Tab tap sound | `apps/ios/Recall/Resources/tap.wav`, made by `apps/ios/scripts/make_tap_sound.py` (two damped sine waves) | Made for Recall; Apache-2.0 with the rest of the repo. No third-party audio |
 
 ## Hosting and infrastructure
 
@@ -41,6 +42,8 @@ Direct dependencies only. Licences below are as published by each project.
 |---|---|---|
 | Next.js | Web framework | MIT |
 | `@vercel/firewall` 1.2.6 | The voice demo route asks Vercel's firewall rule `voice-transcribe` whether a visitor is over the limit | Apache-2.0 (npm `license` field, checked 2026-11-01). Used as an npm dependency. |
+| `botid` 1.5.11 | Vercel BotID: an invisible check that the landing page's contact form is sent by a browser (`apps/web/instrumentation-client.ts`, `app/api/contact/route.ts`) | MIT, per the package README (the npm `license` field is empty and no LICENSE file ships; checked 2026-11-01). Used as an npm dependency. |
+| Resend (email service) | Delivers the contact form's messages to the developer's inbox; called over HTTPS from `apps/web/app/api/contact/route.ts`, no SDK | Service, used under Resend's terms; not a model. |
 | React | UI | MIT |
 | three.js (`three` 0.186.1) | Point-cloud rendering in the 3D viewer | MIT |
 | react-three-fiber (`@react-three/fiber` 9.8.2) | React renderer for three.js (`apps/web/components/viewer/`) | MIT |

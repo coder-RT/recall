@@ -60,7 +60,7 @@ def test_a_job_runs_on_the_loaded_model_and_logs_to_its_file(server, monkeypatch
         return 0
 
     monkeypatch.setattr(run_module, "process", fake_process)
-    log = tmp / "logs" / "s1.log"
+    log = tmp / "data" / "logs" / "s1.log"
     r = httpx.post(
         f"{url}/jobs", headers=_h(), json={"args": [str(episode), "--scan-id", "s1", "--no-post"], "log": str(log)}
     )
@@ -89,8 +89,40 @@ def test_a_failing_job_reports_its_code_and_the_server_keeps_going(server, monke
         raise RuntimeError("reconstruction failed")
 
     monkeypatch.setattr(run_module, "process", boom)
-    body = {"args": [str(episode), "--scan-id", "s"], "log": str(tmp / "s.log")}
+    body = {"args": [str(episode), "--scan-id", "s"], "log": str(tmp / "data" / "s.log")}
     assert httpx.post(f"{url}/jobs", headers=_h(), json=body).json() == {"code": 1}
-    assert "reconstruction failed" in (tmp / "s.log").read_text()
+    assert "reconstruction failed" in (tmp / "data" / "s.log").read_text()
     assert httpx.get(f"{url}/health", headers=_h()).json()["busy"] is False
     assert json.loads(httpx.get(f"{url}/health", headers=_h()).text)["loaded"] is True
+
+
+@pytest.mark.parametrize("where", ["log", "out"])
+def test_a_job_cannot_write_outside_the_data_folder(server, monkeypatch, where):
+    url, _, _, tmp = server
+    episode = tmp / "data" / "ep"
+    episode.mkdir(parents=True)
+    monkeypatch.setattr(run_module, "process", lambda *a, **k: pytest.fail("must not run"))
+    args, log = [str(episode), "--scan-id", "s"], str(tmp / "data" / "s.log")
+    if where == "log":
+        log = str(tmp / "elsewhere.log")
+    else:
+        args += ["--out", str(tmp / "elsewhere.json")]
+    assert httpx.post(f"{url}/jobs", headers=_h(), json={"args": args, "log": log}).json() == {"code": 2}
+
+
+def test_a_bad_or_huge_job_is_refused(server):
+    url, *_ = server
+    assert httpx.post(f"{url}/jobs", headers=_h(), json={"args": []}).status_code == 400  # no log
+    big = {"args": ["x" * 70_000], "log": "x"}
+    assert httpx.post(f"{url}/jobs", headers=_h(), json=big).status_code == 413
+
+
+def test_without_a_key_nothing_is_served(tmp_path):
+    httpd = make_server(0, WarmModel(object, idle=600), "")
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{httpd.server_address[1]}"
+    try:
+        assert httpx.get(f"{url}/health").status_code == 503
+        assert httpx.post(f"{url}/warm", headers=_h("")).status_code == 503
+    finally:
+        httpd.shutdown()

@@ -28,6 +28,15 @@ key = settings.device_key.get_secret_value() if settings.device_key else None
 server = PipelineServer(settings.pipeline_server, key)
 
 
+@huey.on_startup()
+def heartbeat() -> None:
+    """The worker says it's alive every 20 s, so a scan waiting in the queue can tell the phone why it waits."""
+    from recall_api.adapters.outbound.jobs.heartbeat import FileHeartbeat
+    from recall_api.infra.clock import SystemClock
+
+    FileHeartbeat(settings.data_dir / "worker-heartbeat", SystemClock()).start_beating()
+
+
 def run_pipeline(name: str, args: list[str], warm: PipelineServer | None = None) -> int:
     """The pipeline in its own environment (it owns torch); output goes to data/logs/<name>.log. On the warm server
     when it runs (no model load), else as a fresh process."""
@@ -53,14 +62,7 @@ def process_scan(name: str, scan_id: str, episode_dir: str, task=None) -> None:
     if task is None or task.retries == 0:  # last attempt: tell the phone
         from recall_api.infra.container import Container
 
-        scans = Container(settings).scans
-        scan = scans.get(scan_id)
-        if scan is not None:
-            from recall_api.domain.memory import ScanStatus
-
-            scan.status = ScanStatus.FAILED
-            scan.detail = f"Processing failed (exit {code}). The Mac's log is data/logs/{name}.log."
-            scans.save(scan)
+        Container(settings).mark_scan_failed(scan_id, code, name)
     raise RuntimeError(f"pipeline exited {code} for {name}")
 
 

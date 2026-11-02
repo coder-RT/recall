@@ -227,8 +227,18 @@ def _part(kind: str, lo, hi) -> Part:
     return Part(kind, tuple(np.round((lo + hi) / 2, 3)), tuple(np.round(np.maximum(hi - lo, 0.01), 3)))
 
 
+# furniture that always stands on the floor; SAM 3.1's masks seldom reach the legs, and a desk is often measured
+# from its top only, so its box can start well above the floor
+FLOOR_STANDING = {"desk", "table", "chair", "bed", "sofa", "cabinet"}
+# a shelf may hang on a wall: grounded only when its box already starts low
+GROUND_BELOW = 0.5
+
+
 def furniture_parts(label: str, lo: np.ndarray, hi: np.ndarray, toward: np.ndarray) -> list[Part]:
-    """Parametric parts for one piece of furniture, by kind, filling its measured box."""
+    """Parametric parts for one piece of furniture, by kind, filling its measured box (standing on the floor)."""
+    lo = np.array(lo, float)
+    if label in FLOOR_STANDING or (label == "shelf" and lo[2] < GROUND_BELOW):
+        lo[2] = 0.0
     x0, y0, z0 = lo
     x1, y1, z1 = hi
     axis, sign = front_axis(lo, hi, toward)
@@ -242,6 +252,7 @@ def furniture_parts(label: str, lo: np.ndarray, hi: np.ndarray, toward: np.ndarr
         return _part("back", a, b)
 
     def legs(top: float, w: float = 0.05, inset: float = 0.03) -> list[Part]:
+        top = max(top, z0 + 0.05)  # a very short box still gets legs that go up from the floor, never down
         out = []
         for x in (x0 + inset, x1 - inset - w):
             for y in (y0 + inset, y1 - inset - w):
@@ -280,7 +291,7 @@ def furniture_parts(label: str, lo: np.ndarray, hi: np.ndarray, toward: np.ndarr
             parts.append(_part("arm", a, b))
         return parts
     if kind == "chair":
-        seat = min(z0 + 0.45, z1 - 0.05)
+        seat = max(min(z0 + 0.45, z1 - 0.05), z0 + 0.09)  # never below the floor, even for a very low box
         return [_part("seat", (x0, y0, seat - 0.04), (x1, y1, seat)), back_slab(0.05, z1), *legs(seat - 0.04, w=0.04)]
     if kind == "tv":
         return [back_slab(0.05, z1)]

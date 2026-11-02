@@ -8,11 +8,34 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
+    from recall_api.application.verify_arrival import Verification
     from recall_api.domain.audit import AuditEvent
+    from recall_api.domain.spatial import CameraView
 
 
 class Clock(Protocol):
     def now(self) -> datetime: ...
+
+
+class ArrivalVerifier(Protocol):
+    """The Verifier agent: did the user reach the thing? One camera frame with depth; SAM 3.1 and geometry decide,
+    Muse Spark 1.1 may only downgrade to uncertain. In-process by default (VERIFIER_TRANSPORT=inprocess); an A2A
+    transport is optional and not built."""
+
+    def __call__(self, session_id: str, jpeg: bytes, view: CameraView) -> Verification: ...
+
+
+class RobotFormat(Protocol):
+    """Writes a robot export in the files a ROS 2 robot loads (objects.json, Nav2 map, cloud.ply, README)."""
+
+    def document(self, export) -> dict: ...
+    def package(self, export) -> bytes: ...
+
+
+class ImageCropper(Protocol):
+    """Cuts a box out of a JPEG keyframe, clamped to the picture. Pixels in, JPEG bytes out."""
+
+    def crop(self, jpeg: bytes, box: tuple[float, float, float, float]) -> bytes: ...
 
 
 class BlobStore(Protocol):
@@ -149,6 +172,12 @@ class AuditLog(Protocol):
         self, limit: int = 50, action: str | None = None, actor: str | None = None, since: datetime | None = None
     ) -> list[AuditEvent]: ...
     def prune(self, before: datetime) -> int: ...
+
+
+class WorkerStatus(Protocol):
+    """Whether the scan worker (the job queue and the pipeline) is running, so a waiting scan can say why."""
+
+    def alive(self) -> bool: ...
 
 
 class OwnerSettings(Protocol):

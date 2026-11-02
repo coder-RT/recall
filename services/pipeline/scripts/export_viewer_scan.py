@@ -25,6 +25,14 @@ from export_room_views import architect_view, photo_view
 from export_viewer_points import find_surfaces, voxel_downsample
 
 
+def height_colours(z: np.ndarray) -> np.ndarray:
+    """The site's blues by height (pale at the floor, deep at 2 m): a colour for every point that owes nothing to a
+    photo, for exports that are published."""
+    t = np.clip(z / 2.0, 0, 1)[:, None]
+    pale, deep = np.array([223, 227, 238], float), np.array([41, 72, 125], float)  # fb-blue-pale, fb-blue-dark
+    return np.round(pale + (deep - pale) * t).astype(np.uint8)
+
+
 def _xy(p, shift):
     return [round(p[0] - shift[0], 3), round(p[1] - shift[1], 3)]
 
@@ -71,7 +79,15 @@ def main() -> None:
     ap.add_argument("--triangles", type=int, default=120_000, help="triangle budget for the surface mesh")
     ap.add_argument("--no-photo", dest="photo", action="store_false", help="skip the photo-textured view")
     ap.add_argument("--no-architect", dest="architect", action="store_false", help="skip the architect view and sheets")
+    ap.add_argument(
+        "--public",
+        action="store_true",
+        help="geometry only, for publishing: every colour comes from height, nothing from the photos "
+        "(no colors.bin, no photo view; the surface and drawings are tinted by height)",
+    )
     args = ap.parse_args()
+    if args.public:
+        args.photo = False
 
     ep = args.episode
     points = np.load(ep / "home_cloud.npy").astype(np.float64)
@@ -86,6 +102,8 @@ def main() -> None:
     points, colors, conf = points[inside], colors[inside], conf[inside]
     shift = np.array([(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, 0.0])
     points = points - shift
+    if args.public:
+        colors = height_colours(points[:, 2])  # from here on, nothing downstream ever sees a photo's colour
 
     voxel = 0.015
     idx = voxel_downsample(points, voxel)
@@ -97,6 +115,9 @@ def main() -> None:
     conf_u8 = (rank / max(len(rank) - 1, 1) * 255).astype(np.uint8)
 
     room = result["room"]
+    # the room's name is in the scan folder's name: scans/<time>_<room-slug>_<id>/episode
+    slug = ep.resolve().parent.name.split("_")[1] if "_" in ep.resolve().parent.name else "room"
+    room_name = slug.replace("-", " ").capitalize()
     meta = {
         "count": int(len(kept)),
         "voxel_m": round(voxel, 4),
@@ -104,6 +125,7 @@ def main() -> None:
         "bounds": {"min": np.round(kept.min(0), 3).tolist(), "max": np.round(kept.max(0), 3).tolist()},
         "surfaces": find_surfaces(points[voxel_downsample(points, 0.02)]),
         "room": {
+            "name": room_name,
             "floor": [_xy(p, shift) for p in room["floor_polygon"]],
             "walls": [
                 {"start": _xy(w["start"], shift), "end": _xy(w["end"], shift), "height_m": round(w["height_m"], 2)}
@@ -128,6 +150,8 @@ def main() -> None:
                 "at": _xyz(t["centroid"], shift),
                 "size": [round(v, 3) for v in t["size_m"]] if t.get("size_m") else None,
                 "confidence": t["confidence"],
+                "photos": t.get("sightings"),  # how many photos showed it: the evidence the trust level uses
+                "room": room_name,  # one room per scan; the viewer groups things by room, like the app
             }
             for t in sorted(result["objects"], key=lambda t: -t["confidence"])
         ],
@@ -156,12 +180,27 @@ def main() -> None:
                 if photo:
                     meta["photo"] = photo
     if args.architect:
-        # the room's name is in the scan folder's name: scans/<time>_<room-slug>_<id>/episode
-        slug = ep.resolve().parent.name.split("_")[1] if "_" in ep.resolve().parent.name else "room"
-        room_name = slug.replace("-", " ").capitalize()
         meta["architect"], meta["drawings"] = architect_view(ep, args.out_dir, result, meta, points, colors, room_name)
+        if args.public:  # the sheets were drawn from height tints, not the scan's photo colours: say so
+            for d in meta["drawings"]:
+                d["summary"] = d["summary"].replace(
+                    "the scan's own coloured points", "the scan's points, tinted by height"
+                )
     kept.astype("<f4").tofile(args.out_dir / "points.bin")
-    colors[idx].astype(np.uint8).tofile(args.out_dir / "colors.bin")
+    if args.public:
+        meta["public"] = True  # geometry only: the viewer colours points by height or confidence
+        for leftover in (
+            "colors.bin",
+            "photo_atlas.jpg",
+            "photo_pos.bin",
+            "photo_uv.bin",
+            "photo_idx.bin",
+            "photo_rest_idx.bin",
+            "photo_col.bin",
+        ):
+            (args.out_dir / leftover).unlink(missing_ok=True)  # an older private export in the same folder
+    else:
+        colors[idx].astype(np.uint8).tofile(args.out_dir / "colors.bin")
     conf_u8.tofile(args.out_dir / "conf.bin")
     (args.out_dir / "meta.json").write_text(json.dumps(meta, indent=1) + "\n")
     print(

@@ -78,6 +78,12 @@ struct ThingGroupsTests {
         #expect(ThingGroups.group(things, by: .kind) == ThingGroups.byKind(things))
     }
 
+    @Test func roomsForMapsMostThingsFirstThenScannedOnes() {
+        // "Somewhere in the home" has no map; a scanned room with nothing found yet still gets one, once
+        #expect(ThingGroups.rooms(things, scanned: ["Hallway", "Kitchen"]) == ["Living room", "Kitchen", "Hallway"])
+        #expect(ThingGroups.rooms([], scanned: ["Hallway", "Hallway"]) == ["Hallway"])
+    }
+
     @Test func nothingToGroup() {
         #expect(ThingGroups.byPlace([]).isEmpty && ThingGroups.byHeight([]).isEmpty && ThingGroups.byKind([]).isEmpty)
     }

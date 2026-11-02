@@ -1,0 +1,12 @@
+# Go to a thing Recall remembers. Picking it up is the robot's own skill: this action only finds it and stops
+# about half a metre away, facing it.
+string object_name
+---
+bool found
+geometry_msgs/PoseStamped object_pose      # where Recall last saw it, frame "map" (the export's home frame)
+float32 confidence
+string last_seen                           # ISO 8601, as Recall reported it
+string spoken_description                  # Recall's sentence, e.g. "The keys are on the desk, at waist height, ..."
+---
+string stage                               # asking_recall | planning | navigating | arrived
+float32 distance_remaining_m

@@ -13,9 +13,10 @@ struct HomeView: View {
     @State private var scanning: ScanRequest?
 
     var body: some View {
+        let rooms = ScanHistory.byRoom(scans.scans)  // one card per room; its earlier scans fold inside it
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: Tokens.stack) {
                     BrandHeader("Scans", subtitle: "Where are your things?")
                     ScanHero { askingRoom = true }
                         .padding(.top, 4)
@@ -25,13 +26,13 @@ struct HomeView: View {
                     }
 
                     SectionTitle("Your scans", count: count)
-                        .padding(.top, 12)
+                        .padding(.top, Tokens.sectionGap)
                     if scans.scans.isEmpty {
                         EmptyState("viewfinder", "No scans yet. Scan a room to start.")
                     }
-                    ForEach(scans.scans) { scan in
-                        ScanRow(scan: scan, review: { router.tab = .found },
-                                again: { scanning = ScanRequest(room: scan.room, again: scan) })
+                    ForEach(rooms) { room in
+                        ScanRow(history: room, review: { router.tab = .found },
+                                again: { scanning = ScanRequest(room: room.latest.room, again: room.latest) })
                     }
                 }
                 .padding(.horizontal, Tokens.gutter)
@@ -89,7 +90,7 @@ private struct ScanHero: View {
                     .frame(maxWidth: .infinity, minHeight: Tokens.minTarget)
                     .background(hc ? Tokens.accentFill : .white, in: Capsule())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.plainTap)
             .glassRim(.capsule, .regular.interactive())
             .accessibilityHint("Walk slowly around one room with the phone.")
         }
@@ -140,11 +141,14 @@ struct ScanRequest: Identifiable {
 
 private struct ScanRow: View {
     @Environment(ScansModel.self) private var scans
-    let scan: Scan
+    let history: RoomScans
     let review: () -> Void
     let again: () -> Void
     @State private var shareURL: URL?
     @State private var confirmingDelete = false
+    @State private var showingEarlier = false
+
+    private var scan: Scan { history.latest }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -163,6 +167,7 @@ private struct ScanRow: View {
                 Text("\(scan.frames) frames · \(scan.directions) of 12 directions")
                     .font(.footnote).foregroundStyle(Tokens.muted)
                 if scan.state != .notUploaded { UploadStatus(state: scan.state) }
+                if scan.isProcessing && scan.workerStopped { WorkerStopped() }
             }
             .contentShape(.rect)
             .accessibilityElement(children: .combine)
@@ -192,16 +197,126 @@ private struct ScanRow: View {
                     ShareLink(item: url) { Image(systemName: "square.and.arrow.up").foregroundStyle(Tokens.accent) }
                         .buttonStyle(.glass).buttonBorderShape(.circle).controlSize(.large)
                         .accessibilityLabel("Share the scan")
-                        .accessibilityHint("Send this scan with AirDrop or save it to Files.")
+                        .accessibilityHint("Sends the scan's photos of your home, its depth and path, with AirDrop or to Files. Share only with people you trust.")
                 }
+            }
+            if !history.earlier.isEmpty {
+                EarlierScans(history: history, open: $showingEarlier)
             }
         }
         .card()
         .task(id: scan.id) { shareURL = await scans.archive(scan) }  // built once, off the main thread
         .accessibilityElement(children: .contain)
         .accessibilityAction(named: "Delete scan") { askToDelete() }
-        // an alert, not a confirmation dialog: iOS 26 shows that as a popover with no Cancel, hard to leave by VoiceOver
-        .alert(deleteTitle, isPresented: $confirmingDelete) {
+        .deleteScanAlert(scan, isPresented: $confirmingDelete)
+    }
+
+    /// Asks first; while the Mac is still busy with the scan, says so instead.
+    private func askToDelete() {
+        if scan.deleteReach == .waitForMac { Task { await scans.delete(scan) } } else { confirmingDelete = true }
+    }
+}
+
+/// A room's earlier scans, folded at the foot of its card: the memory now comes from the newest one, so these are
+/// history, kept to share or delete. No Check or Scan again here; those belong to the current scan.
+private struct EarlierScans: View {
+    let history: RoomScans
+    @Binding var open: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Divider().overlay(Tokens.line.opacity(0.5))
+            Button {
+                withAnimation(reduceMotion ? nil : .snappy) { open.toggle() }
+            } label: {
+                HStack(spacing: 8) {
+                    Label("Earlier scans", systemImage: "clock.arrow.circlepath")
+                        .font(.subheadline.weight(.semibold)).foregroundStyle(Tokens.ink)
+                    Spacer(minLength: 8)
+                    Text("\(history.earlier.count)").font(.subheadline).foregroundStyle(Tokens.muted)
+                    Image(systemName: "chevron.down").font(.footnote.weight(.bold)).foregroundStyle(Tokens.muted)
+                        .rotationEffect(.degrees(open ? 0 : -90))
+                }
+                .frame(minHeight: 44)
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plainTap)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Earlier scans of \(history.latest.room), \(scansText)")
+            .accessibilityValue(open ? "Open" : "Folded")
+            .accessibilityHint(open ? "Hides them." : "Shows them.")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityIdentifier("earlier-scans")
+            if open {
+                ForEach(history.earlier) { earlier in
+                    EarlierScanRow(scan: earlier, after: history.successor(of: earlier))
+                }
+            }
+        }
+    }
+
+    private var scansText: String { history.earlier.count == 1 ? "1 scan" : "\(history.earlier.count) scans" }
+}
+
+/// One earlier scan, compact: when, how good, and which scan took over from it. Long press to share or delete.
+private struct EarlierScanRow: View {
+    @Environment(ScansModel.self) private var scans
+    let scan: Scan
+    let after: Scan?
+    @State private var shareURL: URL?
+    @State private var confirmingDelete = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(scan.createdAt.formatted(date: .abbreviated, time: .shortened))
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(Tokens.ink)
+                Text("\(scan.frames) frames · \(took)").font(.footnote).foregroundStyle(Tokens.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            GradeBadge(grade: scan.grade)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Tokens.canvas, in: .rect(cornerRadius: 12))
+        .contentShape(.rect)
+        .contextMenu {
+            if let url = shareURL { ShareLink("Share scan", item: url) }
+            Button("Delete scan", systemImage: "trash", role: .destructive) { confirmingDelete = true }
+        }
+        .task(id: scan.id) { shareURL = await scans.archive(scan) }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(scan.room), \(scan.createdAt.formatted(date: .abbreviated, time: .shortened)), \(took)")
+        .accessibilityAction(named: "Delete scan") { confirmingDelete = true }
+        .accessibilityIdentifier("earlier-scan-\(scan.id)")
+        .deleteScanAlert(scan, isPresented: $confirmingDelete)
+    }
+
+    // a recognised rescan built on this one; one that didn't line up made a fresh map of the room
+    private var took: String {
+        guard let after else { return "earlier scan" }
+        let day = after.createdAt.formatted(.dateTime.day().month())
+        return after.alignedTo == nil ? "replaced by the scan on \(day)" : "updated by the scan on \(day)"
+    }
+}
+
+private extension View {
+    /// Asks before deleting a scan, saying what it reaches. An alert, not a confirmation dialog: iOS 26 shows that as
+    /// a popover with no Cancel, hard to leave by VoiceOver.
+    func deleteScanAlert(_ scan: Scan, isPresented: Binding<Bool>) -> some View {
+        modifier(DeleteScanAlert(scan: scan, isPresented: isPresented))
+    }
+}
+
+private struct DeleteScanAlert: ViewModifier {
+    @Environment(ScansModel.self) private var scans
+    let scan: Scan
+    @Binding var isPresented: Bool
+
+    func body(content: Content) -> some View {
+        content.alert(title, isPresented: $isPresented) {
             Button(scan.deleteReach == .phoneAndMac ? "Delete from iPhone and Mac" : "Delete", role: .destructive) {
                 Task { await scans.delete(scan) }
             }
@@ -214,13 +329,8 @@ private struct ScanRow: View {
         }
     }
 
-    private var deleteTitle: String {
+    private var title: String {
         scan.deleteReach == .phoneAndMac ? "Delete this scan from your iPhone and your Mac?" : "Delete this scan?"
-    }
-
-    /// Asks first; while the Mac is still busy with the scan, says so instead.
-    private func askToDelete() {
-        if scan.deleteReach == .waitForMac { Task { await scans.delete(scan) } } else { confirmingDelete = true }
     }
 }
 
@@ -291,7 +401,7 @@ private struct UploadStatus: View {
 }
 
 /// After a rescan: what moved, what's new, what's gone, each with its icon and the places in words; or that the room
-/// wasn't recognised and its memory started afresh. "Hear it again" says the summary.
+/// didn't line up with the last one, so it is a fresh map (nothing lost, nothing compared). "Hear it again" says it.
 private struct WhatChanged: View {
     @Environment(ScansModel.self) private var scans
     let scan: Scan
@@ -299,17 +409,23 @@ private struct WhatChanged: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Label("What changed", systemImage: "arrow.left.arrow.right").font(.headline).foregroundStyle(Tokens.ink)
+                Label(scan.fresh ? ChangeSummary.freshTitle(room: scan.room) : "What changed",
+                      systemImage: scan.fresh ? "map" : "arrow.left.arrow.right")
+                    .font(.headline).foregroundStyle(Tokens.ink)
                 Spacer(minLength: 8)
-                Button { scans.sayChanges(scan) } label: {
-                    Label("Hear it again", systemImage: "speaker.wave.2.fill").labelStyle(.iconOnly)
+                let speaking = scans.speakingScan == scan.id
+                Button { scans.toggleChanges(scan) } label: {
+                    Label(speaking ? "Stop" : "Hear it again", systemImage: speaking ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                        .labelStyle(.iconOnly)
                         .font(.title3).foregroundStyle(Tokens.accent).frame(minWidth: 44, minHeight: 44)
                 }
-                .accessibilityLabel("Hear what changed again")
+                .accessibilityLabel(speaking ? "Stop reading" : "Hear what changed again")
             }
             if scan.fresh {
-                Text("The room wasn't recognised, so Recall started its memory afresh.")
+                Text(ChangeSummary.freshBody)
                     .font(.subheadline).foregroundStyle(Tokens.ink).fixedSize(horizontal: false, vertical: true)
+                Label(ChangeSummary.freshTip, systemImage: "lightbulb")
+                    .font(.subheadline).foregroundStyle(Tokens.muted).fixedSize(horizontal: false, vertical: true)
             } else if scan.changes.isEmpty {
                 Text("Nothing has moved since the last scan.").font(.subheadline).foregroundStyle(Tokens.ink)
             } else {
@@ -363,5 +479,27 @@ private struct ChangeRow: View {
         case .new: Tokens.goText
         case .gone: Tokens.danger
         }
+    }
+}
+
+
+/// A scan waiting with nobody to process it: the Mac's scan worker isn't running. Says what to run, and copies it.
+private struct WorkerStopped: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(Scan.workerStoppedMessage, systemImage: "exclamationmark.triangle.fill")
+                .font(.subheadline).foregroundStyle(Tokens.danger)
+                .fixedSize(horizontal: false, vertical: true)
+            Button { UIPasteboard.general.string = "make worker" } label: {
+                Label("Copy \"make worker\"", systemImage: "doc.on.doc").font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Tokens.accent).frame(minHeight: 44)
+            }
+            .accessibilityHint("Copies the command to run in the recall folder on your Mac.")
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Tokens.canvas, in: .rect(cornerRadius: 12))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("worker-stopped")
     }
 }

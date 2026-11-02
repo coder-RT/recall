@@ -1,16 +1,15 @@
 import Foundation
 import Observation
 import RecallDomain
-import RecallUpload
 
-/// Robot Access: the owner's switch on the Mac, and the robot map package to share (a .zip for ROS 2 / Nav2).
+/// Robot Access: the owner's switch on the Mac, the room's map preview and recent robot activity. The package
+/// itself comes from the Mac (RobotPackageShare).
 @MainActor @Observable
 final class RobotAccessModel {
     private(set) var status: RobotAccessStatus?
     private(set) var package: RobotMapPackage?
     /// The newest audit entries about robots (map reads, questions, refusals, the switch).
     private(set) var activity: [AuditEntry] = []
-    private(set) var zip: URL?
     private(set) var busy = false
     private(set) var error: String?
 
@@ -27,7 +26,6 @@ final class RobotAccessModel {
             status = try await sharing.robotAccess()
             package = try? await sharing.robotMap(home: settings.connection.homeId)
             await refreshActivity()
-            zip = nil
         }
     }
 
@@ -37,15 +35,6 @@ final class RobotAccessModel {
             await refreshActivity()
             speech.say(on ? "Robot access is on. Robots with your robot key can find things in your home."
                           : "Robot access is off. Robots can't read your home's memory.", interrupt: true)
-        }
-    }
-
-    /// Builds the .zip for the share sheet (map.pgm, map.yaml, objects.json, room.json).
-    func prepareExport() async {
-        await run {
-            let p = try await sharing.robotMap(home: settings.connection.homeId)
-            package = p
-            zip = try FolderZip.make(name: p.name, files: p.files, in: FileManager.default.temporaryDirectory)
         }
     }
 

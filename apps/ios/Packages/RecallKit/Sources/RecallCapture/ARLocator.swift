@@ -14,8 +14,13 @@ public final class ARLocator: Locator {
     public let scene = SCNScene()
     private var arrow: SCNNode?
     private let track = SCNNode()
+    private let tags = SCNNode()
+    private var shown: [ArLabel] = []
 
-    public init() { scene.rootNode.addChildNode(track) }
+    public init() {
+        scene.rootNode.addChildNode(track)
+        scene.rootNode.addChildNode(tags)
+    }
 
     public static var isSupported: Bool { ARWorldTrackingConfiguration.isSupported }
 
@@ -120,6 +125,90 @@ public final class ARLocator: Locator {
         }
         scene.rootNode.addChildNode(node)
         arrow = node
+    }
+
+    /// Labels over everything found: a tag (its picture, made by the caller) 35 cm above each thing, facing the camera,
+    /// a line down to the thing and a ring on the floor under it, in the label's colour.
+    public func showLabels(_ items: [(label: ArLabel, tag: UIImage)], floorY: Double?) {
+        clearLabels()
+        shown = items.map(\.label)
+        let still = UIAccessibility.isReduceMotionEnabled
+        for (i, item) in items.enumerated() {
+            let p = item.label.position
+            let colour = Self.colour(item.label.mark)
+            let node = SCNNode()
+            node.simdPosition = SIMD3(Float(p.x), Float(p.y), Float(p.z))
+
+            let height: Float = 0.35
+            let width = Float(item.tag.size.width / item.tag.size.height) * 0.09
+            let plane = SCNPlane(width: CGFloat(width), height: 0.09)
+            let face = SCNMaterial()
+            face.lightingModel = .constant
+            face.diffuse.contents = item.tag
+            face.isDoubleSided = true
+            face.readsFromDepthBuffer = false  // the tag stays readable in front of furniture
+            plane.materials = [face]
+            let tag = SCNNode(geometry: plane)
+            tag.simdPosition.y = height
+            tag.constraints = [SCNBillboardConstraint()]
+            tag.renderingOrder = 10
+            node.addChildNode(tag)
+
+            let line = SCNCylinder(radius: 0.003, height: CGFloat(height - 0.045))
+            line.materials = [Self.flat(colour)]
+            let lineNode = SCNNode(geometry: line)
+            lineNode.simdPosition.y = (height - 0.045) / 2
+            node.addChildNode(lineNode)
+
+            let dot = SCNSphere(radius: 0.015)
+            dot.materials = [Self.flat(colour)]
+            node.addChildNode(SCNNode(geometry: dot))
+
+            if let floorY {
+                let ring = SCNTorus(ringRadius: 0.12, pipeRadius: 0.006)
+                ring.materials = [Self.flat(colour.withAlphaComponent(0.85))]
+                let ringNode = SCNNode(geometry: ring)
+                ringNode.simdPosition.y = Float(floorY - p.y) + 0.005
+                node.addChildNode(ringNode)
+            }
+            if !still {
+                node.opacity = 0
+                node.runAction(.sequence([.wait(duration: 0.12 * Double(i)), .fadeIn(duration: 0.35)]))
+            }
+            tags.addChildNode(node)
+        }
+    }
+
+    public func clearLabels() {
+        tags.childNodes.forEach { $0.removeFromParentNode() }
+        shown = []
+    }
+
+    /// The label the camera points at most directly (within 25°), for "what's this?".
+    public func labelInView() -> ArLabel? {
+        guard let cam = session.currentFrame?.camera.transform else { return nil }
+        let eye = SIMD3<Double>(Double(cam.columns.3.x), Double(cam.columns.3.y), Double(cam.columns.3.z))
+        let fwd = -SIMD3<Double>(Double(cam.columns.2.x), Double(cam.columns.2.y), Double(cam.columns.2.z))
+        let scored = shown.map { label -> (ArLabel, Double) in
+            let to = simd_normalize(label.position - eye)
+            return (label, acos(max(-1, min(1, simd_dot(to, simd_normalize(fwd))))) * 180 / .pi)
+        }
+        return scored.filter { $0.1 < 25 }.min { $0.1 < $1.1 }?.0
+    }
+
+    public static func colour(_ mark: ArLabel.Mark) -> UIColor {
+        switch mark {
+        case .told: UIColor(red: 0x42 / 255, green: 0xb7 / 255, blue: 0x2a / 255, alpha: 1)  // cta green
+        case .check: UIColor(red: 0xf2 / 255, green: 0xb3 / 255, blue: 0x3d / 255, alpha: 1)  // amber
+        case .seenOnce: UIColor(red: 0xe5 / 255, green: 0x48 / 255, blue: 0x3a / 255, alpha: 1)  // red
+        }
+    }
+
+    private static func flat(_ colour: UIColor) -> SCNMaterial {
+        let m = SCNMaterial()
+        m.lightingModel = .constant
+        m.diffuse.contents = colour
+        return m
     }
 
     public func showPath(_ path: [SIMD2<Double>], floorY: Double?) {

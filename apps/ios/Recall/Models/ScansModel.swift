@@ -7,6 +7,10 @@ import RecallDomain
 @MainActor @Observable
 final class ScansModel {
     private(set) var scans: [Scan]
+    /// The scan whose "what changed" is being read out (its speaker shows Stop).
+    private(set) var speakingScan: String?
+    /// The next poll only updates the cards: the app just opened or came back, so what finished meanwhile isn't spoken.
+    private var quietPoll = true
 
     private let library: any ScanLibrary
     private let files: any EpisodeFiles
@@ -33,11 +37,13 @@ final class ScansModel {
     func start() async {
         await uploads.observe { [weak self] id, state in Task { @MainActor in self?.apply(id, state) } }
         while !Task.isCancelled {
-            let outcomes = await track(scans, home: settings.connection.homeId)
+            let outcomes = await track(scans, home: settings.connection.homeId, announce: !quietPoll)
+            quietPoll = false
             for (id, outcome) in outcomes {
                 if let i = scans.firstIndex(where: { $0.id == id }) {
                     scans[i].changes = outcome.changes
                     scans[i].fresh = outcome.fresh
+                    scans[i].workerStopped = outcome.workerStopped
                 }
                 apply(id, outcome.state, announce: false)
             }
@@ -108,6 +114,9 @@ final class ScansModel {
         scans.filter(\.isProcessed).sorted { $0.createdAt > $1.createdAt }.lazy.compactMap { self.files.roomMap(scan: $0.id) }.first
     }
 
+    /// One scan's saved room map (the AR labels are placed in it).
+    func roomMap(scan id: String) -> Data? { files.roomMap(scan: id) }
+
     /// UI tests only (launch argument `-UITestSampleThings`): a fixed list of scans. Real users never see it.
     func useForUITests(_ sample: [Scan]) { scans = sample; macReachable = false }
 
@@ -115,9 +124,21 @@ final class ScansModel {
     func roomMap(scan: Scan) -> Data? { files.roomMap(scan: scan.id) }
 
     /// Says a processed rescan's changes again (the "Hear it again" button).
-    func sayChanges(_ scan: Scan) {
-        speech.say(ChangeSummary.say(room: scan.room, changes: scan.changes), interrupt: true)
+    /// The speaker on a scan: reads what changed, or stops if it is already reading.
+    func toggleChanges(_ scan: Scan) {
+        if speakingScan != nil || speech.isSpeaking {
+            speech.stop()
+            speakingScan = nil
+            return
+        }
+        let line = scan.fresh ? ChangeSummary.sayFresh(room: scan.room) : ChangeSummary.say(room: scan.room, changes: scan.changes)
+        speakingScan = scan.id
+        speech.onFinished = { [weak self] in self?.speakingScan = nil }
+        speech.say(line, interrupt: true)
     }
+
+    /// The app came back to the foreground: the next poll only updates the cards.
+    func becameActive() { quietPoll = true }
 
     private func apply(_ id: String, _ state: UploadState, announce: Bool = true) {
         guard let i = scans.firstIndex(where: { $0.id == id }) else { return }

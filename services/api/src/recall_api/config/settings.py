@@ -44,6 +44,8 @@ class Settings(BaseSettings):
 
     pipeline_command: str = "uv run --project services/pipeline recall-pipeline process"
     # queue: the Huey worker runs it (make worker); subprocess: start it right away (tests, no worker)
+    # how the Guide reaches the Verifier agent: in-process only for now (A2A is optional and not built)
+    verifier_transport: Literal["inprocess"] = Field("inprocess", alias="VERIFIER_TRANSPORT")
     pipeline_runner: Literal["queue", "subprocess"] = Field("queue", alias="RECALL_PIPELINE_RUNNER")
     # the warm pipeline (recall-pipeline serve); jobs fall back to a fresh process when it isn't running
     pipeline_server: str = Field("http://127.0.0.1:8766", alias="RECALL_PIPELINE_SERVER")

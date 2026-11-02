@@ -8,6 +8,15 @@ The automated usability tests (`apps/ios/RecallUITests/UsabilityTests.swift`, `a
 that each task can be done with VoiceOver labels and the keyboard within a few actions. This session checks what no
 test can: whether it works for a person.
 
+## Before a blind or low-vision tester is available
+
+The author runs the same five tasks with the screen off: VoiceOver on, then **Screen Curtain** (three-finger
+triple-tap), so the screen stays black and only speech and touch are left. Same tasks, same timing, recorded with
+`results-template.md` as participant **P0 (sighted, screen off)**.
+
+This is a check that nothing depends on looking. It is **not** a substitute for a blind or low-vision tester, and it
+is never reported as one.
+
 ## Files
 
 | File | Use |

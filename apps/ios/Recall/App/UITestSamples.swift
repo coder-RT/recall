@@ -9,6 +9,15 @@ enum UITestSamples {
     /// The usability tests read what was spoken from one invisible element ("spoken-log").
     static let logSpeech = ProcessInfo.processInfo.arguments.contains("-UITestSpokenLog")
 
+    /// A paired-looking Mac, whatever an earlier run left in the simulator's settings or Keychain (the key outlives an
+    /// uninstall there), so every screen starts the same and shows no setup notice. Nothing listens on port 9, so a
+    /// request that slips past the samples fails at once instead of reaching a real Mac. Changes last until the app quits.
+    final class Connections: ConnectionStore, @unchecked Sendable {
+        private var connection = Connection(address: "127.0.0.1:9", key: "ui-test-sample-key", home: "flat")
+        func load() -> Connection { connection }
+        func save(_ connection: Connection) { self.connection = connection }
+    }
+
     /// Every line spoken since launch, newest last.
     @MainActor @Observable final class SpokenLog {
         static let shared = SpokenLog()
@@ -94,6 +103,32 @@ enum UITestSamples {
         }
     }
 
+    /// Labels for "See it in AR" in the UI tests: one of each colour (the simulator has no ARKit, so only the list shows).
+    struct Labels: ArLabelsSource {
+        func arLabels(home: String, room: String) async throws -> ArLabels {
+            ArLabels(scanId: "scan-2", room: room, floorY: 0, labels: [
+                ArLabel(id: "s1", title: "beige keys", place: "near the desk, at waist height", confidence: 0.85, photos: 6,
+                        trusted: true, needsReview: false, position: SIMD3(0.5, 0.8, -1)),
+                ArLabel(id: "s2", title: "grey bag", place: "near the desk, at knee height", confidence: 0.6, photos: 3,
+                        trusted: true, needsReview: true, position: SIMD3(-0.4, 0.4, -1.2)),
+                ArLabel(id: "s9", title: "green wallet", place: "near the cabinet, at knee height", confidence: 0.55,
+                        photos: 1, trusted: false, needsReview: true, position: SIMD3(1.2, 0.4, -2)),
+            ])
+        }
+    }
+
+    /// A robot package for the UI tests: a few bytes standing in for the Mac's .zip.
+    struct Packages: RobotPackages {
+        func robotPackage(home: String, room: String?) async throws -> Data { Data("sample robot package".utf8) }
+    }
+
+    /// The trust level for the UI tests: Balanced, kept in memory.
+    final class Trust: TrustSettings, @unchecked Sendable {
+        private var level = TrustLevel.balanced
+        func trustLevel() async throws -> TrustLevel { level }
+        func setTrustLevel(_ level: TrustLevel) async throws -> TrustLevel { self.level = level; return level }
+    }
+
     /// Robot Access for the UI tests: kept in memory, with a small made-up map.
     final class Sharing: RobotSharing, @unchecked Sendable {
         private var on = false
@@ -122,6 +157,22 @@ enum UITestSamples {
             RobotAccessStatus(on: on, a2aURL: "http://mac.local:8000/a2a/home-memory",
                               agentCardURL: "http://mac.local:8000/a2a/home-memory/.well-known/agent-card.json",
                               exportURL: "http://mac.local:8000/homes/flat/robot-export")
+        }
+    }
+
+    /// Room maps for the UI tests: a small made-up map for each sample room, its things as dots.
+    struct Maps: RoomMaps {
+        func roomMap(home: String, room: String) async throws -> RobotMapPackage {
+            guard room == "Living room" || room == "Kitchen" else { throw RecallError.status(404) }
+            // a 10 x 6 room: a wall along the top, unseen along the bottom, one piece of furniture
+            var shades = [UInt8](repeating: 0, count: 10) + [UInt8](repeating: 254, count: 40) + [UInt8](repeating: 128, count: 10)
+            shades[room == "Kitchen" ? 22 : 25] = 0
+            let map = RobotMap(width: 10, height: 6, resolution: 0.25, origin: (0, 0), shades: shades)
+            let here = things.filter { $0.room == room }
+            let dots = here.enumerated().map { i, t in
+                RobotMapPackage.Thing(label: t.label, color: t.color, x: 0.4 + Double(i) * 0.5, y: 0.6)
+            }
+            return RobotMapPackage(room: room, map: map, things: dots, files: [:])
         }
     }
 }

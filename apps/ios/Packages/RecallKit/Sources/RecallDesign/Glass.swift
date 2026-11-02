@@ -150,7 +150,10 @@ public struct FilterChip: View {
     }
 
     public var body: some View {
-        Button(action: action) {
+        Button {
+            TapFeedback.play()
+            action()
+        } label: {
             Text(title)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(selected ? Tokens.onAccent : Tokens.ink)

@@ -59,6 +59,8 @@ public enum PrivacyNote {
         ("Robot Access", "Off by default. Every robot request is in the activity log."),
         ("Private mode", "Run the Guide on Muse Glimmer on your Mac (LM Studio), so your questions stay home. Scans "
             + "and voice still use Meta's online models."),
+        ("People in view", "Scan when nobody else is in the room. Anyone the camera sees is in the scan photos that go to "
+            + "SAM 3.1 with the rest; Recall never looks for people or faces, and robots never get photos."),
     ]
 
     public static let theirTerms = "These services process what they receive under their own terms; Recall doesn't "

@@ -63,3 +63,16 @@ def test_deleting_a_scan_removes_its_keyframes(tmp_path):
     assert c.scans.get("s1") is None and c.scans.get("s2") is not None
     with c.engine.connect() as db:
         assert db.execute(text("SELECT count(*) FROM keyframes")).scalar() == 0
+
+
+def test_many_first_requests_at_once_open_the_database_once(tmp_path):
+    # the phone sends several requests together when the app opens; Alembic must not run twice at once
+    from concurrent.futures import ThreadPoolExecutor
+
+    from recall_api.config.settings import Settings
+    from recall_api.infra.container import Container
+
+    c = Container(Settings(RECALL_DATA_DIR=tmp_path, RECALL_TRACES="off"))
+    with ThreadPoolExecutor(8) as pool:
+        engines = list(pool.map(lambda _: c.engine, range(16)))
+    assert len({id(e) for e in engines}) == 1

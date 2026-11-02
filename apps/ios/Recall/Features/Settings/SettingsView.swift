@@ -1,16 +1,19 @@
 import RecallDesign
 import RecallDomain
 import SwiftUI
+import UniformTypeIdentifiers
 import UIKit
 
 /// Where the Mac is and the shared device key (pairing, not a login). The key is kept in the Keychain.
 /// A native grouped Form: the system draws its rows and bars, and every text scales with Dynamic Type.
 struct SettingsView: View {
     @Environment(SettingsModel.self) private var model
+    @Environment(TrustModel.self) private var trust
     @State private var testResult: String?
     @State private var testOK = false
     @State private var testing = false
     @State private var showKey = false
+    @State private var showAddress = false
     @State private var canPaste = UIPasteboard.general.hasStrings  // checking doesn't read it (no paste prompt)
     @AppStorage(Theme.appearanceKey) private var appearance = Appearance.system
     @AppStorage(Theme.highContrastKey) private var highContrast = false
@@ -41,7 +44,7 @@ struct SettingsView: View {
                             AppearanceView()
                         } label: {
                             HStack {
-                                Label("Appearance", systemImage: "circle.lefthalf.filled").foregroundStyle(Tokens.ink)
+                                Label("Appearance and voice", systemImage: "circle.lefthalf.filled").foregroundStyle(Tokens.ink)
                                 Spacer()
                                 Text(highContrast ? "\(appearance.title), high contrast" : appearance.title)
                                     .foregroundStyle(Tokens.muted)
@@ -50,11 +53,40 @@ struct SettingsView: View {
                         .accessibilityIdentifier("appearance")
                     }
 
+                    TrustSection(trust: trust)
+
                     Section {
-                        TextField("Mac address", text: $model.connection.address,
-                                  prompt: Text("https://your-mac.ts.net:8445").foregroundStyle(Tokens.muted), axis: .vertical)
-                            .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-                            .accessibilityIdentifier("macAddress")
+                        HStack(alignment: .center, spacing: 8) {
+                            if !showAddress && !model.connection.address.isEmpty {
+                                // hidden by default, like the key: enough to recognise it, not to read over a shoulder
+                                Text(model.connection.maskedAddress)
+                                    .font(.body.monospaced()).foregroundStyle(Tokens.ink)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                                    .accessibilityLabel("Mac address, hidden")
+                                    .accessibilityIdentifier("macAddress")
+                            } else {
+                                TextField("Mac address", text: $model.connection.address,
+                                          prompt: Text("https://your-mac.ts.net:8445").foregroundStyle(Tokens.muted), axis: .vertical)
+                                    .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+                                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                                    .accessibilityIdentifier("macAddress")
+                                    .limited($model.connection.address, to: TextInput.address)
+                            }
+                            if !model.connection.address.isEmpty {
+                                Spacer(minLength: 0)
+                                Button { showAddress.toggle() } label: {
+                                    Image(systemName: showAddress ? "eye.slash" : "eye")
+                                        .font(.body.weight(.semibold))
+                                        .foregroundStyle(Tokens.accent)
+                                        .frame(minWidth: 44, minHeight: 44)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plainTap)
+                                .accessibilityLabel(showAddress ? "Hide the Mac address" : "Show the Mac address")
+                                .accessibilityIdentifier("macAddress.toggle")
+                            }
+                        }
                     } header: { FormHeader("Mac address") } footer: {
                         FormNote("The address the Mac's API prints when it starts, a Tailscale or a Cloudflare Tunnel URL.")
                     }
@@ -77,6 +109,7 @@ struct SettingsView: View {
                             }
                         }
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
+                        .limited($model.connection.key, to: TextInput.deviceKey)
                         .accessibilityIdentifier("deviceKey")
                         HStack(spacing: 8) {
                             Button(showKey ? "Hide" : "Show", systemImage: showKey ? "eye.slash" : "eye") { showKey.toggle() }
@@ -88,13 +121,18 @@ struct SettingsView: View {
                                 Button("Paste", systemImage: "doc.on.clipboard") {
                                     guard let text = UIPasteboard.general.string else { return }
                                     model.connection.key = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                                    model.say("Key pasted. \(model.connection.keySummary)")
+                                    model.say(TextInput.keyTooLong(text)
+                                        ? "That key is longer than \(TextInput.deviceKey) characters, so it was cut. Copy it again from the Mac."
+                                        : "Key pasted. \(model.connection.keySummary)")
                                 }
                                 .accessibilityLabel("Paste the key")
                             }
                             Button("Copy", systemImage: "doc.on.doc") {
-                                UIPasteboard.general.string = model.connection.cleanKey
-                                model.say("Key copied.")
+                                // this phone only (never Handoff to other devices), and gone after two minutes
+                                UIPasteboard.general.setItems([[UTType.utf8PlainText.identifier: model.connection.cleanKey]],
+                                                              options: [.localOnly: true,
+                                                                        .expirationDate: Date().addingTimeInterval(120)])
+                                model.say("Key copied for two minutes.")
                             }
                             .accessibilityLabel("Copy the key")
                             .disabled(model.connection.cleanKey.isEmpty)
@@ -112,7 +150,13 @@ struct SettingsView: View {
                         TextField("Home name", text: $model.connection.home, axis: .vertical)
                             .textInputAutocapitalization(.never).autocorrectionDisabled()
                             .accessibilityIdentifier("homeName")
-                    } header: { FormHeader("Home name") } footer: { FormNote("One name per home; every scan joins it.") }
+                            .limited($model.connection.home, to: TextInput.homeId)
+                    } header: { FormHeader("Home name") } footer: {
+                        // the Mac takes lowercase letters, digits and dashes: say what will be sent when it differs
+                        let sent = model.connection.homeId
+                        FormNote(sent == model.connection.home ? "One name per home; every scan joins it."
+                                 : "Sent to your Mac as \(sent). One name per home; every scan joins it.")
+                    }
 
                     Section {
                         Button { Task { await test() } } label: {
@@ -141,6 +185,8 @@ struct SettingsView: View {
                 }
                 .listRowBackground(Tokens.card)
             }
+            // the Form's own top margin would put the header lower than on the other tabs
+            .contentMargins(.top, 0, for: .scrollContent)
             .recallScreen()
             .toolbar(.hidden, for: .navigationBar)
             .scrollEdgeEffectStyle(.soft, for: .top)
@@ -150,6 +196,7 @@ struct SettingsView: View {
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                 canPaste = UIPasteboard.general.hasStrings  // copied on the Mac, then back in the app
             }
+            .keyboardDismissable()  // scroll or Done hides the keyboard; a tap outside does too (KeyboardDismissal)
         }
     }
 
@@ -160,10 +207,12 @@ struct SettingsView: View {
     }
 }
 
-/// Theme: automatic, light or dark, and high contrast.
+/// Theme: automatic, light or dark, high contrast, and the tab tap sound.
 private struct AppearanceView: View {
     @AppStorage(Theme.appearanceKey) private var appearance = Appearance.system
     @AppStorage(Theme.highContrastKey) private var highContrast = false
+    @AppStorage(TapSound.enabledKey) private var tapSounds = true
+    @Environment(SettingsModel.self) private var model
 
     var body: some View {
         Form {
@@ -183,15 +232,75 @@ private struct AppearanceView: View {
                     }
                 } header: { FormHeader("Theme") } footer: { FormNote("Automatic follows the iPhone's light or dark setting.") }
                 Section {
+                    ForEach(VoicePreference.allCases, id: \.self) { v in
+                        Button { model.voice = v } label: {
+                            HStack {
+                                Text(v.title).foregroundStyle(Tokens.ink)
+                                Spacer()
+                                if model.voice == v {
+                                    Image(systemName: "checkmark").font(.body.weight(.semibold)).foregroundStyle(Tokens.accent)
+                                }
+                            }
+                        }
+                        .accessibilityAddTraits(model.voice == v ? .isSelected : [])
+                        .accessibilityIdentifier("voice-\(v.rawValue)")
+                    }
+                    Button { model.previewVoice() } label: {
+                        HStack {
+                            Text("Speaking in \(model.voiceTitle)").foregroundStyle(Tokens.ink)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Spacer()
+                            Image(systemName: "speaker.wave.2").font(.body.weight(.semibold)).foregroundStyle(Tokens.accent)
+                        }
+                    }
+                    .accessibilityLabel("Hear it. Speaking in \(model.voiceTitle)")
+                    .accessibilityHint("Speaks a sample answer in this voice.")
+                    .accessibilityIdentifier("voice.hear")
+                } header: { FormHeader("Voice") } footer: {
+                    FormNote(model.hasNaturalVoice
+                        ? "Recall uses the most natural voice on this iPhone. With VoiceOver on, it speaks in VoiceOver's own voice."
+                        : "For a more natural voice, download a Premium or Enhanced voice in the iPhone's Settings, under Accessibility, in the spoken content voices. It's free. With VoiceOver on, Recall speaks in VoiceOver's own voice.")
+                }
+                Section {
                     Toggle("High contrast", isOn: $highContrast).tint(Tokens.go)
                 } footer: {
                     FormNote("Black, white and yellow, like the website's high contrast. It also turns on with iOS's Increase Contrast.")
+                }
+                Section {
+                    Toggle("Tap sounds", isOn: $tapSounds).tint(Tokens.go)
+                } footer: {
+                    FormNote("A soft tap and a light buzz when you switch tabs. The ring/silent switch mutes the sound.")
                 }
             }
             .listRowBackground(Tokens.card)
         }
         .recallScreen()
-        .navigationTitle("Appearance")
+        .navigationTitle("Appearance and voice")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// How sure Recall must be before it tells you about a thing: the three levels, the chosen one explained under them.
+private struct TrustSection: View {
+    let trust: TrustModel
+
+    var body: some View {
+        Section {
+            if let level = trust.level {
+                Picker("How sure before Recall tells you", selection: Binding(get: { level }, set: { next in
+                    Task { await trust.choose(next) }
+                })) {
+                    ForEach(TrustLevel.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.inline).labelsHidden().tint(Tokens.accent)
+                .accessibilityIdentifier("trust-level")
+            } else if trust.error == nil {
+                ProgressView().frame(maxWidth: .infinity)
+            }
+            // no Mac yet: the address and key above already say what's missing, so this only explains itself
+        } header: { FormHeader("How sure before Recall tells you") } footer: {
+            FormNote(trust.level?.explanation ?? "Set on your Mac, so your voice answers, Find, maps and robots all follow it.")
+        }
+        .task { await trust.load() }
     }
 }

@@ -1,4 +1,5 @@
 import { getDictionary } from "@/i18n";
+import { site } from "@/lib/site";
 import { ModelGlyph } from "./ModelGlyph";
 import { RevealSection } from "./RevealSection";
 
@@ -32,7 +33,15 @@ export function ModelCards() {
               </span>
             </div>
             <p className="mt-3 text-lg leading-relaxed text-ink">{m.role}</p>
-            <p className="mt-4 break-all font-mono text-sm text-muted">{m.path}</p>
+            <p className="mt-3 text-base text-ink" data-runs>
+              <span className="font-bold">{t.models.runsOn}:</span> {m.runs}
+            </p>
+            {/* the code itself is one click away on GitHub; the README lists the paths */}
+            <p className="mt-4 text-base">
+              <a href={`${site.repo}/blob/main/${m.path}`} className="font-bold text-fb-blue-dark underline" aria-label={`${m.name}: ${t.models.code}`}>
+                {t.models.code}
+              </a>
+            </p>
           </li>
         ))}
       </ul>

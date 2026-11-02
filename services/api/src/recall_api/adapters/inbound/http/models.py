@@ -87,6 +87,12 @@ class Scan(BaseModel):
     room: str
     status: Status1
     detail: Annotated[str | None, Field(description="Why it failed, in one sentence")] = None
+    worker_alive: Annotated[
+        bool | None,
+        Field(
+            description="While processing: whether the Mac's scan worker is running (its heartbeat is under 90 s old). false means the scan waits until someone runs make worker; null when not processing"
+        ),
+    ] = None
     frame_count: int | None = None
     object_count: int | None = None
     aligned_to: Annotated[
@@ -120,6 +126,18 @@ class Grade(StrEnum):
     redo = "redo"
 
 
+class Step(BaseModel):
+    step: Annotated[
+        int,
+        Field(
+            description="0 start, 1 turn around, 2 along the walls, 3 sweep down, 4 back to start, 5 finish; -1 recognise"
+        ),
+    ]
+    seconds: float
+    completed: bool
+    detail: Annotated[str, Field(description="e.g. Wall sides seen 9 of 9")]
+
+
 class CaptureMetrics(BaseModel):
     directions_covered: Annotated[int, Field(description="Camera headings in 12 sectors of 30 degrees", ge=0, le=12)]
     keyframes_kept: int
@@ -139,6 +157,13 @@ class CaptureMetrics(BaseModel):
     loop_closed: Annotated[bool | None, Field(description="The scan ended within a metre of where it started")] = None
     compass_spread_deg: float | None = None
     grade: Grade
+    duration_s: Annotated[float | None, Field(description="How long the scan took, seconds")] = None
+    points: Annotated[int | None, Field(description="LiDAR depth samples taken while scanning (for the report)")] = None
+    steps: Annotated[
+        list[Step] | None, Field(description="How each voice-led step went: done, or moved on when its time ran out")
+    ] = None
+    zones_seen: Annotated[int | None, Field(description="1 m floor columns x 5 height bands the LiDAR saw")] = None
+    zones_total: Annotated[int | None, Field(description="Zones in the columns the scan reached (columns x 5)")] = None
 
 
 class Image(BaseModel):
@@ -240,7 +265,15 @@ class RoomModel(BaseModel):
 
 
 class DetectedThing(BaseModel):
-    label: str
+    label: Annotated[
+        str,
+        Field(
+            description='What SAM 3.1 was asked for ("mug", "sofa"); no control characters',
+            max_length=80,
+            min_length=1,
+            pattern="^[^\\u0000-\\u001f\\u007f]+$",
+        ),
+    ]
     centroid: Annotated[list[float], Field(max_length=3, min_length=3)]
     bbox_min: Annotated[list[float], Field(max_length=3, min_length=3)]
     bbox_max: Annotated[list[float], Field(max_length=3, min_length=3)]
@@ -259,7 +292,10 @@ class DetectedThing(BaseModel):
         list[float] | None, Field(description="Unit vector (x, y) the front faces, landmarks only")
     ] = None
     color: Annotated[
-        str | None, Field(description="Basic colour name measured from the photo pixels inside the box (objects only)")
+        str | None,
+        Field(
+            description="Basic colour name measured from the photo pixels inside the box (objects only)", max_length=30
+        ),
     ] = None
     size_m: Annotated[
         list[float] | None, Field(description="Bounding box x, y, z in metres", max_length=3, min_length=3)
@@ -358,8 +394,18 @@ class ObjectLocation(BaseModel):
         list[float] | None, Field(description="Bounding box x, y, z in metres", max_length=3, min_length=3)
     ] = None
     corrections: ObjectCorrection | None = None
+    photos: Annotated[
+        int | None,
+        Field(description="How many of the scan's photos showed it (null for sightings kept before this was recorded)"),
+    ] = None
+    trusted: Annotated[
+        bool | None,
+        Field(
+            description="Seen in enough photos for the owner's trust level (or confirmed): the Guide, Find, room maps and robots use it"
+        ),
+    ] = None
     needs_review: Annotated[
-        bool | None, Field(description="The models were unsure (confidence under 0.7) and the user hasn't confirmed it")
+        bool | None, Field(description="Unconfirmed and either unsure (confidence under 0.7) or not trusted yet")
     ] = None
 
 
@@ -374,23 +420,52 @@ class SharingUpdate(BaseModel):
     robot_access: bool
 
 
+class Level(StrEnum):
+    careful = "careful"
+    balanced = "balanced"
+    everything = "everything"
+
+
+class Trust(BaseModel):
+    level: Annotated[Level, Field(description="careful: 3 photos; balanced: 2 (default); everything: 1")]
+    min_photos: Annotated[
+        int, Field(description="Photos a thing must be seen in, at this level (a confirmed thing always counts)", ge=1)
+    ]
+
+
+class TrustUpdate(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    level: Level
+
+
 class Actor(StrEnum):
     owner = "owner"
     robot = "robot"
     pipeline = "pipeline"
+    system = "system"
     unknown = "unknown"
 
 
 class Action(StrEnum):
     robot_access_changed = "robot_access.changed"
+    trust_changed = "trust.changed"
     robot_export_read = "robot_export.read"
     home_memory_query = "home_memory.query"
     auth_refused = "auth.refused"
     object_corrected = "object.corrected"
     object_forgotten = "object.forgotten"
+    scan_created = "scan.created"
+    scan_uploaded = "scan.uploaded"
+    scan_failed = "scan.failed"
     scan_ingested = "scan.ingested"
     scan_erased = "scan.erased"
     arrival_verified = "arrival.verified"
+    guide_answered = "guide.answered"
+    voice_transcribed = "voice.transcribed"
+    audit_pruned = "audit.pruned"
+    rate_limited = "rate.limited"
 
 
 class Outcome(StrEnum):
@@ -543,14 +618,53 @@ class RobotExport(BaseModel):
     room_model: RoomModel
 
 
+class Label(BaseModel):
+    object_id: str
+    title: Annotated[str, Field(description="e.g. grey bag, or the owner's own name for it")]
+    place: Annotated[str, Field(description="e.g. near the desk, at knee height")]
+    confidence: float
+    photos: int | None = None
+    trusted: bool
+    needs_review: bool
+    position_arkit: Annotated[list[float], Field(max_length=3, min_length=3)]
+
+
+class ArLabels(BaseModel):
+    scan_id: Annotated[str, Field(description="The scan whose room map the positions are in")]
+    room: str
+    floor_y_arkit: Annotated[float | None, Field(description="The floor's height in that ARKit frame, metres")] = None
+    labels: list[Label]
+
+
+class Leg(BaseModel):
+    bearing_deg: Annotated[float, Field(description="Magnetic bearing, clockwise from north", ge=0.0, le=360.0)]
+    metres: Annotated[float, Field(ge=0.0)]
+
+
+class CompassRoute(BaseModel):
+    object_id: str
+    label: Annotated[str, Field(description="e.g. keys")]
+    color: str | None = None
+    start: Annotated[
+        str, Field(description="Where to stand first, in words, e.g. where you started the scan of Living room")
+    ]
+    place: Annotated[str, Field(description="Where the thing is, in words, e.g. near the desk, at knee height")]
+    legs: Annotated[list[Leg], Field(min_length=1)]
+
+
 class AskRequest(BaseModel):
-    home_id: str
+    home_id: Annotated[str, Field(pattern="^[a-z0-9-]{1,64}$")]
     question: Annotated[str, Field(max_length=300, min_length=1)]
-    session_id: Annotated[str | None, Field(description="A guidance session, if the user is already being guided")] = (
-        None
-    )
+    session_id: Annotated[
+        str | None,
+        Field(description="A guidance session, if the user is already being guided", pattern="^[A-Za-z0-9_-]{1,64}$"),
+    ] = None
     about: Annotated[
-        str | None, Field(description='The thing the last answer was about, for a follow-up ("why do you think so?")')
+        str | None,
+        Field(
+            description='The thing the last answer was about, for a follow-up ("why do you think so?")',
+            pattern="^[A-Za-z0-9_-]{1,64}$",
+        ),
     ] = None
 
 

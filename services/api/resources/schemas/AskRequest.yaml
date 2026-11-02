@@ -1,7 +1,7 @@
 type: object
 required: [home_id, question]
 properties:
-  home_id: {type: string}
+  home_id: {type: string, pattern: "^[a-z0-9-]{1,64}$"}
   question: {type: string, minLength: 1, maxLength: 300}
-  session_id: {type: [string, "null"], description: "A guidance session, if the user is already being guided"}
-  about: {type: [string, "null"], description: "The thing the last answer was about, for a follow-up (\"why do you think so?\")"}
+  session_id: {type: [string, "null"], pattern: "^[A-Za-z0-9_-]{1,64}$", description: "A guidance session, if the user is already being guided"}
+  about: {type: [string, "null"], pattern: "^[A-Za-z0-9_-]{1,64}$", description: "The thing the last answer was about, for a follow-up (\"why do you think so?\")"}

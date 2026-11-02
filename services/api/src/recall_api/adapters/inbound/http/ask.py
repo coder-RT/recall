@@ -37,14 +37,11 @@ def ask(body: AskRequest, c=Depends(container)) -> Answer:
 
 @router.post("/transcribe", response_model=Transcript, tags=["voice"])
 async def transcribe(audio: UploadFile, c=Depends(container)) -> Transcript:
-    import time
-
     data = await audio.read()
-    t0 = time.perf_counter()
     try:
-        text = c.transcriber.transcribe(data, audio.content_type or "")
+        t = c.transcribe(data, audio.content_type or "")
     except ValueError as e:
         raise HTTPException(422, {"error": "wrong_format", "detail": str(e)}) from e
     except (httpx.HTTPError, RuntimeError) as e:
         raise _unavailable(e) from e
-    return Transcript(text=text, model="muse-voice-transcribe-1.0", latency_ms=int((time.perf_counter() - t0) * 1000))
+    return Transcript(text=t.text, model=t.model, latency_ms=t.latency_ms)

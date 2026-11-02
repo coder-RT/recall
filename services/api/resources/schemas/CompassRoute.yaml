@@ -1,0 +1,18 @@
+type: object
+description: "A walk to a thing from where its room's scan began, as compass legs (for a watch with no camera)"
+required: [object_id, label, start, place, legs]
+properties:
+  object_id: {type: string}
+  label: {type: string, description: "e.g. keys"}
+  color: {type: [string, "null"]}
+  start: {type: string, description: "Where to stand first, in words, e.g. where you started the scan of Living room"}
+  place: {type: string, description: "Where the thing is, in words, e.g. near the desk, at knee height"}
+  legs:
+    type: array
+    minItems: 1
+    items:
+      type: object
+      required: [bearing_deg, metres]
+      properties:
+        bearing_deg: {type: number, minimum: 0, maximum: 360, description: "Magnetic bearing, clockwise from north"}
+        metres: {type: number, minimum: 0}

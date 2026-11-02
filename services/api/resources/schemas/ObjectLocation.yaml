@@ -15,4 +15,6 @@ properties:
   color: {type: [string, "null"], description: "Basic colour name: the user's if they set one, else measured from the photo"}
   size_m: {type: [array, "null"], items: {type: number}, minItems: 3, maxItems: 3, description: "Bounding box x, y, z in metres"}
   corrections: {$ref: ObjectCorrection.yaml}
-  needs_review: {type: boolean, description: "The models were unsure (confidence under 0.7) and the user hasn't confirmed it"}
+  photos: {type: [integer, "null"], description: "How many of the scan's photos showed it (null for sightings kept before this was recorded)"}
+  trusted: {type: boolean, description: "Seen in enough photos for the owner's trust level (or confirmed): the Guide, Find, room maps and robots use it"}
+  needs_review: {type: boolean, description: "Unconfirmed and either unsure (confidence under 0.7) or not trusted yet"}

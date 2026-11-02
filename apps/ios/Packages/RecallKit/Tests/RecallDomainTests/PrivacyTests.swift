@@ -14,6 +14,6 @@ struct PrivacyTests {
     @Test func theNoteNamesWhatLeavesAndWhatNeverDoes() {
         #expect(PrivacyNote.short.contains("own computer, a Mac today") && PrivacyNote.short.contains("Meta's models online"))
         #expect(PrivacyNote.never.contains { $0.contains("No Recall server") })
-        #expect(PrivacyNote.controls.map(\.title) == ["Delete a scan", "Forget a thing", "Robot Access", "Private mode"])
+        #expect(PrivacyNote.controls.map(\.title) == ["Delete a scan", "Forget a thing", "Robot Access", "Private mode", "People in view"])
     }
 }

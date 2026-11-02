@@ -1,3 +1,4 @@
+import RecallDomain
 import RecallDesign
 import SwiftUI
 import UIKit
@@ -22,6 +23,7 @@ struct RoomNameView: View {
                               axis: .vertical)
                         .accessibilityLabel("Room name")
                         .accessibilityIdentifier("roomName")
+                        .limited($name, to: TextInput.roomName)
                         .font(.title3).foregroundStyle(Tokens.ink)
                         .focused($focused)
                         .submitLabel(.go)
@@ -43,7 +45,7 @@ struct RoomNameView: View {
                                 }
                                 .card(padding: 10)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.plainTap)
                         }
                     }
                 }
@@ -58,6 +60,7 @@ struct RoomNameView: View {
                 ToolbarItem(placement: .confirmationAction) { Button(role: .confirm) { go() } label: { Text("Start").foregroundStyle(Tokens.onGo) }
                     .buttonStyle(.glassProminent).tint(Tokens.go) }
             }
+            .keyboardDismissable()  // scroll or Done hides the keyboard; a tap outside does too (KeyboardDismissal)
         }
     }
 

@@ -1,6 +1,7 @@
 /**
  * Guards for the voice demo route, the only route on the site that spends money (Muse Voice Transcribe on the Meta
- * Model API). Kept apart from the route so each rule is tested on its own (e2e/lib.spec.ts).
+ * Model API); the contact form reuses them. Kept apart from the routes so each rule is tested on its own
+ * (e2e/lib.spec.ts).
  *
  * The hard stops are the Vercel firewall rule (`voice-transcribe`, checked with @vercel/firewall in production) and
  * the off switch. The in-memory limits are a fallback: each serverless instance counts on its own, so across
@@ -38,14 +39,22 @@ export class WindowLimit {
   constructor(
     private readonly limit: number,
     private readonly windowMs: number,
+    private readonly maxKeys = 5000,
   ) {}
+
+  /** How many visitors are being counted (for tests). */
+  get size(): number {
+    return this.hits.size;
+  }
 
   /** Counts this request; true when it is over the limit. */
   over(key: string, now = Date.now()): boolean {
     const recent = (this.hits.get(key) ?? []).filter((t) => now - t < this.windowMs);
     recent.push(now);
+    this.hits.delete(key); // re-inserted below: the Map's order is oldest use first
     this.hits.set(key, recent);
-    if (this.hits.size > 5000) this.hits.clear(); // keep memory bounded
+    // keep memory bounded by forgetting the longest-quiet visitors, never everyone at once
+    while (this.hits.size > this.maxKeys) this.hits.delete(this.hits.keys().next().value as string);
     return recent.length > this.limit;
   }
 }
@@ -69,8 +78,8 @@ export class DailyCap {
   }
 }
 
-/** VOICE_DAILY_CAP, or 300 a day. */
-export function dailyCapFrom(env: Record<string, string | undefined>): number {
-  const n = Number(env.VOICE_DAILY_CAP);
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 300;
+/** VOICE_DAILY_CAP, or 300 a day. The contact form passes its own variable and default. */
+export function dailyCapFrom(env: Record<string, string | undefined>, name = "VOICE_DAILY_CAP", fallback = 300): number {
+  const n = Number(env[name]);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }

@@ -9,6 +9,10 @@ audit:
       - {name: actor, in: query, required: false, schema: {type: string, enum: [owner, robot, pipeline, unknown]}}
       - {name: since, in: query, required: false, schema: {type: string, format: date-time}}
     responses:
+      "422":
+        $ref: ../schemas/Responses.yaml#/Invalid
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: Events
         content:

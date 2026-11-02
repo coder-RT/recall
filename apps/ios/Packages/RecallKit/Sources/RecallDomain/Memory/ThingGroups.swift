@@ -55,6 +55,14 @@ public enum ThingGroups {
         }
     }
 
+    /// The rooms to show maps for: rooms with things (most things first), then rooms scanned that have none yet
+    /// (in the order given). "Somewhere in the home" isn't a room, so it has no map.
+    public static func rooms(_ things: [Thing], scanned: [String] = []) -> [String] {
+        let withThings = byPlace(things).map(\.title).filter { $0 != somewhere }
+        var seen = Set(withThings)
+        return withThings + scanned.filter { seen.insert($0).inserted }
+    }
+
     /// Floor to head height, the five bands in that order.
     public static func byHeight(_ things: [Thing]) -> [ThingGroup] {
         let bands = Dictionary(grouping: things, by: \.heightBand)

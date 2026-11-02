@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { en } from "../i18n/dictionaries/en";
@@ -9,7 +11,7 @@ import { open as openPage, prepare } from "./helpers";
  * The tests serve a made-up room (fixtures/test-room.ts) instead of anything on disk, so they never see a real home.
  */
 
-const PAGE = "/homes/flat/viewer";
+const PAGE = "/homes/my-home/viewer";  // a home of your own, exported on this computer (flat is the published scan)
 const s = en.app.viewer.scan;
 const steps = en.app.viewer.steps;
 
@@ -17,7 +19,7 @@ const steps = en.app.viewer.steps;
 async function serveScan(page: Page, present: boolean) {
   await page.route("**/local-scan/**", (route) => {
     const url = new URL(route.request().url());
-    if (!url.pathname.startsWith("/local-scan/flat/")) return route.fulfill({ status: 404, body: "" }); // other homes: none
+    if (!url.pathname.startsWith("/local-scan/my-home/")) return route.fulfill({ status: 404, body: "" }); // other homes: none
     const file = url.pathname.split("/").pop() ?? "";
     const body = present ? testFiles[file] : undefined;
     return body ? route.fulfill({ status: 200, body }) : route.fulfill({ status: 404, body: "" });
@@ -164,6 +166,8 @@ test.describe("3D viewer: your scan", () => {
       const blueShare = async () => (await tint(page)).blue;
       // only the points: the grid, walls and pins are drawn in token colours too
       for (const layer of ["grid", "room", "things"] as const) await page.getByRole("checkbox", { name: s[layer] }).uncheck();
+      await page.getByRole("button", { name: s.more }).click();
+      await page.getByRole("checkbox", { name: s.axes }).uncheck();  // the axes are token blue as well
       const photo = page.getByRole("radio", { name: s.modes.photo, exact: true });
       if (await photo.count()) {
         await photo.check();
@@ -230,14 +234,24 @@ test.describe("3D viewer: your scan", () => {
     await formed(page);
     const viewer = page.locator("[data-viewer]");
     for (const view of ["photo", "architect"] as const) {
-      await page.getByRole("radio", { name: s.views[view], exact: true }).check();
+      await page.getByRole("radio", { name: new RegExp(`^${s.views[view]}`) }).check();
       await expect(viewer).toHaveAttribute("data-view", view);
       await expect(page.getByText(s.viewNotes[view])).toBeVisible();
       await expect.poll(async () => (await tint(page)).drawn).toBeGreaterThan(1000);
     }
     const sheets = page.getByRole("region", { name: new RegExp(s.drawings.title) });
-    await expect(sheets.getByRole("img", { name: meta.drawings[0].summary })).toBeVisible();
+    await expect(sheets.locator(`img[alt="${meta.drawings[0].summary}"]`)).toBeVisible();
     await expect(sheets.getByRole("link", { name: "Download A1.1" })).toHaveAttribute("href", /sheet-a1-1\.svg$/);
+    // a sheet enlarges in place, never in a new tab, and Escape puts it back with focus on its card
+    const enlarge = sheets.getByRole("button", { name: "Enlarge A1.1" });
+    await enlarge.click();
+    const dialog = page.getByRole("dialog", { name: /A1\.1/ });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("button", { name: s.drawings.close })).toBeFocused();
+    expect(page.context().pages()).toHaveLength(1);
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await expect(enlarge).toBeFocused();
   });
 
   test("Facebook-blue arrows point down at the things in every room view; the chosen one turns dark blue", async ({ page }) => {
@@ -246,11 +260,11 @@ test.describe("3D viewer: your scan", () => {
     await open(page, PAGE);
     await formed(page);
     for (const view of ["model", "photo", "architect", "surface"] as const) {
-      await page.getByRole("radio", { name: s.views[view], exact: true }).check();
+      await page.getByRole("radio", { name: new RegExp(`^${s.views[view]}`) }).check();
       await expect.poll(() => exact(page, "#3b5998"), { message: view }).toBeGreaterThan(40);
     }
     const dark = await exact(page, "#29487d");
-    await page.getByRole("region", { name: new RegExp(s.found.title) }).getByRole("button").first().click();
+    await page.getByRole("region", { name: new RegExp(s.found.title) }).locator("li button").first().click();
     await expect.poll(() => exact(page, "#29487d")).toBeGreaterThan(dark + 40);
   });
 
@@ -260,7 +274,15 @@ test.describe("3D viewer: your scan", () => {
     await open(page, PAGE);
     await formed(page);
     const list = page.getByRole("region", { name: new RegExp(s.found.title) });
-    const items = list.getByRole("button");
+    const items = list.locator("li button");
+    await expect(items).toHaveCount(meta.objects.length);
+    // grouped by room, like the app: the group folds closed and open again
+    const group = list.getByRole("button", { name: new RegExp(`^${(meta.room as { name?: string }).name ?? s.found.thisRoom} · ${meta.objects.length}`) });
+    await expect(group).toHaveAttribute("aria-expanded", "true");
+    await group.click();
+    await expect(group).toHaveAttribute("aria-expanded", "false");
+    await expect(items).toHaveCount(0);
+    await group.click();
     await expect(items).toHaveCount(meta.objects.length);
     const first = meta.objects[0];
     await expect(items.first()).toContainText([first.color, first.label].filter(Boolean).join(" "));
@@ -315,4 +337,182 @@ test.describe("3D viewer: your scan", () => {
     const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
     expect(results.violations).toEqual([]);
   });
+});
+
+
+/** The published real scan at /homes/flat/viewer: served from /real-scan/flat/; the tests swap in the made-up room. */
+async function openPublic(page: Page, path = "/homes/flat/viewer") {
+  await page.route("**/real-scan/flat/**", (route) => {
+    const file = new URL(route.request().url()).pathname.split("/").pop() ?? "";
+    if (file === "meta.json") {
+      const m = JSON.parse(testFiles["meta.json"].toString());
+      m.public = true;
+      m.objects = m.objects.map((o: object, i: number) => ({ ...o, photos: i === 0 ? 1 : 4 }));
+      return route.fulfill({ status: 200, body: JSON.stringify(m) });
+    }
+    const body = testFiles[file];
+    return body ? route.fulfill({ status: 200, body }) : route.fulfill({ status: 404, body: "" });
+  });
+  await openPage(page, path);
+}
+
+test.describe("3D viewer: the published real scan", () => {
+  const story = en.app.viewer.story;
+  const real = en.app.viewer.real;
+
+  test("says it is a real scan, not a simulation, with big section headings", async ({ page }) => {
+    await prepare(page);
+    await openPublic(page);
+    await expect(page.locator("[data-real-badge]")).toHaveText(real.badge);
+    await expect(page.getByRole("heading", { level: 1, name: real.title })).toBeVisible();
+    for (const title of [story.models.title, story.measured.title, story.robots.title, story.how.title]) {
+      const h = page.getByRole("heading", { level: 2, name: title });
+      await expect(h).toBeVisible();
+      expect(parseFloat(await h.evaluate((e) => getComputedStyle(e).fontSize))).toBeGreaterThanOrEqual(30);
+    }
+  });
+
+  test("names the Meta model behind each part, and lists what SAM 3.1 found with its photos", async ({ page }) => {
+    await prepare(page);
+    await openPublic(page);
+    const models = page.locator("[data-story=models-title] tbody tr");
+    await expect(models).toHaveCount(story.models.rows.length);
+    await expect(models.first()).toContainText("MapAnything");
+    const found = page.locator("[data-story=found-title] tbody tr");
+    await expect(found).toHaveCount(meta.objects.length);
+    await expect(found.first()).toContainText(story.found.waits);  // seen in one photo: waits for the owner
+    await expect(found.nth(1)).toContainText(story.found.told);
+  });
+
+  test("lists Recall's agents and the Meta model each runs, then the robot files to download", async ({ page }) => {
+    await prepare(page);
+    await openPublic(page);
+    const agents = page.locator("[data-story=agents-title] tbody tr");
+    await expect(agents).toHaveCount(story.agents.rows.length);
+    await expect(agents.first()).toContainText("Muse Spark Open");
+    for (const f of ["map.yaml", "map.pgm", "objects.json", "room.json", "cloud.ply", "README.md"]) {
+      await expect(page.locator(`[data-robot-file="${f}"]`)).toHaveAttribute("href", `/real-scan/flat/robot/${f}`);
+    }
+    await expect(page.locator("[data-robot-zip]")).toHaveAttribute("href", "/real-scan/flat/robot/recall-living-room.zip");
+    const note = page.locator("[data-privacy-note]");
+    await expect(note.getByRole("heading", { name: story.privacyTitle })).toBeVisible();
+    await expect(note).toContainText(story.privacyNever);
+  });
+
+  test("the measured numbers are computed from the scan itself", async ({ page }) => {
+    await prepare(page);
+    await openPublic(page);
+    const rows = page.locator("[data-story=measured-title] tbody tr");
+    const row = (label: string) => rows.filter({ has: page.getByRole("rowheader", { name: label, exact: true }) });
+    // the made-up room's floor is 4 × 3 m
+    await expect(row(story.measured.floor)).toContainText("12.0 m²");
+    await expect(row(story.measured.perimeter)).toContainText("14.0 m");
+    await expect(row(story.measured.size)).toContainText("4.00 × 3.00 m");
+    await expect(row(story.measured.waiting)).toContainText("1");  // the one seen in a single photo
+  });
+
+  test("Dots and Architect are marked as the best views, and More options holds each view's settings", async ({ page }) => {
+    await prepare(page);
+    await openPublic(page);
+    const best = page.locator("[data-best]");
+    await expect(best).toHaveCount(2);
+    await expect(best.first()).toContainText(s.best);
+    await page.getByRole("button", { name: s.more }).click();
+    const more = page.locator("[data-more-options]");
+    for (const p of Object.values(s.presets)) await expect(more.getByRole("radio", { name: p, exact: true })).toBeVisible();
+    await expect(more.getByRole("checkbox", { name: s.axes })).toBeChecked();
+    await page.getByRole("radio", { name: new RegExp(`^${s.views.architect}`) }).check();
+    await expect(more.getByRole("slider", { name: s.cut })).toBeVisible();
+    await page.getByRole("radio", { name: new RegExp(`^${s.views.model}`) }).check();
+    await expect(more.getByRole("slider", { name: s.wallOpacity })).toBeVisible();
+  });
+
+  test("choosing Surface selects the 3D camera, the axes and the wireframe", async ({ page }) => {
+    await prepare(page);
+    await openPublic(page);
+    await page.getByRole("radio", { name: new RegExp(`^${s.views.surface}`) }).check();
+    await page.getByRole("button", { name: s.more }).click();
+    const more = page.locator("[data-more-options]");
+    await expect(more.getByRole("radio", { name: s.presets.iso, exact: true })).toBeChecked();
+    await expect(more.getByRole("checkbox", { name: s.axes })).toBeChecked();
+    await expect(more.getByRole("checkbox", { name: s.wireframe })).toBeChecked();
+  });
+
+  test("choosing Architect selects the Top camera and a 1.5 m wall cut", async ({ page }) => {
+    await prepare(page);
+    await openPublic(page);
+    await page.getByRole("radio", { name: new RegExp(`^${s.views.architect}`) }).check();
+    await page.getByRole("button", { name: s.more }).click();
+    const more = page.locator("[data-more-options]");
+    await expect(more.getByRole("radio", { name: s.presets.top, exact: true })).toBeChecked();
+    await expect(more.getByRole("slider", { name: s.cut })).toHaveValue("1.5");
+  });
+
+  test("a bar at the top leads back to the landing page", async ({ page }) => {
+    await prepare(page);
+    await openPublic(page);
+    const nav = page.getByRole("navigation", { name: en.app.viewer.back.label });
+    await expect(nav.getByRole("link", { name: en.app.viewer.back.back })).toHaveAttribute("href", "/");
+    await expect(nav.getByRole("link", { name: en.app.viewer.back.ask })).toHaveAttribute("href", "/#ask");
+    await nav.getByRole("link", { name: en.app.viewer.back.back }).click();
+    await expect(page).toHaveURL(/\/$/);
+  });
+
+  test("the old demo address opens the real scan", async ({ page }) => {
+    await prepare(page);
+    await openPublic(page, "/homes/demo-flat/viewer");
+    await expect(page).toHaveURL(/\/homes\/flat\/viewer$/);
+    await expect(page.locator("[data-real-badge]")).toBeVisible();
+  });
+
+  test("passes an automated WCAG 2.2 AA audit", async ({ page }) => {
+    await prepare(page);
+    await openPublic(page);
+    await formed(page);
+    const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
+    expect(results.violations).toEqual([]);
+  });
+});
+
+test("the published scan holds geometry only: no photo, no photo colours", () => {
+  const dir = path.join(__dirname, "..", "public", "real-scan");
+  if (!fs.existsSync(dir)) return;  // nothing published yet, so nothing to leak
+  for (const home of fs.readdirSync(dir)) {
+    const files = fs.readdirSync(path.join(dir, home));
+    expect(files.filter((f) => f === "colors.bin" || f.startsWith("photo") || /\.(jpe?g|png|heic|mov|mp4)$/i.test(f))).toEqual([]);
+    const m = JSON.parse(fs.readFileSync(path.join(dir, home, "meta.json"), "utf8"));
+    expect(m.public).toBe(true);
+    expect(m.photo).toBeUndefined();
+  }
+});
+
+test("the published robot files hold geometry and labels only: no paths, keys or photos", () => {
+  const dir = path.join(__dirname, "..", "public", "real-scan", "flat", "robot");
+  if (!fs.existsSync(dir)) return;
+  for (const f of fs.readdirSync(dir)) {
+    expect(f).not.toMatch(/\.(jpe?g|png|heic|mov|mp4)$/i);
+    if (/\.(json|yaml|md)$/.test(f)) {
+      const text = fs.readFileSync(path.join(dir, f), "utf8");
+      expect(text, f).not.toMatch(/\/Users\/|\/home\/[a-z]|[A-Z_]+_KEY|Bearer |token/i);
+    }
+  }
+  const objects = JSON.parse(fs.readFileSync(path.join(dir, "objects.json"), "utf8"));
+  for (const o of objects.objects) expect(o.aliases, "never the owner's own names").toEqual([]);
+});
+
+test("the site's install guide is the repo's docs/install/README.md, word for word", () => {
+  const root = path.join(__dirname, "..", "..", "..");
+  const guide = fs.readFileSync(path.join(root, "docs", "install", "README.md"), "utf8");
+  const served = fs.readFileSync(path.join(__dirname, "..", "public", "INSTALL.md"), "utf8");
+  expect(served).toBe(guide);
+  expect(fs.readFileSync(path.join(root, "INSTALL.md"), "utf8")).toContain("docs/install/README.md");
+});
+
+test("the public install guide carries no keys, no home paths and no private links", () => {
+  const root = path.join(__dirname, "..", "..", "..");
+  const guide = fs.readFileSync(path.join(root, "docs", "install", "README.md"), "utf8");
+  expect(guide).not.toMatch(/\/Users\/|\/home\/[a-z]|docs\/private/);
+  // every key line is empty: KEY= followed by spaces and a comment, never a value
+  for (const line of guide.split("\n").filter((l) => /^[A-Z_]*KEY=/.test(l))) expect(line).toMatch(/^[A-Z_]*KEY=\s*(#|$)/);
+  expect(guide).not.toMatch(/sk-[A-Za-z0-9]{10}|re_[A-Za-z0-9]{10}|[0-9a-f]{40,}/);
 });

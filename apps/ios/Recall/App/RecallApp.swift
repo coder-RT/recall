@@ -9,6 +9,10 @@ struct RecallApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var container = AppContainer()
 
+    init() {
+        TapFeedback.play = { TapSound.shared.play(.press) }  // every shared button style gives the soft tap
+    }
+
     var body: some Scene {
         WindowGroup {
             ThemedRoot()
@@ -16,6 +20,8 @@ struct RecallApp: App {
                 .environment(container.settings)
                 .environment(container.things)
                 .environment(container.scans)
+                .environment(container.roomMaps)
+                .environment(container.trust)
                 .environment(\.container, container)
         }
     }
@@ -34,12 +40,18 @@ private struct ThemedRoot: View {
     @Environment(ScansModel.self) private var scans
     @Environment(\.container) private var container
     @Environment(\.colorSchemeContrast) private var systemContrast
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage(Theme.appearanceKey) private var appearance = Appearance.system
     @AppStorage(Theme.highContrastKey) private var highContrast = false
 
     var body: some View {
         @Bindable var router = router
-        TabView(selection: $router.tab) {
+        // a tap on the bar plays the tap sound; switching tabs in code ("Open Settings") stays quiet
+        let tabs = Binding(get: { router.tab }, set: { tab in
+            if tab != router.tab { TapSound.shared.play() }
+            router.tab = tab
+        })
+        TabView(selection: tabs) {
             // first in the bar, but the app opens on Find: asking stays one step away
             Tab("Devices", systemImage: "apps.iphone", value: AppTab.devices) { DevicesView() }
             Tab("Find", systemImage: "location.magnifyingglass", value: AppTab.find) { FindView() }
@@ -61,7 +73,21 @@ private struct ThemedRoot: View {
         .id(highContrast)
         .onChange(of: highContrast, initial: true) { Theme.highContrast = highContrast }
         .task { await scans.start() }
+        // back from the background: what finished meanwhile updates the cards without talking
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { scans.becameActive(); KeyboardDismissal.shared.install() }
+        }
+        .task { KeyboardDismissal.shared.install() }  // a tap outside a text field hides the keyboard, everywhere
         .onOpenURL { settings.pair(with: $0) }
+        .alert("Pair with this Mac?", isPresented: Binding(get: { settings.pendingPairing != nil },
+                                                           set: { if !$0 { settings.cancelPairing() } }),
+               presenting: settings.pendingPairing) { _ in
+            Button("Pair") { settings.confirmPairing() }
+                .accessibilityIdentifier("pairing.confirm")
+            Button("Cancel", role: .cancel) { settings.cancelPairing() }
+        } message: { pairing in
+            Text(pairing.summary + " Only pair with your own Mac.")
+        }
     }
 }
 

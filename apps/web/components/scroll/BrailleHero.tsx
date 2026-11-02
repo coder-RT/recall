@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useRef } from "react";
 import { AskCard } from "@/components/ui/AskCard";
 import { BrailleText } from "@/components/ui/BrailleText";
+import { CyclingHeadline } from "@/components/ui/CyclingHeadline";
 import { brailleCells, dotPosition, GLYPH, matrixDots, orbPoints, wordWidth } from "@/lib/braille";
 import { gsap, MOTION_OK, ScrollTrigger, useGSAP } from "@/lib/gsap";
 import { useMotionPrefs } from "@/lib/motion-prefs";
@@ -224,7 +226,10 @@ export function BrailleHero() {
               {t.hero.brailleCaption} <span className="normal-case tracking-normal">{t.hero.capitalsNote}</span>
             </span>
           </p>
-          <p data-hero-copy className="mt-6 max-w-xl text-2xl font-bold leading-snug text-fb-blue-dark sm:text-3xl">
+          <p data-hero-copy data-headline className="mt-6 text-5xl font-extrabold leading-[1.05] tracking-tight text-ink sm:text-6xl">
+            <CyclingHeadline lead={t.hero.headline.lead} words={t.hero.headline.words} sentence={t.hero.headline.sentence} />
+          </p>
+          <p data-hero-copy className="mt-5 max-w-xl text-2xl font-bold leading-snug text-fb-blue-dark">
             {t.hero.tagline}
           </p>
           <p data-hero-copy className="mt-4 max-w-xl text-lg leading-relaxed text-muted">
@@ -237,6 +242,10 @@ export function BrailleHero() {
             <a href="#feed" className="btn btn-ghost">
               {t.hero.browse}
             </a>
+            <Link href="/homes/flat/viewer" className="btn btn-demo gap-2" data-actual-scan data-demo-button>
+              <span data-actual-badge className="rounded-full bg-ink px-2 py-0.5 text-xs font-bold text-white">{t.hero.actualScan}</span>
+              {t.hero.seeScan}
+            </Link>
           </div>
         </div>
 

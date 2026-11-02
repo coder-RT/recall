@@ -12,6 +12,33 @@ public protocol HomeMemory: Sendable {
     func forget(home: String, thing: String) async throws
 }
 
+/// Each room's map, with the things in it, for the owner's own screens (not recorded as a robot export).
+/// Everything found in a room, placed in that room's saved AR map (labels over the camera).
+public protocol ArLabelsSource: Sendable {
+    func arLabels(home: String, room: String) async throws -> ArLabels
+}
+
+/// Directions by compass for the Watch, from where the room's scan began (the Mac plans them).
+public protocol CompassRoutes: Sendable {
+    func compassRoute(home: String, thing: String) async throws -> CompassRoute
+}
+
+/// The owner's trust level, kept on the Mac.
+public protocol TrustSettings: Sendable {
+    func trustLevel() async throws -> TrustLevel
+    func setTrustLevel(_ level: TrustLevel) async throws -> TrustLevel
+}
+
+/// One room's package for a robot, made by the Mac: a .zip of the files a robot loads (Nav2 map, things, room
+/// outline, 3D points, README). `room` nil is the newest scan's room.
+public protocol RobotPackages: Sendable {
+    func robotPackage(home: String, room: String?) async throws -> Data
+}
+
+public protocol RoomMaps: Sendable {
+    func roomMap(home: String, room: String) async throws -> RobotMapPackage
+}
+
 /// The Guide agent and the route planner.
 public protocol GuideService: Sendable {
     /// `about`: the thing the last answer was about, so "why do you think so?" knows what "so" is.
@@ -111,6 +138,10 @@ public protocol Clock: Sendable {
 @MainActor public protocol SpeechOutput: AnyObject {
     func say(_ text: String, interrupt: Bool)
     func stop()
+    /// Speaking right now (false under VoiceOver: those lines are VoiceOver's, stopped with its two-finger tap).
+    var isSpeaking: Bool { get }
+    /// Called when the current speech ends or is stopped (a speaker button turns back from Stop).
+    var onFinished: (() -> Void)? { get set }
 }
 
 @MainActor public protocol HapticsOutput: AnyObject {

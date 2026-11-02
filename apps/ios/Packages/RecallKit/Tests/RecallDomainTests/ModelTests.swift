@@ -10,6 +10,37 @@ struct ConnectionTests {
         #expect(Connection(address: "ftp://x", key: "k", home: "").url == nil)
     }
 
+    @Test func aBareHostIsHttpsUnlessItIsOnThisNetwork() {
+        let url = { (a: String) in Connection(address: a, key: "k", home: "").url?.absoluteString }
+        #expect(url("mac.example.com:8445") == "https://mac.example.com:8445")  // across the internet: encrypted
+        #expect(url("recall.trycloudflare.com") == "https://recall.trycloudflare.com")
+        #expect(url("10.0.0.5:8000") == "http://10.0.0.5:8000")
+        #expect(url("172.20.1.1:8000") == "http://172.20.1.1:8000")
+        #expect(url("172.40.1.1:8000") == "https://172.40.1.1:8000")  // not a private range
+        #expect(url("rachits-mac.local:8000") == "http://rachits-mac.local:8000")
+        #expect(url("localhost:8000") == "http://localhost:8000")
+        // Tailscale: encrypted by the tailnet itself, and the Mac serves plain http there
+        #expect(url("100.80.5.54:8000") == "http://100.80.5.54:8000")
+        #expect(url("rachits-macbook-pro-2.tail67b272.ts.net:8000") == "http://rachits-macbook-pro-2.tail67b272.ts.net:8000")
+        #expect(url("100.200.1.1:8000") == "https://100.200.1.1:8000")  // outside 100.64/10
+        #expect(url("http://mac.example.com") == "http://mac.example.com")  // a typed scheme is kept
+    }
+
+    @Test func theAddressIsMaskedButRecognisable() {
+        let masked = { (a: String) in Connection(address: a, key: "k", home: "").maskedAddress }
+        #expect(masked("100.80.5.54:8000") == "http://100••••••:8000")
+        #expect(masked("rachits-macbook-pro-2.tail67b272.ts.net:8000") == "http://rac••••••:8000")
+        #expect(masked("https://mac.example.com") == "https://mac••••••")
+        #expect(!masked("rachits-macbook-pro-2.tail67b272.ts.net:8000").contains("tail67b272"))
+        #expect(masked("") == "")
+    }
+
+    @Test func aPairingLinkSaysWhereWithoutShowingTheKey() throws {
+        let p = try #require(try PairingLink(URL(string: "recall://pair?url=https://mac:8445&key=abcdefgh1234&home=loft")!))
+        #expect(p.summary == "Pair with the Mac at mac:8445? Key: 12 characters, ending in 1 2 3 4.")
+        #expect(!p.summary.contains("abcdefgh"))
+    }
+
     @Test func saysWhatIsMissing() {
         #expect(Connection(address: "", key: "", home: "").issue == .nothingSet)
         #expect(Connection(address: "::", key: "k", home: "").issue == .badAddress)

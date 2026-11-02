@@ -7,7 +7,7 @@
  * "audio" part; Authorization: Bearer <key>; model muse-voice-transcribe-1.0.
  *
  * It spends money, so it is guarded (lib/voice-guard.ts): an off switch, this site's pages only, the Vercel firewall
- * rule `voice-transcribe` (5 a minute per visitor, set in the dashboard), and a daily cap.
+ * rule `voice-transcribe` (10 a minute per visitor, set in the dashboard), and a daily cap.
  */
 
 import { checkRateLimit } from "@vercel/firewall";
@@ -70,6 +70,10 @@ export async function POST(request: Request) {
   if (!request.headers.get("content-type")?.startsWith("audio/wav")) {
     return Response.json({ error: "wrong_format" }, { status: 415 });
   }
+  // refuse by the declared size before reading anything into memory
+  const declared = Number(request.headers.get("content-length") ?? "0");
+  if (declared > MAX_BYTES) return Response.json({ error: "too_long" }, { status: 413 });
+
   if (await rateLimited(request)) return Response.json({ error: "rate_limited" }, { status: 429 });
   if (dailyCap.reached()) return Response.json({ error: "daily_limit" }, { status: 429 });
 

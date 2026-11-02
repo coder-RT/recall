@@ -20,8 +20,10 @@ public struct BrandHeader: View {
                 Spacer(minLength: 0)
             }
             .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("brand-header")
             Text(title).font(.largeTitle.weight(.bold)).foregroundStyle(Tokens.ink)
                 .accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier("screen-title")
         }
         .padding(.top, 8)
         .padding(.bottom, 4)

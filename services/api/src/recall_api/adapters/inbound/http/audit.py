@@ -23,5 +23,5 @@ def list_audit_events(
     return [
         AuditEvent(id=e.id, at=e.at, actor=e.actor.value, action=e.action.value, outcome=e.outcome.value,
                    target_type=e.target_type, target_id=e.target_id, detail=e.detail, request_id=e.request_id)
-        for e in c.audit_log.recent(limit, action, actor, since)
+        for e in c.auditor.recent(limit, action, actor, since)
     ]  # fmt: skip

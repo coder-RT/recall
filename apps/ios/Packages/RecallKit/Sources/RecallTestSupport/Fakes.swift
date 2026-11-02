@@ -114,8 +114,12 @@ public final class FakeClock: Clock, @unchecked Sendable {
 @MainActor public final class FakeSpeech: SpeechOutput {
     public private(set) var lines: [String] = []
     public init() {}
-    public func say(_ text: String, interrupt: Bool) { lines.append(text) }
-    public func stop() {}
+    public private(set) var isSpeaking = false
+    public var onFinished: (() -> Void)?
+    public func say(_ text: String, interrupt: Bool) { lines.append(text); isSpeaking = true }
+    public func stop() { isSpeaking = false; onFinished?() }
+    /// The test's stand-in for the line ending by itself.
+    public func finish() { isSpeaking = false; onFinished?() }
 }
 
 @MainActor public final class FakeHaptics: HapticsOutput {
@@ -271,5 +275,41 @@ public final class FakeRobotSharing: RobotSharing, @unchecked Sendable {
         RobotAccessStatus(on: on, a2aURL: "http://mac.local:8000/a2a/home-memory",
                           agentCardURL: "http://mac.local:8000/a2a/home-memory/.well-known/agent-card.json",
                           exportURL: "http://mac.local:8000/homes/flat/robot-export")
+    }
+}
+
+/// Room maps by room name; a room not in `maps` throws, as the Mac does for a room with no processed scan.
+public final class FakeRoomMaps: RoomMaps, @unchecked Sendable {
+    public var maps: [String: RobotMapPackage]
+    public private(set) var asked: [String] = []
+    public init(maps: [String: RobotMapPackage] = [:]) { self.maps = maps }
+    public func roomMap(home: String, room: String) async throws -> RobotMapPackage {
+        asked.append(room)
+        guard let map = maps[room] else { throw RecallError.status(404) }
+        return map
+    }
+}
+
+/// Hears what it's told to: `text` (or throws `error`).
+public final class FakeWords: Transcriber, @unchecked Sendable {
+    public var text: String
+    public var error: Error?
+    public init(_ text: String = "where are my keys", error: Error? = nil) { self.text = text; self.error = error }
+    public func transcribe(wav: Data) async throws -> String {
+        if let error { throw error }
+        return text
+    }
+}
+
+/// A one-leg route to whatever is asked for (or throws `error`).
+public final class FakeCompassRoutes: CompassRoutes, @unchecked Sendable {
+    public var error: Error?
+    public private(set) var asked: [String] = []
+    public init(error: Error? = nil) { self.error = error }
+    public func compassRoute(home: String, thing: String) async throws -> CompassRoute {
+        asked.append(thing)
+        if let error { throw error }
+        return CompassRoute(thingId: thing, label: "keys", color: "red", start: "where you started the scan of Living room",
+                            place: "on the desk, at waist height", legs: [CompassLeg(bearing: 90, metres: 3)])
     }
 }

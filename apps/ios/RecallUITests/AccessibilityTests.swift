@@ -15,14 +15,14 @@ final class AccessibilityTests: XCTestCase {
             let el = issue.element.map { "\($0.elementType.rawValue) '\($0.label)' frame \($0.frame)" } ?? "no element"
             // System navigation-bar buttons cap their text size and offer the Large Content Viewer instead (Apple's
             // own behaviour, not ours to change); every other issue fails the test.
-            if issue.auditType == .dynamicType, let e = issue.element, e.elementType == .button,
+            if issue.auditType == .dynamicType, let e = issue.element, e.exists, e.elementType == .button,
                app.navigationBars.buttons[e.label].exists {
                 print("AUDIT (system toolbar, accepted) \(issue.compactDescription) :: \(el)")
                 return true
             }
             // The audit enlarges the text and re-measures; rows in the lower part of a screen move off it and can't be
             // measured. testLargeTextScales checks those rows at the largest size instead.
-            if issue.auditType == .dynamicType, let e = issue.element, e.frame.minY > screen.height * 0.55 {
+            if issue.auditType == .dynamicType, let e = issue.element, e.exists, e.frame.minY > screen.height * 0.55 {
                 print("AUDIT (moves off screen when enlarged; see testLargeTextScales) \(issue.compactDescription) :: \(el)")
                 return true
             }
@@ -35,19 +35,35 @@ final class AccessibilityTests: XCTestCase {
             // Rows that run on under the floating tab bar, or into the fade iOS 26 draws above it (the scroll edge
             // effect, about 44 pt), are seen through glass until scrolled up; that is the system's scroll-under
             // behaviour, not a colour of ours.
-            if issue.auditType == .contrast, let e = issue.element, app.tabBars.firstMatch.exists,
+            if issue.auditType == .contrast, let e = issue.element, e.exists, app.tabBars.firstMatch.exists,
                e.frame.maxY > app.tabBars.firstMatch.frame.minY - 44 {
                 print("AUDIT (under the tab bar, accepted) \(issue.compactDescription) :: \(el)")
                 return true
             }
-            // The same fade iOS 26 draws under the navigation bar at the top.
-            if issue.auditType == .contrast, let e = issue.element, app.navigationBars.firstMatch.exists,
-               e.frame.minY < app.navigationBars.firstMatch.frame.maxY + 44 {
+            // The same fade iOS 26 draws under the navigation bar at the top, or under the clock on a tab's root screen.
+            if issue.auditType == .contrast, let e = issue.element, e.exists,
+               e.frame.minY < Self.topEdge(app) + 44 {
                 print("AUDIT (under the navigation bar's fade, accepted) \(issue.compactDescription) :: \(el)")
                 return true
             }
             if edgesRechecked, issue.auditType == .contrast, issue.element == nil {
                 print("AUDIT (no element; rechecked scrolled to the end) \(issue.compactDescription)")
+                return true
+            }
+            // Scrolled to the end, text sitting in the fade under the clock can't be measured as it grows; the first,
+            // unscrolled audit checked the same text where it sits clear of the edge.
+            if edgesRechecked, issue.auditType == .dynamicType, let e = issue.element, e.exists,
+               e.frame.minY < Self.topEdge(app) + 44 {
+                print("AUDIT (in the top fade, checked unscrolled) \(issue.compactDescription) :: \(el)")
+                return true
+            }
+            // A row cut in half by the clock at the top, or seen blurred and mirrored through the tab bar's glass at the
+            // bottom, is reported as text with no element (the audit can't match half a row, or a reflection). Accepted
+            // only while something really is cut by one of those edges; the same rows are audited whole when scrolled.
+            if issue.element == nil,
+               issue.auditType == .textClipped || issue.compactDescription.hasPrefix("Potentially inaccessible text"),
+               let cut = Self.cutAtEdge(app) {
+                print("AUDIT (no element; '\(cut)' is cut by the screen's edge) \(issue.compactDescription)")
                 return true
             }
             // The system search field truncates its own placeholder at large text sizes.
@@ -59,7 +75,7 @@ final class AccessibilityTests: XCTestCase {
             // is checked against the pixels: text against its background must reach 4.5:1 (3:1 for large text, WCAG's
             // 18 pt and up, taken as a frame at least 24 pt tall), or the issue stands.
             let ratio = issue.auditType == .contrast ? issue.element.flatMap(Self.measuredContrast) : nil  // measured once
-            if let e = issue.element, let ratio, ratio >= (e.frame.height >= 24 ? 3 : 4.5) {
+            if let e = issue.element, e.exists, let ratio, ratio >= (e.frame.height >= 24 ? 3 : 4.5) {
                 print(String(format: "AUDIT (contrast measured %.1f:1, accepted) ", ratio) + "\(issue.compactDescription) :: \(el)")
                 return true
             }
@@ -67,6 +83,28 @@ final class AccessibilityTests: XCTestCase {
             print("AUDIT \(issue.compactDescription)\(measured) :: \(el) :: \(issue.detailedDescription)")
             return false
         }
+    }
+
+    /// The label of an element cut by the clock at the top or by the tab bar at the bottom, if there is one.
+    /// Where content stops being clear at the top: under the navigation bar, else under the clock.
+    static func topEdge(_ app: XCUIApplication) -> CGFloat {
+        if app.navigationBars.firstMatch.exists { return app.navigationBars.firstMatch.frame.maxY }
+        return app.statusBars.firstMatch.exists ? app.statusBars.firstMatch.frame.maxY : 62
+    }
+
+    static func cutAtEdge(_ app: XCUIApplication) -> String? {
+        let top = app.statusBars.firstMatch.exists ? app.statusBars.firstMatch.frame.maxY : 62
+        let bar = app.tabBars.firstMatch
+        let bottom = bar.exists ? bar.frame.minY : app.windows.firstMatch.frame.maxY
+        let tabs = Set(bar.exists ? bar.buttons.allElementsBoundByIndex.map(\.label) : [])
+        let screenEnd = app.windows.firstMatch.frame.maxY
+        let candidates = (app.staticTexts.allElementsBoundByIndex + app.buttons.allElementsBoundByIndex)
+            .filter { !tabs.contains($0.label) }  // the tab buttons themselves are not content behind the glass
+        return candidates.first {
+            let f = $0.frame
+            // cut by the clock at the top, or partly or wholly behind the tab bar's glass at the bottom
+            return f.height < 200 && ((f.minY < top && f.maxY > top) || (f.maxY > bottom && f.minY < screenEnd))
+        }.map(\.label)
     }
 
     /// WCAG contrast between the two most common colours in the element's own screenshot (text and its background).
@@ -102,7 +140,7 @@ final class AccessibilityTests: XCTestCase {
 
     /// A text field by identifier; fields that grow vertically are exposed as text views.
     private func field(_ app: XCUIApplication, _ id: String) -> XCUIElement {
-        app.textFields[id].exists ? app.textFields[id] : app.textViews[id]
+        app.descendants(matching: .any)[id].firstMatch  // a field, or its masked text when the value is hidden
     }
 
     /// A screen up to about two displays tall: audited at the top, then scrolled to the end. Contrast issues the audit
@@ -110,10 +148,20 @@ final class AccessibilityTests: XCTestCase {
     /// the scroll, so every row sits clear of both fades in one of the two passes (and is checked there).
     private func auditBothEnds(_ app: XCUIApplication) throws {
         try audit(app, edgesRechecked: true)
-        app.swipeUp()
-        app.swipeUp()
+        scrollToEnd(app)
         try audit(app, edgesRechecked: true)
         for _ in 0..<3 { app.swipeDown() }
+    }
+
+    /// Swipes up until the screen stops moving, so the bottom audit always sees the same place (a fixed number of
+    /// swipes lands wherever the momentum ends, a different row under the clock each run).
+    private func scrollToEnd(_ app: XCUIApplication) {
+        for _ in 0..<8 {
+            let before = app.windows.firstMatch.screenshot().pngRepresentation
+            app.swipeUp()
+            sleep(1)  // let the bounce settle
+            if app.windows.firstMatch.screenshot().pngRepresentation == before { break }
+        }
     }
 
     /// Saves a screenshot for the progress notes when RECALL_SHOTS points at a folder (the simulator can write to it).
@@ -155,11 +203,11 @@ final class AccessibilityTests: XCTestCase {
         // swipe the cards: the icon row follows
         card("glasses").swipeRight()
         XCTAssertTrue(app.buttons["Apple Watch Ultra 4"].wait(for: \.isSelected, toEqual: true, timeout: 3))
-        XCTAssertTrue(card("watch").label.hasPrefix("Apple Watch Ultra 4. Coming next."), card("watch").label)
+        XCTAssertTrue(card("watch").label.hasPrefix("Apple Watch Ultra 4. Preview."), card("watch").label)
         shot("ios-devices")
         try auditBothEnds(app)
         for _ in 0..<5 { app.swipeUp() }  // the very end: the buttons and the honest footnote
-        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'Only the iPhone app works today'"))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'The iPhone app works today'"))
             .firstMatch.exists)
         shot("ios-devices-end")
         try audit(app, edgesRechecked: true)
@@ -209,11 +257,40 @@ final class AccessibilityTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments += ["-UITestSampleThings"]
         app.launch()
-        XCTAssertTrue(app.staticTexts["Kitchen"].waitForExistence(timeout: 5))  // two rooms: a heading each
-        XCTAssertTrue(app.images["icon-wallet"].exists)
-        XCTAssertTrue(app.images["icon-mug"].exists)
+        let any = app.descendants(matching: .any)
+        // a heading per room, like Found, then a card per piece of furniture; every row says where and offers Go
+        XCTAssertTrue(any["find-group-Living room"].waitForExistence(timeout: 5))
+        XCTAssertEqual(any["find-group-Living room"].label, "Living room, 4 things")
+        XCTAssertEqual(any["find-group-Kitchen"].label, "Kitchen, 2 things")
+        XCTAssertTrue(app.buttons["Brown wallet, on the counter, waist height, Go"].exists)
+        XCTAssertTrue(app.staticTexts["ON OR NEAR THE COUNTER"].exists)
         shot("ios-find-icons")
         try auditBothEnds(app)
+    }
+
+    /// Find's room maps: one card per room, side by side; tapping one shows only its things, tapping it again all.
+    func testFindRoomMapsPickARoom() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-UITestSampleThings"]
+        app.launch()
+        let any = app.descendants(matching: .any)
+        let living = any["room-map-Living room"], kitchen = any["room-map-Kitchen"]
+        XCTAssertTrue(living.waitForExistence(timeout: 5) && kitchen.exists)
+        // the label says "Loading the map." until the map is in, then only the room and its things
+        let loaded = expectation(for: NSPredicate(format: "label == %@", "Living room map, 4 things"), evaluatedWith: living)
+        wait(for: [loaded], timeout: 5)
+        XCTAssertEqual(kitchen.value as? String, "Not selected")
+        XCTAssertGreaterThan(kitchen.frame.minX, living.frame.maxX - 1)  // side by side, not stacked
+        XCTAssertTrue(app.buttons["Share for robots"].firstMatch.waitForExistence(timeout: 3))  // under each ready map
+        shot("ios-find-rooms")
+        kitchen.tap()
+        XCTAssertEqual(kitchen.value as? String, "Selected")
+        XCTAssertTrue(any["find-group-Kitchen"].waitForExistence(timeout: 3))
+        XCTAssertFalse(any["find-group-Living room"].exists)  // only the Kitchen's things now
+        XCTAssertTrue(app.staticTexts["2 things in Kitchen"].exists)
+        try auditBothEnds(app)  // like every long screen: the legend near the tab bar is checked scrolled clear of it
+        kitchen.tap()
+        XCTAssertTrue(any["find-group-Living room"].waitForExistence(timeout: 3))
     }
 
     /// A processed scan offers "Scan again"; a rescan shows what moved, what's new and what's gone.
@@ -230,10 +307,129 @@ final class AccessibilityTests: XCTestCase {
         XCTAssertTrue(card.descendants(matching: .any)["White mug: New, on the desk."].exists)
         XCTAssertTrue(card.descendants(matching: .any)["Grey bag: Gone from near the desk."].exists)
         XCTAssertTrue(app.buttons["Hear what changed again"].exists)
-        XCTAssertEqual(app.buttons.matching(identifier: "Scan again").count, 2)  // on both processed scans
-        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "what-changed").count, 1)  // the first scan has none
+        // the speaker is a toggle: it reads, then a second tap stops it
+        app.buttons["Hear what changed again"].tap()
+        XCTAssertTrue(app.buttons["Stop reading"].waitForExistence(timeout: 2))
+        app.buttons["Stop reading"].tap()
+        XCTAssertTrue(app.buttons["Hear what changed again"].waitForExistence(timeout: 2))
+        XCTAssertEqual(app.buttons.matching(identifier: "Scan again").count, 1)  // the room's current scan only
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "what-changed").count, 1)
         shot("ios-what-changed")
         try auditBothEnds(app)
+    }
+
+    /// A rescanned room is one card; its first scan folds under it as history, and opens with a tap.
+    func testEarlierScansFoldUnderTheRoom() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-UITestSampleThings"]
+        app.launch()
+        openScans(app)
+        let any = app.descendants(matching: .any)
+        let earlier = any["earlier-scans"]
+        XCTAssertTrue(earlier.waitForExistence(timeout: 5))
+        XCTAssertEqual(earlier.label, "Earlier scans of Living room, 1 scan")
+        XCTAssertEqual(earlier.value as? String, "Folded")
+        XCTAssertFalse(any["earlier-scan-scan-1"].exists)
+        earlier.tap()
+        let row = any["earlier-scan-scan-1"]
+        XCTAssertTrue(row.waitForExistence(timeout: 3))
+        XCTAssertTrue(row.label.hasSuffix("updated by the scan on \(dayMonth(1_800_090_000))"), row.label)
+        try audit(app)
+    }
+
+    /// Settings: how sure Recall must be before it tells you; Balanced to start, and a tap changes it.
+    func testSettingsChooseHowSure() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-UITestSampleThings"]
+        app.launch()
+        app.tabBars.buttons["Settings"].tap()
+        let balanced = app.buttons["Balanced"]
+        for _ in 0..<3 where !balanced.isHittable { app.swipeUp() }
+        XCTAssertTrue(balanced.waitForExistence(timeout: 5))
+        XCTAssertTrue(balanced.isSelected)
+        XCTAssertTrue(app.staticTexts["Things seen in at least 2 photos. A thing seen once waits in Found until you confirm it."].exists)
+        app.buttons["Careful"].tap()
+        XCTAssertTrue(app.buttons["Careful"].isSelected)
+        // audited at fixed places (the top, then the end), not wherever the swipe's momentum stopped: a row cut by the
+        // screen's edge there can't be measured, and that spot moves whenever the page above changes height
+        for _ in 0..<3 { app.swipeDown() }
+        try auditBothEnds(app)
+    }
+
+    /// The logo, the line under it and the screen's title sit in the same place on every tab, so moving between tabs
+    /// never makes the top of the screen jump.
+    func testEveryTabsHeaderSitsInTheSamePlace() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-UITestSampleThings"]
+        app.launch()
+        var spots: [String: (header: CGRect, title: CGRect)] = [:]
+        for tab in ["Devices", "Find", "Scans", "Found", "Settings"] {
+            app.tabBars.buttons[tab].tap()
+            let header = app.descendants(matching: .any).matching(identifier: "brand-header")
+                .allElementsBoundByIndex.first { $0.isHittable }
+            let title = app.descendants(matching: .any).matching(identifier: "screen-title")
+                .allElementsBoundByIndex.first { $0.isHittable }
+            let h = try XCTUnwrap(header, "\(tab) has no header on screen"), t = try XCTUnwrap(title, "\(tab) has no title")
+            spots[tab] = (h.frame, t.frame)
+            print("HEADER \(tab): logo block \(h.frame), title \(t.frame)")
+        }
+        let find = try XCTUnwrap(spots["Find"])
+        for (tab, spot) in spots {
+            XCTAssertEqual(spot.header.minY, find.header.minY, accuracy: 1, "\(tab)'s logo is not where Find's is")
+            XCTAssertEqual(spot.header.minX, find.header.minX, accuracy: 1, "\(tab)'s logo is not where Find's is")
+            XCTAssertEqual(spot.header.height, find.header.height, accuracy: 1, "\(tab)'s logo block differs in height")
+            XCTAssertEqual(spot.title.minY - spot.header.maxY, find.title.minY - find.header.maxY, accuracy: 1,
+                           "\(tab)'s title is a different distance under the logo")
+        }
+    }
+
+    /// Find → a room's map → See it in AR: every thing found there, coloured by what Recall does with it, read in full
+    /// by VoiceOver. (The simulator has no ARKit, so this is the list; on the phone the same labels float in the camera.)
+    func testSeeItInARListsWhatWasFound() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-UITestSampleThings"]
+        app.launch()
+        let any = app.descendants(matching: .any)
+        let button = any["see-in-ar-Living room"]
+        XCTAssertTrue(button.waitForExistence(timeout: 5))
+        button.tap()
+        let keys = any["ar-label-s1"]
+        XCTAssertTrue(keys.waitForExistence(timeout: 5))
+        XCTAssertEqual(keys.label, "Beige keys, near the desk, at waist height. 85 percent, seen in 6 photos. Recall tells you.")
+        XCTAssertTrue(any["ar-label-s9"].label.hasSuffix("Waits for you to confirm."))
+        try audit(app, edgesRechecked: true)  // lets through only contrast issues the audit cannot attach to any element (the list floats over the camera view); every named row is still audited
+        any["ar-done"].tap()
+        XCTAssertTrue(button.waitForExistence(timeout: 3))
+    }
+
+    /// Before every scan: the plan, each step with what to do, why, when it's done and how high to hold the phone.
+    func testEveryScanStartsWithThePlan() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-UITestSampleThings"]
+        app.launch()
+        openScans(app)
+        app.buttons["Start a scan"].tap()
+        let name = field(app, "roomName")
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap()
+        name.typeText("Living room")
+        app.navigationBars.buttons["Start"].tap()
+        let any = app.descendants(matching: .any)
+        let walls = any["plan-step-2"]
+        XCTAssertTrue(walls.waitForExistence(timeout: 5))
+        XCTAssertTrue(walls.label.hasPrefix("Step 3: Walk along the walls. Now walk along the walls, about a metre away"), walls.label)
+        XCTAssertTrue(walls.label.contains("Why: About 1 metre is where the LiDAR and camera see best"))
+        XCTAssertTrue(walls.label.hasSuffix("Phone at Chest height, 1.1 to 1.5 m."))
+        XCTAssertTrue(any["plan-step-3"].label.contains("Waist height, 0.8 to 1.1 m"))
+        try auditBothEnds(app)
+        for _ in 0..<4 where !any["plan-start"].isHittable { app.swipeUp() }
+        any["plan-start"].tap()
+        // the simulator has no LiDAR: past the plan comes the "needs an iPhone with LiDAR" screen
+        XCTAssertFalse(any["plan-start"].waitForExistence(timeout: 2))
+    }
+
+    private func dayMonth(_ seconds: TimeInterval) -> String {
+        Date(timeIntervalSince1970: seconds).formatted(.dateTime.day().month())
     }
 
     /// Home robots in Devices, and Robot Access: the switch, what is and isn't shared, the map, the audit.
@@ -356,6 +552,11 @@ extension AccessibilityTests {
         openScans(app)
         app.buttons["Start a scan"].tap()
         app.buttons["Kitchen"].tap()
+        // the plan comes first, every time
+        let start = app.descendants(matching: .any)["plan-start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 5))
+        for _ in 0..<4 where !start.isHittable { app.swipeUp() }
+        start.tap()
         XCTAssertTrue(app.staticTexts["Scanning needs an iPhone with LiDAR"].waitForExistence(timeout: 5))
         shot("ios-scan-unsupported")
         try audit(app)
@@ -399,6 +600,81 @@ extension AccessibilityTests {
 
 @MainActor
 extension AccessibilityTests {
+    /// The README's iPhone screenshots, from the real API on this Mac (the owner's own scan). Run with
+    /// TEST_RUNNER_RECALL_DEVICE_KEY and TEST_RUNNER_RECALL_SHOTS set; skipped otherwise, so CI never runs it.
+    /// One real question goes to the Guide. Every image is reviewed by a person before it is committed.
+    func testReadmeShotsFromThisMac() throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let key = env["RECALL_DEVICE_KEY"], !key.isEmpty, env["RECALL_SHOTS"] != nil else {
+            throw XCTSkip("Needs RECALL_DEVICE_KEY, RECALL_SHOTS and the API running on this Mac.")
+        }
+        let app = XCUIApplication()
+        app.launch()
+        var pair = URLComponents(string: "recall://pair")!
+        pair.queryItems = [.init(name: "url", value: "http://127.0.0.1:8000"), .init(name: "key", value: key),
+                           .init(name: "home", value: "flat")]
+        app.open(pair.url!)
+        let open = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Open"]
+        if open.waitForExistence(timeout: 3) { open.tap() }
+        let any = app.descendants(matching: .any)
+
+        // 1, 2: Find with the room's map, then the list grouped by furniture
+        app.tabBars.buttons["Find"].tap()
+        XCTAssertTrue(any["room-maps"].waitForExistence(timeout: 15))
+        sleep(3)  // the map loads from the Mac
+        bring(app.staticTexts["Your rooms"], toY: 110, in: app)
+        shot("readme-1-rooms")
+        bring(app.staticTexts["Your things"], toY: 110, in: app)
+        shot("readme-2-things")
+
+        // 3, 4: a real question, its answer, and why
+        app.swipeDown(); app.swipeDown(); app.swipeDown()
+        let field = app.textViews["question"].exists ? app.textViews["question"] : app.textFields["question"]
+        field.tap()
+        field.typeText("Where are my keys?")
+        app.buttons["Ask"].tap()
+        XCTAssertTrue(app.buttons["Take me there"].waitForExistence(timeout: 30))
+        sleep(1)
+        shot("readme-3-answer")
+        app.buttons["Why?"].tap()
+        XCTAssertTrue(app.staticTexts["evidence-summary"].waitForExistence(timeout: 15))
+        sleep(2)  // the camera crop loads
+        shot("readme-4-why")
+        app.buttons["Done"].tap()
+
+        // 5: Found
+        app.tabBars.buttons["Found"].tap()
+        XCTAssertTrue(any["group-Living room"].waitForExistence(timeout: 10))
+        sleep(1)
+        shot("readme-5-found")
+
+        // 6: Robot Access, with the map robots get
+        app.tabBars.buttons["Devices"].tap()
+        app.buttons["Home robots"].tap()
+        let link = any["robot-access-link"]
+        XCTAssertTrue(link.waitForExistence(timeout: 5))
+        link.tap()
+        XCTAssertTrue(app.switches["robot-access-switch"].waitForExistence(timeout: 10))
+        sleep(3)
+        bring(app.switches["robot-access-switch"], toY: 130, in: app)
+        shot("readme-6-robots")
+    }
+
+    /// Scrolls without a fling so `e`'s top edge lands at `y` points: a screenshot then starts at a heading, not
+    /// halfway through a card.
+    private func bring(_ e: XCUIElement, toY y: CGFloat, in app: XCUIApplication) {
+        XCTAssertTrue(e.waitForExistence(timeout: 5))
+        for _ in 0..<3 {
+            let delta = e.frame.minY - y
+            if abs(delta) < 4 { break }
+            let step = max(-500, min(500, delta))
+            let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: step > 0 ? 0.75 : 0.3))
+            from.press(forDuration: 0.3, thenDragTo: from.withOffset(CGVector(dx: 0, dy: -step)),
+                       withVelocity: .slow, thenHoldForDuration: 0.4)
+        }
+        sleep(1)
+    }
+
     /// At the largest accessibility text size, the rows lowest on their screens still grow (the audit can't measure
     /// them once they move off screen).
     func testLargeTextScales() throws {
@@ -452,9 +728,9 @@ extension AccessibilityTests {
             shot("ios-settings-\(name)")
             try auditBothEnds(app)
             app.buttons["appearance"].tap()
-            XCTAssertTrue(app.navigationBars["Appearance"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.navigationBars["Appearance and voice"].waitForExistence(timeout: 5))
             shot("ios-appearance-\(name)")
-            try audit(app)
+            try auditBothEnds(app)  // with the Voice section the page runs past one screen
             app.terminate()
         }
     }

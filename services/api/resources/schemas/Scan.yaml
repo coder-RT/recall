@@ -8,6 +8,7 @@ properties:
     type: string
     enum: [uploading, uploaded, processing, processed, failed]
   detail: {type: string, description: "Why it failed, in one sentence"}
+  worker_alive: {type: [boolean, "null"], description: "While processing: whether the Mac's scan worker is running (its heartbeat is under 90 s old). false means the scan waits until someone runs make worker; null when not processing"}
   frame_count: {type: integer}
   object_count: {type: integer}
   aligned_to: {type: [string, "null"], description: "The earlier scan of this room whose map the phone recognised, so

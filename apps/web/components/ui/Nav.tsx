@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { motion, useMotionValueEvent, useScroll } from "motion/react";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -58,9 +59,10 @@ export function Nav() {
         </nav>
         <div className="flex items-center gap-2">
           <AccessibilityMenu />
-          <a href={`${home}#ask`} className="btn btn-green hidden sm:inline-flex">
+          <Link href="/homes/flat/viewer" className="btn btn-demo hidden gap-2 sm:inline-flex" data-try-demo data-demo-button>
             {t.nav.tryDemo}
-          </a>
+            <span data-actual-badge className="rounded-full bg-ink px-2 py-0.5 text-xs font-bold text-white">{t.nav.actualScan}</span>
+          </Link>
         </div>
       </div>
     </motion.header>

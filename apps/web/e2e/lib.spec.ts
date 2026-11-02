@@ -5,6 +5,7 @@ import { en } from "../i18n/dictionaries/en";
 import { brailleCells, matrixDots, wordWidth } from "../lib/braille";
 import { oncePerPass } from "../lib/once-per-pass";
 import { PIXEL_GRID, PIXEL_ICON_NAMES, pixelRects } from "../lib/pixel-icons";
+import { contactDisabled, contactMessage, looksAutomated, MIN_FILL_MS, subjectFor } from "../lib/contact";
 import { clientKey, DailyCap, dailyCapFrom, sameSite, voiceDisabled, WindowLimit } from "../lib/voice-guard";
 
 /** Pure logic and content checks: no browser needed. */
@@ -110,6 +111,14 @@ test.describe("voice route guards", () => {
     expect(limit.over("a", 61_000)).toBe(false); // a minute later
   });
 
+  test("the fallback limit forgets the longest-quiet visitors first, never everyone", () => {
+    const limit = new WindowLimit(1, 60_000, 3);
+    for (const [i, who] of ["a", "b", "c", "d"].entries()) limit.over(who, i);
+    expect(limit.size).toBe(3);
+    expect(limit.over("d", 10)).toBe(true); // d is still counted: the oldest, a, was dropped instead
+    expect(limit.over("a", 11)).toBe(false);
+  });
+
   test("the daily cap stops at the cap and starts again the next UTC day", () => {
     const cap = new DailyCap(2);
     const d1 = new Date("2026-11-01T10:00:00Z");
@@ -118,5 +127,40 @@ test.describe("voice route guards", () => {
     expect(dailyCapFrom({ VOICE_DAILY_CAP: "50" })).toBe(50);
     expect(dailyCapFrom({ VOICE_DAILY_CAP: "nonsense" })).toBe(300);
     expect(dailyCapFrom({})).toBe(300);
+  });
+
+  test("the contact form reads its own daily cap", () => {
+    expect(dailyCapFrom({ CONTACT_DAILY_CAP: "5" }, "CONTACT_DAILY_CAP", 20)).toBe(5);
+    expect(dailyCapFrom({ VOICE_DAILY_CAP: "50" }, "CONTACT_DAILY_CAP", 20)).toBe(20);
+  });
+});
+
+test.describe("contact form rules", () => {
+  const msg = { name: " Ada ", email: "ada@example.com", message: "Hello there, Rachit.", startedAt: 1_000 };
+
+  test("accepts a proper message and trims it", () => {
+    const parsed = contactMessage.parse(msg);
+    expect(parsed.name).toBe("Ada");
+    expect(parsed.website).toBe("");
+  });
+
+  test("rejects bad emails, short messages and very long names", () => {
+    expect(contactMessage.safeParse({ ...msg, email: "nope" }).success).toBe(false);
+    expect(contactMessage.safeParse({ ...msg, message: "hi" }).success).toBe(false);
+    expect(contactMessage.safeParse({ ...msg, name: "x".repeat(81) }).success).toBe(false);
+    expect(contactMessage.safeParse({ ...msg, startedAt: "soon" }).success).toBe(false);
+  });
+
+  test("a filled honeypot or a too-fast send looks automated", () => {
+    const parsed = contactMessage.parse(msg);
+    expect(looksAutomated(parsed, 1_000 + MIN_FILL_MS)).toBe(false);
+    expect(looksAutomated(parsed, 1_000 + MIN_FILL_MS - 1)).toBe(true);
+    expect(looksAutomated({ ...parsed, website: "x" }, 1_000_000)).toBe(true);
+  });
+
+  test("the subject can't carry extra lines, and CONTACT_FORM=off turns it off", () => {
+    expect(subjectFor("Ada\r\nBcc: x@example.com")).toBe("Recall site: Ada Bcc: x@example.com");
+    expect(contactDisabled({ CONTACT_FORM: "OFF" })).toBe(true);
+    expect(contactDisabled({})).toBe(false);
   });
 });

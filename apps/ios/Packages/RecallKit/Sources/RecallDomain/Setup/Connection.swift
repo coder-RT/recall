@@ -15,9 +15,31 @@ public struct Connection: Sendable, Equatable {
     public var url: URL? {
         let text = address.filter { !$0.isNewline }.trimmingCharacters(in: .whitespaces)
         guard !text.isEmpty else { return nil }
-        let full = text.contains("://") ? text : "http://\(text)"
+        // a bare host is https, except on this network (where the Mac serves plain http): the key never crosses the
+        // internet unencrypted because a scheme was left out
+        let full = text.contains("://") ? text : "\(Self.isLocal(text) ? "http" : "https")://\(text)"
         guard let url = URL(string: full), url.scheme?.hasPrefix("http") == true, url.host != nil else { return nil }
         return url
+    }
+
+    /// localhost, a .local name, a private IPv4 address (10/8, 172.16/12, 192.168/16, 127/8, 169.254/16), or Tailscale
+    /// (a *.ts.net name or 100.64/10): Tailscale encrypts the traffic itself (WireGuard), so plain http is safe there.
+    static func isLocal(_ hostAndPort: String) -> Bool {
+        let host = String(hostAndPort.split(separator: "/").first ?? "").split(separator: ":").first.map(String.init) ?? ""
+        let h = host.lowercased()
+        if h == "localhost" || h.hasSuffix(".local") || h.hasSuffix(".ts.net") { return true }
+        let n = h.split(separator: ".").compactMap { Int($0) }
+        guard n.count == 4, n.allSatisfy({ (0...255).contains($0) }) else { return false }
+        return n[0] == 10 || n[0] == 127 || (n[0] == 192 && n[1] == 168) || (n[0] == 172 && (16...31).contains(n[1]))
+            || (n[0] == 169 && n[1] == 254) || (n[0] == 100 && (64...127).contains(n[1]))
+    }
+
+    /// The address with most of it hidden, enough to recognise it on a shared screen: the scheme, the host's first
+    /// three characters and the port ("http://rac••••••:8000"). Empty when nothing is typed.
+    public var maskedAddress: String {
+        guard let url, let host = url.host else { return address.isEmpty ? "" : "••••••" }
+        let port = url.port.map { ":\($0)" } ?? ""
+        return "\(url.scheme ?? "http")://\(host.prefix(3))••••••\(port)"
     }
 
     /// The key without the spaces or newline a paste brings along.
@@ -30,8 +52,9 @@ public struct Connection: Sendable, Equatable {
         return "\(k.count) characters, ending in \(k.suffix(4).map(String.init).joined(separator: " "))."
     }
 
+    /// The home as the Mac names it: "My Flat" is sent as "my-flat"; nothing typed is "flat".
     public var homeId: String {
-        let h = home.trimmingCharacters(in: .whitespacesAndNewlines)
+        let h = TextInput.homeId(home)
         return h.isEmpty ? "flat" : h
     }
 
@@ -59,10 +82,19 @@ public enum SetupIssue: Sendable, Equatable {
 }
 
 /// The Mac's pairing link (make pair shows it as a QR code): recall://pair?url=…&key=…&home=…
-public struct PairingLink: Sendable, Equatable {
+public struct PairingLink: Sendable, Equatable, Identifiable {
     public let address: String
     public let key: String
     public let home: String?
+    public var id: String { address + key }
+
+    /// What the person confirms, without showing the key: "Pair with 192.168.1.20? Key: 32 characters, ending in …"
+    public var summary: String {
+        let c = Connection(address: address, key: key, home: home ?? "")
+        var host = address
+        if let url = c.url, let h = url.host { host = url.port.map { "\(h):\($0)" } ?? h }
+        return "Pair with the Mac at \(host)? Key: \(c.keySummary)"
+    }
 
     /// Nil when the link isn't a pairing link; throws when it is one but is missing the address or key.
     public init?(_ link: URL) throws {

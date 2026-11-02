@@ -1,0 +1,63 @@
+{
+ "label": "Recorded output of a real run on 2026-10-31: one living-room scan from an iPhone 16 Pro, processed by MapAnything and SAM 3.1, and Muse Spark Open's replies to the questions below.",
+ "scan_id": "demo-living-room",
+ "room": "Living room",
+ "captured_at": "2026-10-30T03:21:01+00:00",
+ "recorded_at": "2026-10-31T18:48:58+00:00",
+ "answers": [
+  {
+   "question": "Where are my keys?",
+   "answer": "Your keys are in the Living room near the desk at waist height, seen yesterday at 04:21.",
+   "tool_calls": 1,
+   "model": "meta-models/muse-spark-open-1026"
+  },
+  {
+   "question": "Where did I leave my glasses?",
+   "answer": "Your grey glasses were near the desk in the living room at waist height, seen yesterday at 04:21.",
+   "tool_calls": 1,
+   "model": "meta-models/muse-spark-open-1026"
+  },
+  {
+   "question": "Where is my laptop?",
+   "answer": "Your laptop was near the desk in the living room at waist height, seen yesterday at 04:21.",
+   "tool_calls": 1,
+   "model": "meta-models/muse-spark-open-1026"
+  },
+  {
+   "question": "Where is my bag?",
+   "answer": "I remember two bags from yesterday at 04:21, a grey bag near the desk at knee height and a white bag on the cabinet on shelf level 1 at waist height in the Living room, which one did you mean?",
+   "tool_calls": 1,
+   "model": "meta-models/muse-spark-open-1026"
+  },
+  {
+   "question": "Have you seen a bottle?",
+   "answer": "I saw a grey bottle in the Living room near the desk at waist height, seen yesterday at 04:21. I also saw a grey bottle on the desk in the same area at the same time.",
+   "tool_calls": 1,
+   "model": "meta-models/muse-spark-open-1026"
+  },
+  {
+   "question": "Where's my book?",
+   "answer": "I last saw two books in the Living room seen yesterday at 04:21 \u2014 a red one on the desk at waist height, and a grey one near the shelf at waist height. Which book did you mean?",
+   "tool_calls": 1,
+   "model": "meta-models/muse-spark-open-1026"
+  },
+  {
+   "question": "Where is the laptop",
+   "answer": "Your laptop was near the desk in the living room at waist height, seen yesterday at 04:21.",
+   "tool_calls": 1,
+   "model": "meta-models/muse-spark-open-1026"
+  },
+  {
+   "question": "Where did I put my reading glasses?",
+   "answer": "Your reading glasses were near the desk in the Living room at waist height, seen yesterday at 04:21.",
+   "tool_calls": 1,
+   "model": "meta-models/muse-spark-open-1026"
+  },
+  {
+   "question": "Where is my umbrella?",
+   "answer": "I haven't seen that yet. Scan the room it might be in, and I'll remember it.",
+   "tool_calls": 1,
+   "model": "meta-models/muse-spark-open-1026"
+  }
+ ]
+}

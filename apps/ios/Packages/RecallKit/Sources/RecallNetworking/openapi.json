@@ -114,6 +114,12 @@
               }
             }
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
           "422": {
             "$ref": "#/components/responses/Invalid"
           }
@@ -143,6 +149,9 @@
               }
             }
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "404": {
             "$ref": "#/components/responses/NotFound"
           }
@@ -163,6 +172,9 @@
         "responses": {
           "204": {
             "description": "Erased"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
@@ -226,8 +238,14 @@
               }
             }
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
           },
           "422": {
             "$ref": "#/components/responses/Invalid"
@@ -268,8 +286,14 @@
               }
             }
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
           },
           "422": {
             "$ref": "#/components/responses/Invalid"
@@ -300,11 +324,20 @@
               }
             }
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "404": {
             "$ref": "#/components/responses/NotFound"
           },
           "409": {
             "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
@@ -342,8 +375,14 @@
               }
             }
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
           }
         }
       }
@@ -370,6 +409,9 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
@@ -403,6 +445,9 @@
               }
             }
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "404": {
             "$ref": "#/components/responses/NotFound"
           }
@@ -426,6 +471,9 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
           }
         }
       },
@@ -455,6 +503,74 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          }
+        }
+      }
+    },
+    "/trust": {
+      "get": {
+        "tags": [
+          "homes"
+        ],
+        "operationId": "getTrust",
+        "summary": "How sure Recall must be before it tells you about a thing",
+        "responses": {
+          "200": {
+            "description": "The trust level",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trust"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "homes"
+        ],
+        "operationId": "setTrust",
+        "summary": "Set how sure Recall must be (the owner's device key only)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrustUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The trust level after the change",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trust"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
           }
         }
       }
@@ -524,6 +640,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
           }
         }
       }
@@ -545,6 +667,9 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
           }
         }
       }
@@ -576,6 +701,9 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
@@ -612,8 +740,175 @@
               }
             }
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/homes/{home_id}/room-map": {
+      "get": {
+        "tags": [
+          "homes"
+        ],
+        "operationId": "getRoomMap",
+        "summary": "One room's map and the things in it, for the owner's phone (the same document a robot gets)",
+        "description": "The owner's view of a room: the occupancy map, the things on it and the room outline, in the robot export's format. Device key only; works whether robot access is on or off, and isn't recorded as a robot export. `room` picks a room; the default is the newest processed scan's.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/home_id"
+          },
+          {
+            "name": "room",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The room's map",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RobotExport"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "The scan's point cloud is missing; process the scan again",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/homes/{home_id}/ar-labels": {
+      "get": {
+        "tags": [
+          "homes"
+        ],
+        "operationId": "getArLabels",
+        "summary": "Everything Recall found in a room, placed in that room's saved AR map (for labels over the camera)",
+        "description": "Positions are in the ARKit frame of the room's newest processed scan (scan_id): the phone relocalises in that scan's room map, then draws one label per thing. trusted and needs_review follow the owner's trust level.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/home_id"
+          },
+          {
+            "name": "room",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 60
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The labels",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArLabels"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        }
+      }
+    },
+    "/homes/{home_id}/robot-package": {
+      "get": {
+        "tags": [
+          "robots"
+        ],
+        "operationId": "getRobotPackage",
+        "summary": "One room's memory for a robot as a .zip of files it loads (Nav2 map, things, room, 3D points, README)",
+        "description": "The same content as the robot export, as files: map.pgm and map.yaml (Nav2 map server), objects.json, room.json, cloud.ply (x y z, metres, z up) and README.md. Same access as the robot export: the owner's device key always (to share it from the phone), a robot's key only while robot access is on. Recorded in the audit.\n",
+        "security": [
+          {
+            "deviceKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/home_id"
+          },
+          {
+            "name": "room",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The package",
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Robot access is off",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "The scan's point cloud is missing; process the scan again",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }
@@ -654,6 +949,9 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
           },
           "403": {
             "description": "Robot access is off",
@@ -778,8 +1076,14 @@
               }
             }
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
           },
           "422": {
             "$ref": "#/components/responses/Invalid"
@@ -804,8 +1108,50 @@
           "204": {
             "description": "Forgotten"
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/homes/{home_id}/objects/{object_id}/compass-route": {
+      "get": {
+        "tags": [
+          "guidance"
+        ],
+        "operationId": "getCompassRoute",
+        "summary": "Directions to a thing by compass bearing and metres, from where the room's scan began (for the Watch)",
+        "description": "For walking without the phone's camera: the route starts where the scan of the thing's room began (usually the doorway) and is given as legs of a magnetic compass bearing and a distance, using the north the phone measured while scanning. 409 no_compass when that scan had no reliable compass; 409 no_path when no route is wide enough for a person.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/home_id"
+          },
+          {
+            "$ref": "#/components/parameters/object_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The route",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompassRoute"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
           }
         }
       }
@@ -837,6 +1183,15 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           },
           "503": {
             "$ref": "#/components/responses/Unavailable"
@@ -872,8 +1227,14 @@
               }
             }
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
           }
         }
       }
@@ -916,8 +1277,17 @@
               }
             }
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
@@ -959,6 +1329,15 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           },
           "503": {
             "$ref": "#/components/responses/Unavailable"
@@ -1205,6 +1584,13 @@
             "type": "string",
             "description": "Why it failed, in one sentence"
           },
+          "worker_alive": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "While processing: whether the Mac's scan worker is running (its heartbeat is under 90 s old). false means the scan waits until someone runs make worker; null when not processing"
+          },
           "frame_count": {
             "type": "integer"
           },
@@ -1332,6 +1718,51 @@
               "usable",
               "redo"
             ]
+          },
+          "duration_s": {
+            "type": "number",
+            "description": "How long the scan took, seconds"
+          },
+          "points": {
+            "type": "integer",
+            "description": "LiDAR depth samples taken while scanning (for the report)"
+          },
+          "steps": {
+            "type": "array",
+            "description": "How each voice-led step went: done, or moved on when its time ran out",
+            "items": {
+              "type": "object",
+              "required": [
+                "step",
+                "seconds",
+                "completed",
+                "detail"
+              ],
+              "properties": {
+                "step": {
+                  "type": "integer",
+                  "description": "0 start, 1 turn around, 2 along the walls, 3 sweep down, 4 back to start, 5 finish; -1 recognise"
+                },
+                "seconds": {
+                  "type": "number"
+                },
+                "completed": {
+                  "type": "boolean"
+                },
+                "detail": {
+                  "type": "string",
+                  "description": "e.g. Wall sides seen 9 of 9"
+                }
+              }
+            }
+          },
+          "zones_seen": {
+            "type": "integer",
+            "description": "1 m floor columns x 5 height bands the LiDAR saw"
+          },
+          "zones_total": {
+            "type": "integer",
+            "description": "Zones in the columns the scan reached (columns x 5)"
           }
         }
       },
@@ -1623,7 +2054,11 @@
         ],
         "properties": {
           "label": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+            "description": "What SAM 3.1 was asked for (\"mug\", \"sofa\"); no control characters"
           },
           "centroid": {
             "type": "array",
@@ -1690,6 +2125,7 @@
               "string",
               "null"
             ],
+            "maxLength": 30,
             "description": "Basic colour name measured from the photo pixels inside the box (objects only)"
           },
           "size_m": {
@@ -1927,9 +2363,20 @@
           "corrections": {
             "$ref": "#/components/schemas/ObjectCorrection"
           },
+          "photos": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "How many of the scan's photos showed it (null for sightings kept before this was recorded)"
+          },
+          "trusted": {
+            "type": "boolean",
+            "description": "Seen in enough photos for the owner's trust level (or confirmed): the Guide, Find, room maps and robots use it"
+          },
           "needs_review": {
             "type": "boolean",
-            "description": "The models were unsure (confidence under 0.7) and the user hasn't confirmed it"
+            "description": "Unconfirmed and either unsure (confidence under 0.7) or not trusted yet"
           }
         }
       },
@@ -1970,6 +2417,47 @@
           }
         }
       },
+      "Trust": {
+        "type": "object",
+        "description": "How sure Recall must be before it tells the owner (or a robot) about a thing, by the photos it was seen in",
+        "required": [
+          "level",
+          "min_photos"
+        ],
+        "properties": {
+          "level": {
+            "type": "string",
+            "enum": [
+              "careful",
+              "balanced",
+              "everything"
+            ],
+            "description": "careful: 3 photos; balanced: 2 (default); everything: 1"
+          },
+          "min_photos": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Photos a thing must be seen in, at this level (a confirmed thing always counts)"
+          }
+        }
+      },
+      "TrustUpdate": {
+        "type": "object",
+        "required": [
+          "level"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "level": {
+            "type": "string",
+            "enum": [
+              "careful",
+              "balanced",
+              "everything"
+            ]
+          }
+        }
+      },
       "AuditEvent": {
         "type": "object",
         "description": "One recorded event: who (by the key they used), what, how it ended. Append-only, kept on the Mac for RECALL_AUDIT_RETENTION_DAYS (90). Never a key, token or password; free text is trimmed.\n",
@@ -1995,6 +2483,7 @@
               "owner",
               "robot",
               "pipeline",
+              "system",
               "unknown"
             ]
           },
@@ -2002,14 +2491,22 @@
             "type": "string",
             "enum": [
               "robot_access.changed",
+              "trust.changed",
               "robot_export.read",
               "home_memory.query",
               "auth.refused",
               "object.corrected",
               "object.forgotten",
+              "scan.created",
+              "scan.uploaded",
+              "scan.failed",
               "scan.ingested",
               "scan.erased",
-              "arrival.verified"
+              "arrival.verified",
+              "guide.answered",
+              "voice.transcribed",
+              "audit.pruned",
+              "rate.limited"
             ]
           },
           "outcome": {
@@ -2548,6 +3045,138 @@
           }
         }
       },
+      "ArLabels": {
+        "type": "object",
+        "required": [
+          "scan_id",
+          "room",
+          "labels"
+        ],
+        "properties": {
+          "scan_id": {
+            "type": "string",
+            "description": "The scan whose room map the positions are in"
+          },
+          "room": {
+            "type": "string"
+          },
+          "floor_y_arkit": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "The floor's height in that ARKit frame, metres"
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "object_id",
+                "title",
+                "place",
+                "confidence",
+                "trusted",
+                "needs_review",
+                "position_arkit"
+              ],
+              "properties": {
+                "object_id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string",
+                  "description": "e.g. grey bag, or the owner's own name for it"
+                },
+                "place": {
+                  "type": "string",
+                  "description": "e.g. near the desk, at knee height"
+                },
+                "confidence": {
+                  "type": "number"
+                },
+                "photos": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "trusted": {
+                  "type": "boolean"
+                },
+                "needs_review": {
+                  "type": "boolean"
+                },
+                "position_arkit": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                }
+              }
+            }
+          }
+        }
+      },
+      "CompassRoute": {
+        "type": "object",
+        "description": "A walk to a thing from where its room's scan began, as compass legs (for a watch with no camera)",
+        "required": [
+          "object_id",
+          "label",
+          "start",
+          "place",
+          "legs"
+        ],
+        "properties": {
+          "object_id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string",
+            "description": "e.g. keys"
+          },
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "start": {
+            "type": "string",
+            "description": "Where to stand first, in words, e.g. where you started the scan of Living room"
+          },
+          "place": {
+            "type": "string",
+            "description": "Where the thing is, in words, e.g. near the desk, at knee height"
+          },
+          "legs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "bearing_deg",
+                "metres"
+              ],
+              "properties": {
+                "bearing_deg": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 360,
+                  "description": "Magnetic bearing, clockwise from north"
+                },
+                "metres": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        }
+      },
       "AskRequest": {
         "type": "object",
         "required": [
@@ -2556,7 +3185,8 @@
         ],
         "properties": {
           "home_id": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^[a-z0-9-]{1,64}$"
           },
           "question": {
             "type": "string",
@@ -2568,6 +3198,7 @@
               "string",
               "null"
             ],
+            "pattern": "^[A-Za-z0-9_-]{1,64}$",
             "description": "A guidance session, if the user is already being guided"
           },
           "about": {
@@ -2575,6 +3206,7 @@
               "string",
               "null"
             ],
+            "pattern": "^[A-Za-z0-9_-]{1,64}$",
             "description": "The thing the last answer was about, for a follow-up (\"why do you think so?\")"
           }
         }
@@ -2869,6 +3501,26 @@
       }
     },
     "responses": {
+      "Unauthorized": {
+        "description": "Missing or wrong device key",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "TooLarge": {
+        "description": "The body is larger than this route accepts (a part 64 MB, a result 50 MB, an arrival frame 25 MB, audio 10 MB, anything else 1 MB)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
       "Invalid": {
         "description": "Invalid input",
         "content": {
@@ -2891,6 +3543,24 @@
       },
       "Conflict": {
         "description": "Not in a state that allows this",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Too many calls from this key to a route that reaches a model or the pipeline; try again after Retry-After seconds",
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Seconds to wait"
+          }
+        },
         "content": {
           "application/json": {
             "schema": {

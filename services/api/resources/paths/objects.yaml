@@ -6,6 +6,8 @@ objects:
     parameters:
       - $ref: ../schemas/Params.yaml#/home_id
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: Objects
         content:
@@ -30,6 +32,10 @@ object:
         application/json:
           schema: {$ref: ../schemas/ObjectCorrection.yaml}
     responses:
+      "413":
+        $ref: ../schemas/Responses.yaml#/TooLarge
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: The object as it is now remembered
         content:
@@ -47,7 +53,34 @@ object:
       - $ref: ../schemas/Params.yaml#/home_id
       - $ref: ../schemas/Params.yaml#/object_id
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "204":
         description: Forgotten
       "404":
         $ref: ../schemas/Responses.yaml#/NotFound
+compass_route:
+  get:
+    tags: [guidance]
+    operationId: getCompassRoute
+    summary: Directions to a thing by compass bearing and metres, from where the room's scan began (for the Watch)
+    description: >
+      For walking without the phone's camera: the route starts where the scan of the thing's room began (usually the
+      doorway) and is given as legs of a magnetic compass bearing and a distance, using the north the phone measured
+      while scanning. 409 no_compass when that scan had no reliable compass; 409 no_path when no route is wide
+      enough for a person.
+    parameters:
+      - $ref: ../schemas/Params.yaml#/home_id
+      - $ref: ../schemas/Params.yaml#/object_id
+    responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
+      "200":
+        description: The route
+        content:
+          application/json:
+            schema: {$ref: ../schemas/CompassRoute.yaml}
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound
+      "409":
+        $ref: ../schemas/Responses.yaml#/Conflict

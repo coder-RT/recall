@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections import defaultdict
 from dataclasses import replace
 from typing import Any
@@ -23,6 +24,17 @@ from recall_api.domain.memory import (
 from recall_api.domain.memory.matching import match_label
 from recall_api.domain.ports import HomeRepository, ScanRepository, TrackedObjectRepository
 from recall_api.domain.spatial import relate
+
+
+def all_finite(value: Any) -> bool:
+    """No NaN or infinity anywhere in a result: JSON parsers accept them, and one would poison every distance."""
+    if isinstance(value, float):
+        return math.isfinite(value)
+    if isinstance(value, dict):
+        return all(all_finite(v) for v in value.values())
+    if isinstance(value, (list, tuple)):
+        return all(all_finite(v) for v in value)
+    return True
 
 
 class IngestError(Exception):
@@ -63,7 +75,7 @@ class IngestScan:
         home = self.homes.get(scan.home_id)
         room = RoomModel.from_dict(result["room"])
         seen_at = scan.created_at
-        report = {"same": 0, "moved": 0, "new": 0, "gone": 0, "out_of_view": 0}
+        report = {"same": 0, "moved": 0, "new": 0, "gone": 0, "out_of_view": 0, "not_there": 0}
 
         # memory is per room: only what was last seen in this room is compared with this scan
         rooms: dict[str, str | None] = {}
@@ -115,7 +127,13 @@ class IngestScan:
         # objects: match per label against what memory last saw in this room
         changes: list[ScanChange] = []
         by_label: dict[str, list[dict]] = defaultdict(list)
+        found = []
         for t in result["objects"]:
+            # the owner said this isn't there: the same mistake again, unless seen clearly from many places
+            if home.rejects(t["label"], _pos(t["centroid"]), t.get("sightings")):
+                report["not_there"] += 1
+                continue
+            found.append(t)
             by_label[t["label"]].append(t)
         labels = set(by_label) | {o.label for o in remembered}
         for label in sorted(labels):
@@ -157,7 +175,7 @@ class IngestScan:
         # a room's first scan (or a fresh start) has nothing to compare with: everything is simply found
         scan.changes = changes if aligned else []
         scan.status = ScanStatus.PROCESSED
-        scan.object_count = len(result["objects"])
+        scan.object_count = len(found)
         scan.transform_to_home = tuple(result.get("transform_to_home") or ())
         scan.provenance = result.get("provenance")
         scan.detail = ", ".join(f"{v} {k.replace('_', ' ')}" for k, v in report.items() if v)
@@ -186,6 +204,7 @@ class IngestScan:
             float(t["confidence"]),
             keyframe_index=t.get("keyframe_index"),
             box=tuple(t["box"]) if t.get("box") else None,
+            photos=t.get("sightings"),
         )
 
 

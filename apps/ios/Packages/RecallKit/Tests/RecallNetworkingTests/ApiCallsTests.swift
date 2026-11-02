@@ -26,6 +26,26 @@ private func api(_ t: StubTransport) -> RecallAPI {
 
 @Suite("Calls to the Mac")
 struct ApiCallsTests {
+    @Test func theDeviceKeyOnlyGoesToThisMac() {
+        let a = api(StubTransport(.ok))
+        #expect(a.partRequest(path: "/scans/s/parts/1", sha256: "x").url?.absoluteString == "http://mac.local:8000/scans/s/parts/1")
+        #expect(a.partRequest(path: "http://mac.local:8000/scans/s/parts/2", sha256: "x").url?.host == "mac.local")
+        let elsewhere = a.partRequest(path: "https://evil.example/steal", sha256: "x")
+        #expect(elsewhere.url?.host == "mac.local" && elsewhere.url?.path == "/steal")  // only its path, on this Mac
+        #expect(a.partRequest(path: "http://mac.local:9999/x", sha256: "x").url?.port == 8000)  // another port too
+    }
+
+    @Test func theMacsSentenceIsCleanedAndCapped() {
+        #expect(RecallAPI.clean("No such scan.\u{1B}[2J\n") == "No such scan.[2J")
+        let long = RecallAPI.clean(String(repeating: "a", count: 1000))
+        #expect(long.count == RecallAPI.maxDetail && long.hasSuffix("…"))
+    }
+
+    @Test func callsGiveUpAfterThirtySeconds() {
+        #expect(RecallAPI.session.configuration.timeoutIntervalForRequest == 30)
+        #expect(api(StubTransport(.ok)).request("ask", method: "POST", contentType: "x", body: Data()).timeoutInterval == 30)
+    }
+
     @Test func eraseSendsDeleteAndAcceptsGoneAlready() async throws {
         let done = StubTransport(.noContent)
         try await api(done).erase(scan: "s1")
@@ -38,6 +58,20 @@ struct ApiCallsTests {
         await #expect(throws: RecallError.server("The Mac is processing this scan; erase it when it has finished.")) {
             try await api(busy).erase(scan: "s1")
         }
+    }
+
+    @Test func roomMapDecodesTheExportDocument() throws {
+        // a 2 x 1 PGM: one free cell, one occupied; one thing at the free cell
+        let pgm = Data("P5\n2 1\n255\n".utf8) + Data([254, 0])
+        let j: [String: Any] = [
+            "room": "Kitchen",
+            "map": ["pgm_base64": pgm.base64EncodedString(), "resolution": 0.1, "origin": [0.0, 0.0, 0.0]],
+            "objects": [["label": "mug", "color": "white", "position": [0.05, 0.05, 0.9]]],
+            "room_model": [:],
+        ]
+        let p = try RecallAPI.package(j)
+        #expect(p.room == "Kitchen" && p.map.width == 2 && p.map.cell(row: 0, column: 1) == .occupied)
+        #expect(p.things.map(\.title) == ["white mug"])
     }
 
     @Test func privacyDecodes() async throws {

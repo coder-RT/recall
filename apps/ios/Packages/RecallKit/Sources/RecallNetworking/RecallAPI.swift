@@ -13,8 +13,21 @@ public struct RecallAPI: Sendable {
     let client: Client
 
     public init(baseURL: URL, deviceKey: String) {
-        self.init(baseURL: baseURL, deviceKey: deviceKey, transport: URLSessionTransport())
+        self.init(baseURL: baseURL, deviceKey: deviceKey,
+                  transport: URLSessionTransport(configuration: .init(session: Self.session)))
     }
+
+    /// One session for every call: a request that hears nothing for 30 s fails (instead of iOS's 60 s), so a voice
+    /// question never hangs while someone waits. Uploads use their own background session.
+    static let session: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 30
+        return URLSession(configuration: config)
+    }()
+
+    /// The longest error sentence shown or spoken from the Mac, and the largest robot package accepted.
+    static let maxDetail = 300
+    static let maxPackageBytes = 50 * 1024 * 1024
 
     init(baseURL: URL, deviceKey: String, transport: any ClientTransport) {
         self.baseURL = baseURL
@@ -32,6 +45,7 @@ public struct RecallAPI: Sendable {
     func request(_ path: String, method: String, contentType: String, body: Data) -> URLRequest {
         var req = URLRequest(url: baseURL.appending(path: path))
         req.httpMethod = method
+        req.timeoutInterval = 30
         req.setValue("Bearer \(deviceKey)", forHTTPHeaderField: "Authorization")
         req.setValue(contentType, forHTTPHeaderField: "Content-Type")
         req.httpBody = body
@@ -40,13 +54,19 @@ public struct RecallAPI: Sendable {
 
     /// Sends a plain request; non-200 answers become RecallError with the Mac's `detail` when it gives one.
     func send(_ req: URLRequest) async throws -> [String: Any] {
-        let (data, response) = try await URLSession.shared.data(for: req)
+        let (data, response) = try await Self.session.data(for: req)
         let code = (response as? HTTPURLResponse)?.statusCode ?? 0
         let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
         guard (200..<300).contains(code) else {
-            throw (json["detail"] as? String).map { RecallError.server($0) } ?? RecallError.status(code)
+            throw (json["detail"] as? String).map { RecallError.server(Self.clean($0)) } ?? RecallError.status(code)
         }
         return json
+    }
+
+    /// The Mac's sentence as the person will hear it: no control characters, and never a wall of text.
+    static func clean(_ detail: String) -> String {
+        let text = String(detail.unicodeScalars.filter { !CharacterSet.controlCharacters.contains($0) })
+        return text.count > maxDetail ? String(text.prefix(maxDetail - 1)) + "…" : text
     }
 }
 
@@ -58,6 +78,7 @@ extension RecallAPI: HomeMemory {
         switch r {
         case .ok(let ok): return try ok.body.json.map(Thing.init)
         case .notFound: return []  // no scan of this home processed yet
+        case .unauthorized: throw RecallError.status(401)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
     }
@@ -74,6 +95,7 @@ extension RecallAPI: HomeMemory {
         switch r {
         case .noContent: return
         case .notFound: throw RecallError.server("The Mac doesn't know this thing any more.")
+        case .unauthorized: throw RecallError.status(401)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
     }
@@ -89,6 +111,9 @@ extension RecallAPI: GuideService, Transcriber {
             let a = try ok.body.json
             return Answer(text: a.text, thingId: a.objectId, grounded: a.grounded, answerId: a.answerId)
         case .serviceUnavailable: throw RecallError.server("The Guide isn't available right now. Try again in a moment.")
+        case .unauthorized: throw RecallError.status(401)
+        case .contentTooLarge: throw RecallError.status(413)
+        case .tooManyRequests: throw RecallError.status(429)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
     }
@@ -107,6 +132,8 @@ extension RecallAPI: GuideService, Transcriber {
                          target: g.targetArkit.flatMap { $0.count == 3 ? SIMD3($0[0], $0[1], $0[2]) : nil },
                          bearingDeg: g.bearingDeg, floorY: g.floorYArkit)
         case .notFound(let e): throw RecallError.server(((try? e.body.json.detail) ?? nil) ?? "The Mac can't plan a route yet.")
+        case .unauthorized: throw RecallError.status(401)
+        case .contentTooLarge: throw RecallError.status(413)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
     }
@@ -160,6 +187,7 @@ extension RecallAPI: PrivacySource {
             return PrivacyStatus(storedOn: p.storedOn,
                                  sent: p.sent.map { DataFlow(what: $0.what, to: $0.to, when: $0.when, onThisMac: $0.onThisMac ?? false) },
                                  robotAccess: p.robotAccess, auditDays: p.auditDays)
+        case .unauthorized: throw RecallError.status(401)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
     }
@@ -181,6 +209,7 @@ extension RecallAPI: ConnectionCheck, ScanProcessing, ScanServer {
         case .noContent, .notFound: return  // gone already is fine
         case .conflict(let e):
             throw RecallError.server(try e.body.json.detail ?? "The Mac is still processing this scan.")
+        case .unauthorized: throw RecallError.status(401)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
     }
@@ -195,8 +224,9 @@ extension RecallAPI: ConnectionCheck, ScanProcessing, ScanServer {
                            name: c.name, color: c.color, from: c.from, to: c.to)
             }
             return ScanReport(ScanStatus(rawValue: s.status.rawValue) ?? .failed, detail: s.detail, changes: changes,
-                              fresh: s.fresh ?? false)
+                              fresh: s.fresh ?? false, workerAlive: s.workerAlive)
         case .notFound: throw RecallError.server("The Mac doesn't know this scan.")
+        case .unauthorized: throw RecallError.status(401)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
     }
@@ -209,18 +239,30 @@ extension RecallAPI: ConnectionCheck, ScanProcessing, ScanServer {
         case .ok(let ok):
             return UploadPlan(parts: try ok.body.json.parts.map { .init(number: $0.number, path: $0.url, received: $0.received) })
         case .unprocessableContent(let e): throw RecallError.server(try e.body.json.detail ?? "The scan was refused.")
+        case .unauthorized: throw RecallError.status(401)
+        case .contentTooLarge: throw RecallError.status(413)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
     }
 
     /// The part upload as a plain request, for the background URLSession (which needs a request and a file).
+    /// The device key only ever goes to this Mac: an absolute part URL is used only when it is on the same scheme,
+    /// host and port; otherwise just its path is taken, on this Mac.
     public func partRequest(path: String, sha256: String) -> URLRequest {
-        var req = URLRequest(url: path.hasPrefix("http") ? URL(string: path)! : baseURL.appending(path: path))
+        var req = URLRequest(url: partURL(path))
         req.httpMethod = "PUT"
         req.setValue("Bearer \(deviceKey)", forHTTPHeaderField: "Authorization")
         req.setValue(sha256, forHTTPHeaderField: "X-Content-SHA256")
         req.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
         return req
+    }
+
+    func partURL(_ path: String) -> URL {
+        if let url = URL(string: path), url.host != nil {
+            let same = url.scheme == baseURL.scheme && url.host == baseURL.host && url.port == baseURL.port
+            return same ? url : baseURL.appending(path: url.path)
+        }
+        return baseURL.appending(path: path)
     }
 
     /// The manifest (domain type → the generated type through the same JSON, since both follow the spec).
@@ -234,6 +276,8 @@ extension RecallAPI: ConnectionCheck, ScanProcessing, ScanServer {
         case .ok: return
         case .notFound: throw RecallError.server("The Mac doesn't know this scan.")
         case .unprocessableContent(let e): throw RecallError.server(try e.body.json.detail ?? "The manifest was refused.")
+        case .unauthorized: throw RecallError.status(401)
+        case .contentTooLarge: throw RecallError.status(413)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
     }
@@ -246,6 +290,9 @@ extension RecallAPI: ConnectionCheck, ScanProcessing, ScanServer {
             return (ScanStatus(rawValue: s.status.rawValue) ?? .failed, s.detail)
         case .notFound: throw RecallError.server("The Mac doesn't know this scan.")
         case .conflict(let e): throw RecallError.server(try e.body.json.detail ?? "The scan isn't ready to complete.")
+        case .unauthorized: throw RecallError.status(401)
+        case .contentTooLarge: throw RecallError.status(413)
+        case .tooManyRequests: throw RecallError.status(429)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
     }
@@ -260,7 +307,8 @@ extension Thing {
                   heightM: o.position.count == 3 ? o.position[2] : 0, userHeightM: o.corrections?.heightM,
                   heightBand: o.heightBand.rawValue, landmark: o.landmark, relation: o.relation?.rawValue, room: o.room,
                   sizeCm: o.sizeM?.map { Int(($0 * 100).rounded()) }, note: o.corrections?.note, confidence: o.confidence,
-                  confirmed: o.corrections?.confirmed ?? false, needsReview: o.needsReview ?? false, seenAt: o.seenAt)
+                  confirmed: o.corrections?.confirmed ?? false, needsReview: o.needsReview ?? false, photos: o.photos,
+                  trusted: o.trusted ?? true, seenAt: o.seenAt)
     }
 }
 
@@ -331,6 +379,7 @@ extension RecallAPI: EvidenceSource {
             return Evidence(question: e.answer.question, text: e.answer.text, model: e.answer.model,
                             latencyMs: e.answer.latencyMs, tools: e.steps.compactMap(\.tool), sightings: sightings)
         case .notFound: throw RecallError.server("The Mac no longer has this answer's evidence.")
+        case .unauthorized: throw RecallError.status(401)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
     }
@@ -341,8 +390,106 @@ extension RecallAPI: EvidenceSource {
         switch r {
         case .ok(let ok): return try await Data(collecting: ok.body.jpeg, upTo: 5 * 1024 * 1024)
         case .notFound: throw RecallError.server("No camera view is kept for this sighting.")
+        case .unauthorized: throw RecallError.status(401)
         case .undocumented(let code, _): throw RecallError.status(code)
         }
+    }
+}
+
+// MARK: ArLabelsSource
+
+extension RecallAPI: ArLabelsSource {
+    public func arLabels(home: String, room: String) async throws -> ArLabels {
+        var req = request("homes/\(home)/ar-labels", method: "GET", contentType: "application/json", body: Data())
+        if let url = req.url, var parts = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            parts.queryItems = [URLQueryItem(name: "room", value: room)]
+            req.url = parts.url
+        }
+        return try Self.arLabels(try await send(req))
+    }
+
+    static func arLabels(_ j: [String: Any]) throws -> ArLabels {
+        guard let scan = j["scan_id"] as? String, let room = j["room"] as? String,
+              let rows = j["labels"] as? [[String: Any]] else {
+            throw RecallError.server("The Mac sent labels this app can't read. Update the app.")
+        }
+        let labels: [ArLabel] = rows.compactMap { r in
+            guard let id = r["object_id"] as? String, let title = r["title"] as? String, let place = r["place"] as? String,
+                  let p = r["position_arkit"] as? [Double], p.count == 3 else { return nil }
+            return ArLabel(id: id, title: title, place: place, confidence: r["confidence"] as? Double ?? 0,
+                           photos: r["photos"] as? Int, trusted: r["trusted"] as? Bool ?? true,
+                           needsReview: r["needs_review"] as? Bool ?? false, position: SIMD3(p[0], p[1], p[2]))
+        }
+        return ArLabels(scanId: scan, room: room, floorY: j["floor_y_arkit"] as? Double, labels: labels)
+    }
+}
+
+// MARK: CompassRoutes
+
+extension RecallAPI: CompassRoutes {
+    public func compassRoute(home: String, thing: String) async throws -> CompassRoute {
+        let req = request("homes/\(home)/objects/\(thing)/compass-route", method: "GET", contentType: "application/json",
+                          body: Data())
+        let (data, response) = try await Self.session.data(for: req)
+        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+        guard code == 200 else {
+            // the Mac's reason, in words ("This room was scanned without a reliable compass; scan it again.")
+            let detail = (json["detail"] as? [String: Any])?["detail"] as? String ?? json["detail"] as? String
+            throw detail.map { RecallError.server(Self.clean($0)) } ?? RecallError.status(code)
+        }
+        return try Self.compassRoute(json)
+    }
+
+    static func compassRoute(_ j: [String: Any]) throws -> CompassRoute {
+        guard let id = j["object_id"] as? String, let label = j["label"] as? String, let start = j["start"] as? String,
+              let place = j["place"] as? String, let legs = j["legs"] as? [[String: Any]] else {
+            throw RecallError.server("The Mac sent a route this app can't read. Update the app.")
+        }
+        return CompassRoute(thingId: id, label: label, color: j["color"] as? String, start: start, place: place,
+                            legs: legs.compactMap { leg in
+                                guard let b = leg["bearing_deg"] as? Double, let m = leg["metres"] as? Double else { return nil }
+                                return CompassLeg(bearing: b, metres: m)
+                            })
+    }
+}
+
+// MARK: RobotPackages
+
+extension RecallAPI: RobotPackages {
+    public func robotPackage(home: String, room: String?) async throws -> Data {
+        var req = request("homes/\(home)/robot-package", method: "GET", contentType: "application/zip", body: Data())
+        if let room, let url = req.url, var parts = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            parts.queryItems = [URLQueryItem(name: "room", value: room)]
+            req.url = parts.url
+        }
+        let (data, response) = try await Self.session.data(for: req)
+        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard code == 200 else { throw RecallError.status(code) }
+        guard data.count <= Self.maxPackageBytes else {
+            throw RecallError.server("The robot package is larger than this phone will share (50 MB).")
+        }
+        return data
+    }
+}
+
+// MARK: TrustSettings
+
+extension RecallAPI: TrustSettings {
+    public func trustLevel() async throws -> TrustLevel {
+        try Self.level(try await send(request("trust", method: "GET", contentType: "application/json", body: Data())))
+    }
+
+    public func setTrustLevel(_ level: TrustLevel) async throws -> TrustLevel {
+        let body = try JSONSerialization.data(withJSONObject: ["level": level.rawValue])
+        return try Self.level(try await send(request("trust", method: "PUT", contentType: "application/json", body: body)))
+    }
+
+    static func level(_ j: [String: Any]) throws -> TrustLevel {
+        guard let raw = j["level"] as? String, let level = TrustLevel(rawValue: raw) else {
+            throw RecallError.server("The Mac answered with a trust level this app doesn't know. Update the app.")
+        }
+        return level
     }
 }
 
@@ -361,7 +508,7 @@ extension RecallAPI: RobotSharing {
     public func activity(limit: Int) async throws -> [AuditEntry] {
         var req = request("audit", method: "GET", contentType: "application/json", body: Data())
         req.url = req.url.flatMap { URL(string: $0.absoluteString + "?limit=\(limit)") }
-        let (data, response) = try await URLSession.shared.data(for: req)
+        let (data, response) = try await Self.session.data(for: req)
         guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw RecallError.status((response as? HTTPURLResponse)?.statusCode ?? 0) }
         return Self.entries(data)
     }
@@ -392,6 +539,17 @@ extension RecallAPI: RobotSharing {
     public func robotMap(home: String) async throws -> RobotMapPackage {
         let j = try await send(request("homes/\(home)/robot-export", method: "GET", contentType: "application/json", body: Data()))
         return try Self.package(j)
+    }
+
+    /// GET /homes/{id}/room-map?room=: the same document, for the owner's Find screen. Not a robot export, so it
+    /// works with robot access off and isn't in the robot activity.
+    public func roomMap(home: String, room: String) async throws -> RobotMapPackage {
+        var req = request("homes/\(home)/room-map", method: "GET", contentType: "application/json", body: Data())
+        if let url = req.url, var parts = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            parts.queryItems = [URLQueryItem(name: "room", value: room)]
+            req.url = parts.url
+        }
+        return try Self.package(try await send(req))
     }
 
     static func package(_ j: [String: Any]) throws -> RobotMapPackage {

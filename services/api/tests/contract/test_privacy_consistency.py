@@ -35,3 +35,14 @@ def test_the_never_list_is_the_same_everywhere():
     for line in lines:
         assert line in flat(WEB), line
         assert line in flat(APP), line
+
+
+def test_the_permission_prompts_say_where_camera_and_voice_go():
+    """iOS shows these before the camera or microphone opens: they must name the Meta models that receive the data,
+    never promise it stays on the Mac."""
+    yml = (ROOT / "apps" / "ios" / "project.yml").read_text()
+    prompts = re.findall(r'(NS(?:Camera|Microphone)UsageDescription): "([^"]+)"', yml)
+    assert len(prompts) == 3, prompts  # camera and microphone on the iPhone, microphone on the Watch
+    for name, text in prompts:
+        assert "only to your own Mac" not in text and "Nothing is shared" not in text, name
+        assert "SAM 3.1" in text if "Camera" in name else "Muse Voice Transcribe" in text, name

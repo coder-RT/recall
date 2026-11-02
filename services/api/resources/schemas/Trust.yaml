@@ -1,0 +1,6 @@
+type: object
+description: "How sure Recall must be before it tells the owner (or a robot) about a thing, by the photos it was seen in"
+required: [level, min_photos]
+properties:
+  level: {type: string, enum: [careful, balanced, everything], description: "careful: 3 photos; balanced: 2 (default); everything: 1"}
+  min_photos: {type: integer, minimum: 1, description: "Photos a thing must be seen in, at this level (a confirmed thing always counts)"}

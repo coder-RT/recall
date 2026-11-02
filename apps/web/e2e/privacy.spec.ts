@@ -32,7 +32,7 @@ test("the nav, footer and FAQ lead to it, and the nav leads back to the landing 
   const nav = page.getByRole("navigation", { name: en.nav.sections });
   await expect(nav.getByRole("link", { name: en.nav.privacy })).toHaveAttribute("href", "/privacy");
   await expect(page.locator("footer").getByRole("link", { name: en.nav.privacy })).toHaveAttribute("href", "/privacy");
-  const faq = en.faq.items.find((i) => "href" in i)!;
+  const faq = en.faq.items.find((i) => i.links?.some((l) => l.href === "/privacy"))!;
   await page.getByRole("button", { name: faq.q }).click();
   await page.getByRole("link", { name: "Read the privacy page" }).click();
   await expect(page).toHaveURL(/\/privacy$/);

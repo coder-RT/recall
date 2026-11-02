@@ -19,7 +19,7 @@ from recall_api.adapters.outbound.replay.recorded_llm import RecordingLlm
 from recall_api.application.ask_where_is import AskWhereIs
 from recall_api.application.ingest_scan import IngestScan
 from recall_api.config.settings import REPO_ROOT, Settings
-from recall_api.domain.memory import Home, Scan, ScanStatus
+from recall_api.domain.memory import Home, Scan, ScanStatus, Trust
 from recall_api.infra.container import Container
 from recall_api.infra.db import API_ROOT
 
@@ -69,6 +69,9 @@ def build(settings: Settings, sample: Path) -> Container:
     n = itertools.count(1)
     ingest = IngestScan(c.scans, c.homes, c.objects, c.clock, lambda prefix: f"{prefix}_demo{next(n)}", audit=c.auditor)
     ingest(meta["scan_id"], json.loads((sample / "scan-result.json").read_text()))
+    # the Guide's replies were recorded when every find counted (both bags were seen in one photo each), so the
+    # replayed memory uses the same level, or the recordings would no longer be what it says
+    c.owner_settings.put("trust", Trust.EVERYTHING.value)
     return c
 
 

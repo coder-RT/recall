@@ -128,6 +128,28 @@ class Observation:
     confidence: float
     keyframe_index: int | None = None
     box: tuple[float, float, float, float] | None = None  # the best box in that keyframe, source-image pixels
+    photos: int | None = None  # how many of the scan's photos showed it (None: kept before this was recorded)
+
+    def seen_in_enough(self, min_photos: int) -> bool:
+        return self.photos is None or self.photos >= min_photos
+
+
+class Trust(StrEnum):
+    """How much evidence before Recall tells the user about a thing: the photos it must be seen in. One photo is one
+    angle, and a single angle is where SAM 3.1 mistakes a book cover for a wallet; seen again from another place, it's
+    very likely there. The user picks the level; a thing they confirmed always counts."""
+
+    CAREFUL = "careful"
+    BALANCED = "balanced"
+    EVERYTHING = "everything"
+
+    @property
+    def min_photos(self) -> int:
+        return {Trust.CAREFUL: 3, Trust.BALANCED: 2, Trust.EVERYTHING: 1}[self]
+
+
+MIN_CONFIDENCE = 0.5  # a sighting under this never counts (SAM 3.1's score)
+REVIEW_BELOW = 0.7  # a thing under this asks the user to check it
 
 
 @dataclass(frozen=True)
@@ -165,14 +187,19 @@ class TrackedObject:
         if ids:
             self.set_asides.append(SetAside(new_id, scan_id, reason, at, ids))
 
-    def last_seen(self, min_confidence: float = 0.5) -> Observation | None:
-        fresh = [o for o in self.observations if self.is_current(o) and o.confidence >= min_confidence]
+    def last_seen(self, min_confidence: float = MIN_CONFIDENCE, min_photos: int = 1) -> Observation | None:
+        fresh = [
+            o
+            for o in self.observations
+            if self.is_current(o) and o.confidence >= min_confidence and o.seen_in_enough(min_photos)
+        ]
         return max(fresh, key=lambda o: o.seen_at, default=None)
 
-    def where(self) -> Observation | None:
-        """The newest sighting, with the user's height in place of the measured one when they gave it.
-        A confirmed object counts as certain."""
-        last = self.last_seen(0.0 if self.corrections.confirmed else 0.5)
+    def where(self, trust: Trust = Trust.EVERYTHING) -> Observation | None:
+        """The newest sighting with enough evidence for `trust`, with the user's height in place of the measured one
+        when they gave it. A confirmed object counts as certain."""
+        sure = self.corrections.confirmed
+        last = self.last_seen(0.0) if sure else self.last_seen(MIN_CONFIDENCE, trust.min_photos)
         if last is None:
             return None
         c = self.corrections
@@ -181,6 +208,13 @@ class TrackedObject:
         if c.confirmed:
             last = replace(last, confidence=1.0)
         return last
+
+    def needs_review(self, trust: Trust) -> bool:
+        """Unconfirmed and either unsure or below the user's level: Found asks them to check it."""
+        if self.corrections.confirmed:
+            return False
+        last = self.where()
+        return last is not None and (last.confidence < REVIEW_BELOW or self.where(trust) is None)
 
     def display_color(self) -> str | None:
         return self.corrections.color or self.color
@@ -289,3 +323,29 @@ class Home:
     room_model: RoomModel | None = None
     landmarks: list[Landmark] = field(default_factory=list)
     first_scan_id: str | None = None
+    rejections: list[Rejection] = field(default_factory=list)  # "Not there": what later scans must not bring back
+
+    def rejects(self, label: str, at: Position, photos: int | None) -> bool:
+        return any(r.covers(label, at, photos) for r in self.rejections)
+
+
+@dataclass(frozen=True)
+class Rejection:
+    """The user said a thing isn't there. A later scan that finds the same kind of thing within half a metre is
+    the same mistake again, unless it was seen clearly from many places: then the eyes win over the old "no"
+    (someone may have put a wallet there since)."""
+
+    id: str
+    label: str
+    position: Position
+    at: datetime
+
+    RADIUS_M = 0.5
+    CLEARLY_SEEN = 5  # photos
+
+    def covers(self, label: str, at: Position, photos: int | None) -> bool:
+        return (
+            label.lower() == self.label.lower()
+            and self.position.distance_to(at) <= self.RADIUS_M
+            and (photos or 1) < self.CLEARLY_SEEN
+        )

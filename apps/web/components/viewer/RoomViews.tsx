@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { BoxGeometry, BufferAttribute, BufferGeometry, Color, EdgesGeometry, PlaneGeometry, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, type Texture } from "three";
-import type { FurnitureBox, RoomShape, Thing, Tokens } from "./Layers";
+import { NorthArrow, type FurnitureBox, type RoomShape, type Thing, type Tokens } from "./Layers";
 
 /** One colour per kind of furniture, like a semantic map (a legend in the controls names them). */
 export const KIND_COLOURS: Record<string, string> = {
@@ -44,12 +44,17 @@ export function RoomModel({
   things,
   selected,
   tokens,
+  wallOpacity = 0.45,
+  showFurniture = true,
 }: {
   room: RoomShape;
   furniture: FurnitureBox[];
   things: Thing[];
   selected: number | null;
   tokens: Tokens;
+  /** how solid the walls look: 0.15 (see through) to 1 (opaque) */
+  wallOpacity?: number;
+  showFurniture?: boolean;
 }) {
   const floor = useMemo(() => {
     const shape = new Shape(room.floor.map(([x, y]) => ({ x, y }) as never));
@@ -63,9 +68,9 @@ export function RoomModel({
         <meshLambertMaterial color={tokens.line} side={2} />
       </mesh>
       {room.walls.map((w, i) => (
-        <SolidWall key={i} wall={w} colour={tokens.bg} edge={tokens.blueDark} />
+        <SolidWall key={i} wall={w} colour={tokens.bg} edge={tokens.blueDark} opacity={wallOpacity} />
       ))}
-      {furniture.map((f, i) => (
+      {showFurniture && furniture.map((f, i) => (
         <SolidBox
           key={i}
           min={f.min}
@@ -105,10 +110,12 @@ function SolidWall({
   wall,
   colour,
   edge,
+  opacity = 0.45,
 }: {
   wall: RoomShape["walls"][number];
   colour: string;
   edge: string;
+  opacity?: number;
 }) {
   const [x1, y1] = wall.start;
   const [x2, y2] = wall.end;
@@ -129,8 +136,8 @@ function SolidWall({
           <meshLambertMaterial
             color={colour}
             transparent
-            opacity={0.45}
-            depthWrite={false}
+            opacity={opacity}
+            depthWrite={opacity >= 1}
             side={2}
           />
         </mesh>
@@ -184,7 +191,7 @@ export interface MeshData {
 }
 
 /** The measured surface (Poisson over the points, in the export), drawn with its photo colours. */
-export function SurfaceMesh({ mesh }: { mesh: MeshData }) {
+export function SurfaceMesh({ mesh, wireframe = false, flat = false }: { mesh: MeshData; wireframe?: boolean; flat?: boolean }) {
   const geometry = useMemo(() => {
     const g = new BufferGeometry();
     g.setAttribute("position", new BufferAttribute(mesh.positions, 3));
@@ -198,7 +205,7 @@ export function SurfaceMesh({ mesh }: { mesh: MeshData }) {
       <ambientLight intensity={1.1} />
       <directionalLight position={[3, -4, 6]} intensity={0.9} />
       <mesh geometry={geometry}>
-        <meshLambertMaterial vertexColors side={2} />
+        <meshLambertMaterial key={`${wireframe}-${flat}`} vertexColors side={2} wireframe={wireframe} flatShading={flat} />
       </mesh>
     </>
   );
@@ -283,14 +290,16 @@ export interface ArchitectData {
   things: { n: number; label: string; color: string | null; at: number[]; size: number[] | null }[];
 }
 
-/** Walls are cut at this height, like an architect's model, so the room can be seen into from any side. */
-const CUT = 1.1;
+/** Walls are cut at this height by default, like an architect's model, so the room can be seen into from any side. */
+export const CUT = 1.1;
 
-export function ArchitectRoom({ model, selected, tokens }: { model: ArchitectData; selected: number | null; tokens: Tokens }) {
+export function ArchitectRoom({ model, selected, tokens, cut = CUT, north }: { model: ArchitectData; selected: number | null; tokens: Tokens; cut?: number; north?: { deg?: number | null; label: string } }) {
   const floor = useMemo(() => new ShapeGeometry(new Shape(model.plan.map(([x, y]) => ({ x, y }) as never))), [model.plan]);
-  const wallHeight = Math.min(CUT, model.height);
+  const wallHeight = Math.min(cut, model.height);
   return (
     <group rotation={[0, 0, model.theta]}>
+      {/* an architect's model shows north, not x/y/z axes; drawn in the plan's own frame */}
+      {north && <NorthArrow floor={model.plan} northDeg={north.deg} tokens={tokens} label={north.label} theta={model.theta} />}
       <hemisphereLight args={["#ffffff", "#c9c2b6", 1.1]} />
       <directionalLight position={[2, -3, 6]} intensity={1.4} />
       <mesh geometry={floor} position={[0, 0, -0.004]}>

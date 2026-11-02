@@ -7,9 +7,11 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
+from recall_api.application.audit import NoAudit
 from recall_api.application.ports import AnswerRecord, Clock, LlmProvider
 from recall_api.application.tools import ToolContext, Tools
 from recall_api.domain.assistant import check_grounding, is_plural
+from recall_api.domain.audit import Action, Actor, Outcome
 from recall_api.domain.ports import HomeRepository
 
 MAX_STEPS = 6
@@ -74,10 +76,11 @@ class NoAnswerLog:
 class AskWhereIs:
     def __init__(
         self, llm: LlmProvider, tools: Tools, tool_schemas: list[dict], homes: HomeRepository, answers=None,
-        clock: Clock | None = None, new_id=None, provider: str = "",
+        clock: Clock | None = None, new_id=None, provider: str = "", audit=None,
     ) -> None:  # fmt: skip
         self.llm, self.tools, self.schemas, self.homes = llm, tools, tool_schemas, homes
         self.answers, self.clock, self.new_id, self.provider = answers or NoAnswerLog(), clock, new_id, provider
+        self.audit = audit or NoAudit()
 
     def __call__(
         self, home_id: str, question: str, session_id: str | None = None, about: str | None = None
@@ -92,7 +95,12 @@ class AskWhereIs:
         messages: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM}, {"role": "user", "content": user}]
         steps: list[dict[str, Any]] = []
         tokens = {"prompt_tokens": 0, "completion_tokens": 0}
-        result = self._loop(messages, ctx, places, steps, tokens)
+        try:
+            result = self._loop(messages, ctx, places, steps, tokens)
+        except Exception as e:  # the model couldn't be reached: recorded, then the caller says so
+            self.audit(Action.GUIDE_ANSWERED, Actor.OWNER, Outcome.FAILED, provider=self.provider,
+                       model=self.llm.model, why=type(e).__name__)  # fmt: skip
+            raise
         # an answer that names a thing's place must rest on at least one sighting; otherwise it isn't said
         if result.object_id and not ctx.observation_ids:
             result = AnswerResult(fallback_sentence([]), False, None, result.tool_calls, result.model, 0)
@@ -104,6 +112,10 @@ class AskWhereIs:
                 steps, list(dict.fromkeys(ctx.observation_ids)), self.provider, self.llm.model,
                 tokens["prompt_tokens"] or None, tokens["completion_tokens"] or None, result.latency_ms,
             ))  # fmt: skip
+        # the question's words stay in the answer log; the audit says a model was asked, which, and how it went
+        self.audit(Action.GUIDE_ANSWERED, Actor.OWNER, target_type="answer", target_id=result.answer_id,
+                   provider=self.provider, model=self.llm.model, grounded=result.grounded,
+                   latency_ms=result.latency_ms, tool_calls=result.tool_calls)  # fmt: skip
         return result
 
     def _loop(self, messages, ctx: ToolContext, places: set[str], steps: list, tokens: dict) -> AnswerResult:

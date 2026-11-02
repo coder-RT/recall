@@ -31,6 +31,34 @@ struct ReportView: View {
                         StatTile(String(format: "%.1f m/s", metrics.meanSpeedMps), "average pace")
                         StatTile("\(metrics.slowDownCues)", "slow-down cues")
                         StatTile(String(format: "%.0f m²", metrics.areaWalkedM2), "area walked")
+                        if let seen = metrics.zonesSeen, let total = metrics.zonesTotal, total > 0 {
+                            StatTile("\(seen)/\(total)", "height zones seen")
+                        }
+                        if let walls = metrics.wallsCovered { StatTile("\(walls)/12", "wall sides seen") }
+                        if let floor = metrics.floorSeenM2 { StatTile(String(format: "%.1f m²", floor), "floor seen") }
+                        if let points = metrics.points {
+                            StatTile(points >= 1000 ? "\(points / 1000) k" : "\(points)", "LiDAR points")
+                        }
+                        StatTile(String(format: "%.1f m/s", metrics.peakSpeedMps), "fastest pace")
+                        StatTile("\(Int((CaptureMetrics.blurryShare(kept: metrics.keyframesKept, dropped: metrics.keyframesDroppedBlurry) * 100).rounded())) %",
+                                 "blurry photos")
+                        if let loop = metrics.loopClosed { StatTile(loop ? "Yes" : "No", "back at the start") }
+                        if let spread = metrics.compassSpreadDeg { StatTile(spread <= 25 ? "Good" : "Poor", "compass") }
+                        StatTile(ScanTips.light(metrics.meanLightLux), "light")
+                    }
+                    if let steps = metrics.steps, !steps.isEmpty { StepTimeline(steps: steps) }
+                    let tips = ScanTips.make(metrics)
+                    if !tips.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Next time").font(.headline).foregroundStyle(Tokens.ink).accessibilityAddTraits(.isHeader)
+                            ForEach(tips, id: \.self) { tip in
+                                Label(tip, systemImage: "lightbulb").font(.subheadline).foregroundStyle(Tokens.ink)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .card()
+                        .accessibilityIdentifier("report-tips")
                     }
                 BigButton("Upload to the Mac", systemImage: "arrow.up.circle.fill",
                           hint: "Send the scan to your Mac so Recall can remember the room.") {
@@ -46,5 +74,35 @@ struct ReportView: View {
             .padding(Tokens.gutter)
         }
         .recallScreen()
+    }
+}
+
+
+/// How each step went: done (a tick) or moved on when its time ran out, how long it took, and what it measured.
+private struct StepTimeline: View {
+    let steps: [ScanGuide.StepRecord]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("How each step went").font(.headline).foregroundStyle(Tokens.ink).accessibilityAddTraits(.isHeader)
+            ForEach(Array(steps.enumerated()), id: \.offset) { _, r in
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: r.completed ? "checkmark.circle.fill" : "arrow.right.circle")
+                        .foregroundStyle(r.completed ? Tokens.goText : Tokens.danger)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(r.title).font(.subheadline.weight(.semibold)).foregroundStyle(Tokens.ink)
+                        Text("\(r.detail) · \(Int(r.seconds)) s\(r.completed ? "" : " · moved on")")
+                            .font(.subheadline).foregroundStyle(Tokens.muted)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(r.title): \(r.completed ? "done" : "moved on before it was done"). \(r.detail). \(Int(r.seconds)) seconds.")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .card()
+        .accessibilityIdentifier("report-steps")
     }
 }

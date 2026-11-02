@@ -39,7 +39,9 @@ def _view(pose: str, depth: bytes) -> CameraView:
         return CameraView(M, float(k["fx"]), float(k["fy"]), float(k["cx"]), float(k["cy"]), (iw, ih),
                           mm.reshape(dh, dw).astype(float) / 1000.0)  # fmt: skip
     except (KeyError, ValueError, TypeError) as e:
-        raise HTTPException(422, {"error": "invalid", "detail": f"Bad arrival frame: {e}"}) from e
+        # a fixed sentence: the parser's own message would echo the request back
+        detail = "Bad arrival frame: pose, intrinsics, sizes and depth must match."
+        raise HTTPException(422, {"error": "invalid", "detail": detail}) from e
 
 
 @router.post("/guidance/sessions/{session_id}/verify", response_model=VerificationResult)
@@ -48,7 +50,7 @@ async def verify(
 ) -> VerificationResult:
     view = _view(pose, await depth.read())
     try:
-        v = c.verify_arrival(session_id, await image.read(), view)
+        v = c.arrival_verifier(session_id, await image.read(), view)
     except GuidanceError as e:
         raise HTTPException(e.status, {"error": e.code, "detail": str(e)}) from e
     return VerificationResult(outcome=v.outcome, say=v.say, distance_cm=v.distance_cm, sam_score=v.sam_score,

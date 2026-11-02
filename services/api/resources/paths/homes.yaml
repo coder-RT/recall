@@ -6,6 +6,8 @@ room:
     parameters:
       - $ref: ../schemas/Params.yaml#/home_id
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: Room model
         content:
@@ -14,6 +16,37 @@ room:
               $ref: ../schemas/RoomModel.yaml
       "404":
         $ref: ../schemas/Responses.yaml#/NotFound
+room_map:
+  get:
+    tags: [homes]
+    operationId: getRoomMap
+    summary: One room's map and the things in it, for the owner's phone (the same document a robot gets)
+    description: >
+      The owner's view of a room: the occupancy map, the things on it and the room outline, in the robot export's
+      format. Device key only; works whether robot access is on or off, and isn't recorded as a robot export.
+      `room` picks a room; the default is the newest processed scan's.
+    parameters:
+      - $ref: ../schemas/Params.yaml#/home_id
+      - name: room
+        in: query
+        required: false
+        schema: {type: string}
+    responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
+      "200":
+        description: The room's map
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/RobotExport.yaml
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound
+      "409":
+        description: The scan's point cloud is missing; process the scan again
+        content:
+          application/json:
+            schema: {$ref: ../schemas/Error.yaml}
 robot_export:
   get:
     tags: [robots]
@@ -32,6 +65,8 @@ robot_export:
         required: false
         schema: {type: string}
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: The export
         content:
@@ -43,5 +78,68 @@ robot_export:
         content:
           application/json:
             schema: {$ref: ../schemas/Error.yaml}
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound
+robot_package:
+  get:
+    tags: [robots]
+    operationId: getRobotPackage
+    summary: One room's memory for a robot as a .zip of files it loads (Nav2 map, things, room, 3D points, README)
+    description: >
+      The same content as the robot export, as files: map.pgm and map.yaml (Nav2 map server), objects.json,
+      room.json, cloud.ply (x y z, metres, z up) and README.md. Same access as the robot export: the owner's device
+      key always (to share it from the phone), a robot's key only while robot access is on. Recorded in the audit.
+    security:
+      - deviceKey: []
+    parameters:
+      - $ref: ../schemas/Params.yaml#/home_id
+      - name: room
+        in: query
+        required: false
+        schema: {type: string}
+    responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
+      "200":
+        description: The package
+        content:
+          application/zip:
+            schema: {type: string, format: binary}
+      "403":
+        description: Robot access is off
+        content:
+          application/json:
+            schema: {$ref: ../schemas/Error.yaml}
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound
+      "409":
+        description: The scan's point cloud is missing; process the scan again
+        content:
+          application/json:
+            schema: {$ref: ../schemas/Error.yaml}
+ar_labels:
+  get:
+    tags: [homes]
+    operationId: getArLabels
+    summary: Everything Recall found in a room, placed in that room's saved AR map (for labels over the camera)
+    description: >
+      Positions are in the ARKit frame of the room's newest processed scan (scan_id): the phone relocalises in that
+      scan's room map, then draws one label per thing. trusted and needs_review follow the owner's trust level.
+    parameters:
+      - $ref: ../schemas/Params.yaml#/home_id
+      - name: room
+        in: query
+        required: true
+        schema: {type: string, minLength: 1, maxLength: 60}
+    responses:
+      "422":
+        $ref: ../schemas/Responses.yaml#/Invalid
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
+      "200":
+        description: The labels
+        content:
+          application/json:
+            schema: {$ref: ../schemas/ArLabels.yaml}
       "404":
         $ref: ../schemas/Responses.yaml#/NotFound

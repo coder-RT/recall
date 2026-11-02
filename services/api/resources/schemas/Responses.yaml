@@ -23,3 +23,17 @@ Unavailable:
   content:
     application/json:
       schema: {$ref: Error.yaml}
+TooLarge:
+  description: The body is larger than this route accepts (a part 64 MB, a result 50 MB, an arrival frame 25 MB, audio 10 MB, anything else 1 MB)
+  content:
+    application/json:
+      schema: {$ref: Error.yaml}
+RateLimited:
+  description: Too many calls from this key to a route that reaches a model or the pipeline; try again after Retry-After seconds
+  headers:
+    Retry-After:
+      schema: {type: integer}
+      description: Seconds to wait
+  content:
+    application/json:
+      schema: {$ref: Error.yaml}

@@ -4,6 +4,8 @@ privacy:
     operationId: getPrivacy
     summary: Where the home's data lives and what is sent where, right now
     responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
       "200":
         description: The privacy facts under the current settings
         content:

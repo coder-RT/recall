@@ -101,7 +101,7 @@ def test_export_has_geometry_and_labels_only(tmp_path):
     assert set(keys) == {"id", "label", "aliases", "color", "position", "orientation", "frame_id", "size_m",
                          "last_seen", "confidence"}  # fmt: skip
     files = {p.name for p in write(e, tmp_path / "out")}
-    assert files == {"map.pgm", "map.yaml", "objects.json", "room.json", "cloud.ply"}
+    assert files == {"README.md", "map.pgm", "map.yaml", "objects.json", "room.json", "cloud.ply"}
     assert yaml.safe_load((tmp_path / "out" / "map.yaml").read_text())["image"] == "map.pgm"
 
 
@@ -131,6 +131,63 @@ def test_endpoint_is_off_by_default_and_needs_a_key(tmp_path):
     assert datetime.fromisoformat(body["generated_at"]).tzinfo == UTC
 
 
+def test_the_owner_sees_each_rooms_map_without_robot_access_or_an_audit_entry(tmp_path):
+    s = Settings(RECALL_DATA_DIR=tmp_path, RECALL_DEVICE_KEY="owner", RECALL_ROBOT_KEY="robot",
+                 ROBOT_EXPORT_ENABLED=False, RECALL_TRACES="off")  # fmt: skip
+    app = create_app(s)
+    app.state.container.__dict__["export_for_robot"] = _exporter(tmp_path)[0]
+    client = TestClient(app)
+    owner = {"Authorization": "Bearer owner"}
+    r = client.get("/homes/flat/room-map", params={"room": "Office"}, headers=owner)
+    assert r.status_code == 200, r.text
+    assert r.json()["room"] == "Office" and r.json()["objects"][0]["label"] == "keys"
+    assert client.get("/homes/flat/room-map", params={"room": "Kitchen"}, headers=owner).status_code == 404
+    # the robot key never reads it, and looking at your own map isn't robot activity
+    assert client.get("/homes/flat/room-map", headers={"Authorization": "Bearer robot"}).status_code == 401
+    assert not [e for e in client.get("/audit", headers=owner).json() if e["action"] == "robot_export.read"]
+
+
+def test_a_rescan_updates_the_rooms_map_and_where_things_are(tmp_path):
+    """Scan the room, move the box and the keys, scan it again: the room map is the rescan's."""
+    import io
+
+    def put_cloud(blobs, scan, points):
+        buf = io.BytesIO()
+        np.save(buf, points)
+        blobs.put(f"{scan.folder}/episode/home_cloud.npy", buf.getvalue())
+
+    r = Repos()
+    blobs = MemoryBlobs()
+    put_cloud(blobs, r.scan("s1", 10), room_points())  # the box at x 1.5..1.7
+    r.ingest("s1", {"room": ROOM, "landmarks": [obj("desk", [1.0, 0.5, 0.38])],
+                    "objects": [obj("keys", [1.0, 0.5, 0.8])]})  # fmt: skip
+    moved = room_points()
+    moved = moved[moved[:, 2] < 0.05]  # the box is gone from there...
+    xs, ys, zs = np.meshgrid(np.arange(0.2, 0.4, 0.02), np.arange(0.4, 0.6, 0.02), np.arange(0.1, 0.5, 0.05))
+    moved = np.vstack([moved, np.c_[xs.ravel(), ys.ravel(), zs.ravel()]])  # ...and stands at x 0.2..0.4 now
+    put_cloud(blobs, r.scan("s2", 12, aligned_to="s1"), moved)
+    r.ingest("s2", {"room": ROOM, "landmarks": [], "objects": [obj("keys", [1.5, 0.8, 0.8])]})
+
+    s = Settings(RECALL_DATA_DIR=tmp_path, RECALL_DEVICE_KEY="owner", RECALL_TRACES="off")
+    app = create_app(s)
+    app.state.container.__dict__["export_for_robot"] = ExportForRobot(r.homes, r.scans, r.objects, blobs, FixedClock())
+    body = TestClient(app).get("/homes/flat/room-map", params={"room": "Office"},
+                               headers={"Authorization": "Bearer owner"}).json()  # fmt: skip
+    assert body.get("scan_id") == "s2", body
+    assert body["objects"][0]["position"] == [1.5, 0.8, 0.8]  # the keys where the rescan saw them
+    m = body["map"]
+    pgm = base64.b64decode(m["pgm_base64"])
+    w, h = m["width"], m["height"]
+    img = np.frombuffer(pgm.split(b"\n255\n", 1)[1], np.uint8).reshape(h, w)
+
+    def shade(x, y):  # the image's top row is the map's highest y
+        ox, oy = m["origin"][:2]
+        return img[h - 1 - int((y - oy) / m["resolution"]), int((x - ox) / m["resolution"])]
+
+    assert shade(0.3, 0.5) == 0  # occupied where the box stands now
+    assert shade(1.6, 0.5) == 254  # free where it stood before
+
+
 def test_a_damaged_line_in_the_walk_is_skipped(tmp_path):
     from recall_api.application import scan_geometry
     from recall_api.domain.memory import Scan, ScanStatus
@@ -144,3 +201,30 @@ def test_a_damaged_line_in_the_walk_is_skipped(tmp_path):
     blobs = MemoryBlobs()
     blobs.put(f"{scan.folder}/episode/poses.jsonl", f"{good}\n{{}}\nnot json\n\n{good}\n".encode())
     assert scan_geometry.walked(blobs, scan).tolist() == [[1.0, 2.0], [1.0, 2.0]]
+
+
+def test_the_package_is_every_file_in_one_zip_with_the_same_access_as_the_export(tmp_path):
+    import io
+    import zipfile
+
+    def client(enabled: bool):
+        s = Settings(RECALL_DATA_DIR=tmp_path, RECALL_DEVICE_KEY="owner", RECALL_ROBOT_KEY="robot",
+                     ROBOT_EXPORT_ENABLED=enabled, RECALL_TRACES="off")  # fmt: skip
+        app = create_app(s)
+        export, _ = _exporter(tmp_path)
+        app.state.container.__dict__["export_for_robot"] = export
+        return TestClient(app)
+
+    off = client(False)
+    assert off.get("/homes/flat/robot-package", headers={"Authorization": "Bearer robot"}).status_code == 403
+    r = off.get("/homes/flat/robot-package", headers={"Authorization": "Bearer owner"})
+    assert r.status_code == 200 and r.headers["content-type"] == "application/zip"
+    assert r.headers["content-disposition"].startswith('attachment; filename="recall-')
+    names = zipfile.ZipFile(io.BytesIO(r.content)).namelist()
+    folder = names[0].split("/")[0]
+    assert {n.split("/", 1)[1] for n in names} == {"README.md", "map.pgm", "map.yaml", "objects.json", "room.json",
+                                                    "cloud.ply"}  # fmt: skip
+    assert all(n.startswith(folder + "/") for n in names)
+    readme = zipfile.ZipFile(io.BytesIO(r.content)).read(f"{folder}/README.md").decode()
+    assert "metres, the floor at z = 0, z up" in readme and "no photos" in readme
+    assert client(True).get("/homes/flat/robot-package", headers={"Authorization": "Bearer robot"}).status_code == 200

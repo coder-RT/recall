@@ -200,13 +200,14 @@ struct UseCaseTests {
         #expect(speech.lines.last == "Hall is ready. Nothing has moved since the last scan.")
     }
 
-    @Test func aRescanThatWasNotRecognisedSaysItStartedAfresh() async {
+    @Test func aRescanThatDidNotLineUpSaysItIsAFreshMap() async {
         let speech = FakeSpeech()
         let scan = Scan(id: "f", room: "Kitchen", createdAt: .now, grade: .good, directions: 10, frames: 50, state: .processing)
         let out = await TrackProcessing(processing: FakeProcessing(reports: ["f": ScanReport(.processed, fresh: true)]),
                                         memory: FakeHomeMemory(things: [keys]), speech: speech)([scan], home: "flat")
         #expect(out["f"]?.fresh == true)
-        #expect(speech.lines == ["I didn't recognise Kitchen, so its memory started afresh. Kitchen is ready. 1 thing found."])
+        #expect(speech.lines == ["A fresh map of Kitchen. This walk didn't line up with your last scan, so I can't say what "
+                                 + "moved this time. Kitchen is ready. 1 thing found."])
     }
 
     @Test func uploadNeedsSetupAndAManifest() async throws {
@@ -231,6 +232,16 @@ struct UseCaseTests {
         #expect(try pair(URL(string: "https://example.com")!) == nil)
     }
 
+    @Test func readingAPairingLinkChangesNothingUntilItIsApplied() throws {
+        let store = FakeConnectionStore()
+        let before = store.load()
+        let pair = PairDevice(store: store)
+        let pairing = try #require(try pair.read(URL(string: "recall://pair?url=https://evil.example&key=theirs")!))
+        #expect(store.load() == before)  // a link alone never re-points the phone
+        let c = pair.apply(pairing)
+        #expect(c.address == "https://evil.example" && store.connection == c)
+    }
+
     @Test func testConnectionSaysTheModel() async throws {
         #expect(try await TestConnection(check: FakeConnectionCheck(.success("baseten_spark_open")))()
                 == "Connected. The Mac's Guide runs on baseten_spark_open.")
@@ -247,5 +258,56 @@ struct UseCaseTests {
         #expect(memory.corrections.first?.1.name == .set("spare keys"))
         try await ForgetThing(memory: memory)(keys, home: "flat")
         #expect(memory.things.map(\.id) == ["2"])
+    }
+}
+
+@Suite("A scan waiting with no worker")
+@MainActor
+struct WorkerStoppedTests {
+    private let waiting = Scan(id: "w", room: "Living room", createdAt: .now, grade: .good, directions: 12, frames: 160,
+                               state: .processing)
+
+    @Test func itSaysSoOnceWhenTheWorkerIsntRunning() async {
+        let speech = FakeSpeech()
+        let track = TrackProcessing(processing: FakeProcessing(reports: ["w": ScanReport(.processing, workerAlive: false)]),
+                                    memory: FakeHomeMemory(), speech: speech)
+        let out = await track([waiting], home: "flat")
+        #expect(out["w"]?.workerStopped == true && out["w"]?.state == .processing)
+        #expect(speech.lines == [Scan.workerStoppedMessage])
+        var known = waiting
+        known.workerStopped = true
+        #expect(await track([known], home: "flat").isEmpty)  // already said: nothing new
+        #expect(speech.lines.count == 1)
+    }
+
+    @Test func itClearsOnceTheWorkerRunsAgain() async {
+        var known = waiting
+        known.workerStopped = true
+        let track = TrackProcessing(processing: FakeProcessing(reports: ["w": ScanReport(.processing, workerAlive: true)]),
+                                    memory: FakeHomeMemory(), speech: FakeSpeech())
+        #expect(await track([known], home: "flat")["w"]?.workerStopped == false)
+    }
+
+    @Test func aMacThatDoesntSayChangesNothing() async {
+        let track = TrackProcessing(processing: FakeProcessing(reports: ["w": ScanReport(.processing)]),
+                                    memory: FakeHomeMemory(), speech: FakeSpeech())
+        #expect(await track([waiting], home: "flat").isEmpty)
+    }
+}
+
+@Suite("Quiet when the app opens")
+@MainActor
+struct QuietOpenTests {
+    @Test func aScanThatFinishedWhileClosedUpdatesWithoutTalking() async {
+        let speech = FakeSpeech()
+        let scan = Scan(id: "q", room: "Living room", createdAt: .now, grade: .good, directions: 12, frames: 160,
+                        state: .processing)
+        let track = TrackProcessing(processing: FakeProcessing(reports: ["q": ScanReport(.processed, fresh: true)]),
+                                    memory: FakeHomeMemory(), speech: speech)
+        let quiet = await track([scan], home: "flat", announce: false)
+        #expect(quiet["q"]?.state == .processed && quiet["q"]?.fresh == true)  // the card still updates
+        #expect(speech.lines.isEmpty)
+        _ = await track([scan], home: "flat")  // while the app is open, a finished scan is still said
+        #expect(speech.lines.count == 1)
     }
 }

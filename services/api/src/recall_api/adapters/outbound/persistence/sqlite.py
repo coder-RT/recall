@@ -17,6 +17,7 @@ from recall_api.domain.memory import (
     Landmark,
     Observation,
     Position,
+    Rejection,
     RoomModel,
     Scan,
     ScanChange,
@@ -41,6 +42,11 @@ class SqliteHomes:
             if row is None:
                 return None
             lms = c.execute(text("SELECT * FROM landmarks WHERE home_id = :id"), {"id": home_id}).mappings().all()
+            rejected = (
+                c.execute(text("SELECT * FROM rejections WHERE home_id = :id ORDER BY at"), {"id": home_id})
+                .mappings()
+                .all()
+            )
         landmarks = [
             Landmark(
                 id=r["id"],
@@ -53,8 +59,17 @@ class SqliteHomes:
             for r in lms
         ]
         room = RoomModel.from_dict(json.loads(row["room_model"])) if row["room_model"] else None
+        rejections = [
+            Rejection(r["id"], r["label"], Position(r["x"], r["y"], r["z"]), datetime.fromisoformat(r["at"]))
+            for r in rejected
+        ]
         return Home(
-            id=row["id"], name=row["name"], room_model=room, landmarks=landmarks, first_scan_id=row["first_scan_id"]
+            id=row["id"],
+            name=row["name"],
+            room_model=room,
+            landmarks=landmarks,
+            first_scan_id=row["first_scan_id"],
+            rejections=rejections,
         )
 
     def save(self, home: Home) -> None:
@@ -86,6 +101,13 @@ class SqliteHomes:
                         "front": json.dumps(lm.front_dir) if lm.front_dir else None,
                     },
                 )
+            for r in home.rejections:  # append-only: a "Not there" is never edited
+                c.execute(
+                    text("""INSERT INTO rejections (id, home_id, label, x, y, z, at)
+                            VALUES (:id, :home, :label, :x, :y, :z, :at) ON CONFLICT(id) DO NOTHING"""),
+                    {"id": r.id, "home": home.id, "label": r.label, "x": r.position.x, "y": r.position.y,
+                     "z": r.position.z, "at": r.at.isoformat()},
+                )  # fmt: skip
 
 
 class SqliteScans:
@@ -195,6 +217,7 @@ class SqliteObjects:
                             confidence=o["confidence"],
                             keyframe_index=o["keyframe_index"],
                             box=tuple(json.loads(o["box"])) if o["box"] else None,
+                            photos=o["photos"],
                         )
                         for o in obs.mappings().all()
                     ],
@@ -264,8 +287,9 @@ class SqliteObjects:
             for o in obj.observations:
                 c.execute(
                     text("""
-                    INSERT INTO observations (id, object_id, scan_id, keyframe_index, ts, x, y, z, confidence, box)
-                    VALUES (:id, :obj, :scan, :kf, :ts, :x, :y, :z, :conf, :box)
+                    INSERT INTO observations
+                      (id, object_id, scan_id, keyframe_index, ts, x, y, z, confidence, box, photos)
+                    VALUES (:id, :obj, :scan, :kf, :ts, :x, :y, :z, :conf, :box, :photos)
                     ON CONFLICT(id) DO NOTHING"""),
                     {
                         "id": o.id,
@@ -278,6 +302,7 @@ class SqliteObjects:
                         "z": o.position.z,
                         "conf": o.confidence,
                         "box": json.dumps([round(v, 1) for v in o.box]) if o.box else None,
+                        "photos": o.photos,
                     },
                 )
             for a in obj.set_asides:

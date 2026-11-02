@@ -6,8 +6,16 @@
 
 <p align="center"><strong>Recall remembers where you put things, and walks you back to them.</strong></p>
 
-<p align="center"><em>“Where did I put my keys?”</em> · <em>“Have you seen my reading glasses?”</em><br>
-<em>“Where's my grey bag?”</em> · <em>“Why do you think so?”</em></p>
+<p align="center"><strong>LiDAR + Meta models:</strong> the iPhone's LiDAR measures, Meta's MapAnything builds the 3D map,
+SAM 3.1 finds your things in it, and Muse Voice Transcribe + Muse Spark Open hear the question and answer it.<br>
+<a href="docs/privacy.md">Private</a> · <a href="#guardrails">Never guesses</a> · <a href="#what-it-is">Voice-first</a></p>
+
+<p align="center">
+  <em>“Where did I put my keys?”</em><br>
+  <em>“Have you seen my reading glasses?”</em><br>
+  <em>“Where's my grey bag?”</em><br>
+  <em>“Why do you think so?”</em>
+</p>
 
 <p align="center">…then tap <strong>Take me there</strong>, and the camera checks it's really there when you arrive.</p>
 
@@ -45,41 +53,83 @@ Indie track · Theme: <strong>Build for Your World</strong></p>
 
 > What isn't finished yet is listed under [Not in this submission](#not-in-this-submission).
 
+<br>
+
+<div align="center">
+
+| **2.3 s** | **3 cm** | **60 s** | **2–7 cm** | **0** |
+|:---:|:---:|:---:|:---:|:---:|
+| from question to answer,<br>median of 10 real questions | arrival check on the real keys,<br>SAM 3.1 + LiDAR depth | to rebuild a room in 3D<br>on a Mac (M5 Pro) | where a no-model rebuild put<br>all 10 things vs MapAnything | non-Meta models<br>at runtime |
+
+<sub>Every number is measured and dated in <a href="docs/verification.md">docs/verification.md</a>; see <a href="#results-so-far">Results so far</a>.</sub>
+
+</div>
+
+<br>
+
+### For judges, in one minute
+
+| Criterion | Where to look |
+|---|---|
+| **Impact** (30 %) | [Why I built it](#why-i-built-it): a true story · [What it is](#what-it-is): for blind and low-vision people, voice first · [Privacy](docs/privacy.md): the home stays on your own computer · the [tester session plan](evals/usability/) |
+| **Use of Meta AI tooling** (25 %) | [Only Meta models, each with one job](#how-it-works-the-meta-models): MapAnything, SAM 3.1, Muse Spark Open (Muse Glimmer on your own Mac), Muse Voice Transcribe, Muse Spark 1.1 · [Recall's three agents](#recalls-three-agents) · [Sharing with robots](#sharing-with-robots) over A2A |
+| **Demo** (25 %) | The screenshots below are real output · `make demo` replays a real run with no keys · [How to run it](#how-to-run-it) |
+| **Technical depth** (20 %) | [Architecture](docs/architecture.md) · [28 decisions](docs/decisions.md) · [Guardrails](#guardrails): geometry decides the facts, the model only phrases them · [Algorithms](#algorithms) · tests on every part ([Results so far](#results-so-far)) |
+
 ---
 
 ## Contents
 
 1. [What it is](#what-it-is)
 2. [What's in this repo](#whats-in-this-repo)
-3. [Why I built it](#why-i-built-it)
-4. [Recall's three agents](#recalls-three-agents)
-5. [Sharing with robots](#sharing-with-robots)
-6. [How it works: the Meta models](#how-it-works-the-meta-models)
-7. [Architecture in brief](#architecture-in-brief)
-8. [API](#api)
-9. [Guardrails](#guardrails)
-10. [Algorithms](#algorithms)
-11. [Results so far](#results-so-far)
-12. [How to run it](#how-to-run-it)
-13. [Not in this submission](#not-in-this-submission)
-14. [Contributing](#contributing)
-15. [Built during the hackathon](#built-during-the-hackathon)
-16. [Licence](#licence)
+3. [How the code is laid out](#how-the-code-is-laid-out)
+4. [Why I built it](#why-i-built-it)
+5. [Meta Muse in the code](#meta-muse-in-the-code)
+6. [Recall's three agents](#recalls-three-agents)
+7. [Built with Muse Code: three tiers of agents](#built-with-muse-code-three-tiers-of-agents)
+8. [Sharing with robots](#sharing-with-robots)
+9. [How it works: the Meta models](#how-it-works-the-meta-models)
+10. [Architecture in brief](#architecture-in-brief)
+11. [API](#api)
+12. [Guardrails](#guardrails)
+13. [Algorithms](#algorithms)
+14. [Results so far](#results-so-far)
+15. [Installation](#installation)
+16. [How to run it](#how-to-run-it)
+17. [Not in this submission](#not-in-this-submission)
+18. [Contributing](#contributing)
+19. [Built during the hackathon](#built-during-the-hackathon)
+20. [Licence](#licence)
 
 ## Screenshots
 
-No image of anyone's home is in this repo: the 3D viewer shows only a room you scan yourself.
+**Real output, from the author's own living room:** one walk with an iPhone, rebuilt on a Mac. The room map shows
+floor, furniture and walls as cells, and the things as dots: no photos of the home are in this repo.
+
+<table>
+  <tr>
+    <td width="33%" align="center"><img src="docs/media/app-answer.png" width="250" alt="Find: the question 'Where are my keys?' and the answer 'Your keys are near the desk in the living room at waist height, seen on Friday at 04:21', with Take me there and Why? buttons, and the room map below"></td>
+    <td width="33%" align="center"><img src="docs/media/app-rooms.png" width="250" alt="Find: Your rooms, the Living room card with its map, 10 things as blue dots, and the list of things below"></td>
+    <td width="33%" align="center"><img src="docs/media/app-why.png" width="250" alt="Why Recall thinks so: the answer, 'Phrased by Muse Spark Open from 1 sighting, in 1.8 seconds', and the sighting: seen in the Living room scan on 30 Oct 2026, 70% sure"></td>
+  </tr>
+  <tr>
+    <td><b>Ask.</b> Muse Spark Open picks the tools; the place comes from the 3D memory. <b>Take me there</b> walks you to it.</td>
+    <td><b>Your rooms.</b> The map MapAnything and SAM 3.1 built from one walk. Swipe between rooms; tap one to see only its things.</td>
+    <td><b>Why?</b> The sighting behind the answer, and which model worded it, in how long.</td>
+  </tr>
+  <tr>
+    <td width="33%" align="center"><img src="docs/media/app-things.png" width="250" alt="Find: Your things, the Living room, on or near the desk: grey bag, red book, beige keys, bottles, glasses and a laptop, each with a Go button"></td>
+    <td width="33%" align="center"><img src="docs/media/app-found.png" width="250" alt="Found: search, filters, group by place, height or kind; the Living room, 10 things, 4 to check, with Check marks on the unsure ones"></td>
+    <td width="33%" align="center"><img src="docs/media/app-robots.png" width="250" alt="Robot Access: the switch to share the home map with robots, off; the Living room map for robots; what robots receive and what is never shared"></td>
+  </tr>
+  <tr>
+    <td><b>Your things.</b> By room, then the furniture they're on or near. <b>Go</b> on every row.</td>
+    <td><b>Found.</b> Check what the scan found; fix a name, colour or height; the unsure ones are marked.</td>
+    <td><b>Robot Access.</b> Off by default. A robot gets the map and where things are, never photos or anyone's position.</td>
+  </tr>
+</table>
 
 ![The landing page hero](docs/media/hero.png)
-
-The iPhone app, shown with sample data, not a real home:
-
-<p align="center">
-  <img src="docs/media/app-find.png" width="200" alt="Find: the question 'Where are my keys?' and the answer 'Your keys are near the desk in the Living room, at waist height', with Take me there and Why? buttons">
-  <img src="docs/media/app-why.png" width="200" alt="Why Recall thinks so: the answer, 'Phrased by Muse Spark Open from 1 sighting, in 2.3 seconds', and the sighting: seen in the Living room scan, 92% sure, found by SAM 3.1, placed by MapAnything">
-  <img src="docs/media/app-robots.png" width="200" alt="Robot Access: the switch to share the home map with robots, off; a preview of the room map for robots; and what robots receive">
-  <img src="docs/media/app-privacy.png" width="200" alt="Privacy: your home's memory lives on your own computer; right now scan photos go to SAM 3.1 and your question as text to Muse Spark Open on Baseten; robot access is off">
-</p>
 
 ## What it is
 
@@ -121,12 +171,104 @@ The iPhone app, shown with sample data, not a real home:
 | A usability session plan for a blind or low-vision tester | `evals/usability/` | Ready |
 | The 3-minute demo video | | Coming |
 
+## How the code is laid out
+
+```
+apps/
+  ios/        RecallKit package (Domain, Application, Networking, Capture, Voice, Persistence, Design)
+              + thin Recall (iPhone), RecallWatch and RecallUITests targets
+  web/        Next.js: landing page, 3D viewer, voice demo route, Playwright tests (e2e/)
+services/
+  api/        FastAPI: domain/ → application/ → adapters/ + infra/ ; resources/ = the OpenAPI spec (source of truth)
+  pipeline/   the scan pipeline, same layers: MapAnything, SAM 3.1, planes, merging, the room model
+docs/         architecture, privacy, verification, Meta Muse (docs/muse.md)
+evals/        questions, usability plan
+```
+
+- **Hexagonal (ports and adapters) in every service**: domain ← application ← adapters and infra.
+  - *Why:* a Meta model, a store or a transport is swapped in one place (`infra/container.py`), and the domain is
+    tested with no network.
+  - *Kept honest by:* import-linter (4 contracts in CI) and `services/api/tests/unit/test_architecture.py`, which
+    checks that routers only map and only use cases write the memory.
+- **One writer**: only `services/api` writes the home's memory; the pipeline posts its result
+  (`POST /scans/{id}/results`).
+  - *Why:* no two processes can race on what Recall remembers.
+- **Spec-first API**: `services/api/resources/openapi.yaml` is the contract. The API's Pydantic models and the
+  iPhone's Swift client are generated from it.
+  - *Why:* the phone and the Mac can't drift. Schemathesis checks the running API against the spec.
+- **The iPhone app is a package plus thin targets**: all logic lives in RecallKit (pure Swift domain, use cases,
+  adapters). The app, Watch and test targets only compose it.
+  - *Why:* the logic is unit-tested without a device or simulator.
+- **The web is two motion systems, never on one element**: GSAP owns scroll storytelling and Motion owns UI state.
+  Reduced motion is respected by both.
+
+**Tests, and where they live**
+
+| Suite | Where | What it checks |
+|---|---|---|
+| API unit | `services/api/tests/unit` | Domain, use cases with fake adapters, architecture rules, request limits |
+| API contract | `services/api/tests/contract` | Routes vs the spec, Schemathesis on every GET, `tools.json`, privacy notes in sync |
+| API integration | `services/api/tests/integration` | SQLite + disk, scan to answer end to end |
+| Pipeline | `services/pipeline/tests` | Geometry (planes, Umeyama, merging), the warm server's security |
+| Web | `apps/web/e2e` | Every section, accessibility (axe, WCAG 2.2 AA), usability, security headers |
+| iPhone unit | `apps/ios/Packages/RecallKit/Tests` | Domain, use cases, networking, capture |
+| iPhone UI | `apps/ios/RecallUITests` | Accessibility audit of every screen, usability flows, pairing |
+
+`make test-all` runs every suite under `caffeinate` and logs each run locally; CI runs on GitHub Actions.
+
 ## Why I built it
 
 - The question "where did I put my keys?" is asked in every home, and for someone who is blind or has low vision it can end a morning.
 - A home barely changes; what moves are the small things. That calls for a memory of the space, not a smarter camera.
 - The pieces now exist as open Meta models: metric 3D from photos (MapAnything), find anything by name (SAM 3.1), a language model that can call tools and phrase a short spoken answer (Muse Spark Open / Glimmer).
 - I wanted the result measured on real objects in a real flat, with the numbers published, rather than demonstrated on slides.
+
+## Meta Muse in the code
+
+Muse models are the core of Recall's question path: they hear the question, choose the tools and speak the answer.
+Geometry decides every fact; Muse turns facts into speech. Full detail: [docs/muse.md](docs/muse.md).
+
+- **Muse Voice Transcribe hears the question**
+  - *What:* speech to text, with turn detection (`ENDPOINTING`), so Recall knows when you've finished.
+  - *Why:* Recall is voice-first, and this is the only speech model it uses (no Apple speech recognition).
+  - *How:* the phone records WAV → the Mac sends it to the Meta Model API → only the words are kept, never the audio.
+  - *Code:* `services/api/.../adapters/outbound/voice/muse_transcribe.py`, `application/transcribe_speech.py`
+- **Muse Spark Open is the Guide**
+  - *What:* understands "where are my keys?", calls Recall's tools and says one or two short sentences.
+  - *Why:* it calls tools and phrases things naturally, with open weights. It never decides a place.
+  - *How:*
+    1. The question arrives with five tools (`resources/tools.json`).
+    2. Spark Open picks `find_object`, and Recall answers it from the 3D map.
+    3. Spark Open words it: landmark, then shelf and height, then when.
+    4. The code checks that every place it says came from a tool (`domain/assistant`), within 6 steps at most.
+  - *Code:* `application/ask_where_is.py`, `adapters/outbound/llm/openai_compatible.py`
+- **Baseten serves Muse Spark Open**
+  - *What:* Baseten hosts Meta's open-weights Muse Spark Open (`meta-models/muse-spark-open-1026`) behind an
+    OpenAI-compatible endpoint (`https://inference.baseten.co/v1`) with tool calling.
+  - *Used for:* the Guide (the default, `LLM_PROVIDER=baseten_spark_open`, at `reasoning_effort: low`) and the
+    screen that checks what outside agents send (`SCREEN_PROVIDER=baseten_spark_open`).
+  - *Why:* open weights served fast (a median 2.3 s from question to answer), on the hackathon's Baseten credit, and
+    the Mac's memory stays free for MapAnything.
+  - *How:* one `BASETEN_API_KEY` in `.env`; the same OpenAI-compatible adapter as every other Muse provider.
+  - *Code:* `adapters/outbound/llm/openai_compatible.py`, `adapters/outbound/safety/meta_model_screen.py`
+- **Muse Glimmer is private mode**
+  - *What:* the same Guide, on Muse Glimmer in LM Studio on your Mac.
+  - *Why:* your questions never leave home.
+  - *How:* `LLM_PROVIDER=lmstudio`; same adapter, same tools.
+- **Muse Spark 1.1 is the Verifier's second opinion**
+  - *What:* looks at the arrival photo when SAM 3.1 is unsure.
+  - *Why:* a wrong "it's here" is worse than "I'm not sure".
+  - *How:* it can only lower a result to "uncertain", never confirm one.
+  - *Code:* `application/verify_arrival.py`, `adapters/outbound/vision/spark_vision_meta_api.py`
+- **Muse Spark Open (or Glimmer) screens outside agents**
+  - *What:* checks the object name a robot or another app sends the Home Memory agent.
+  - *Why:* outside text must never steer a model or a tool.
+  - *How:* schema first (one name, at most 40 characters) → a strict JSON verdict → anything unclear is refused
+    (fails closed).
+  - *Code:* `adapters/outbound/safety/meta_model_screen.py`, `application/answer_external_query.py`
+- **Recorded Muse replies make the demo work without keys**
+  - *What:* `make demo` replays real Muse Spark Open replies to a real scan, labelled as recorded.
+  - *Code:* `adapters/outbound/replay/recorded_llm.py`
 
 ## Recall's three agents
 
@@ -136,6 +278,42 @@ These are Recall's own parts. Each one runs only Meta models.
 - **Verifier** runs once, on arrival: one camera frame, SAM 3.1 plus the LiDAR depth, and a yes or no on whether the object is really there. Muse Spark 1.1 can only lower confidence. If it's found nearby, memory moves it there; if it isn't there, Recall says so plainly. The Guide calls it in-process by default and in the live demo; A2A between the two is optional.
 - **Home Memory** answers a robot or another app you connect (a pair of glasses, another assistant) over the open A2A 1.0 protocol: read-only, off by default, never the user's live position. It accepts only structured input (one object name, checked against a schema), and a Meta model (Muse Spark Open, or Glimmer) checks that name before any tool runs. Every request is in the owner's audit log.
 - One rule: every agent has a job no other agent does. Complexity is not the goal; the three jobs are different.
+
+## Built with Muse Code: three tiers of agents
+
+Recall's three agents above run in the product. Separately, while building it, **Meta's Muse Code** (v1.4.14) tested
+and audited the repository with agents of its own. Details and every finding: [docs/muse.md](docs/muse.md#part-b-how-muse-code-tested-recall).
+
+```
+ Tester ─┐
+         ├─▶ Tie-breaker ─▶ Synthesis (the only writer)
+Reviewer ┘
+```
+
+- **A workflow program spawns the agents**
+  - Muse Code writes a small program: `host.parallel` runs agents side by side, and `host.agent` runs the next stage.
+  - Results pass between stages as references, not files.
+- **Every agent answers with evidence or "unresolved"**
+  - Each claim carries a `path:line` and the test behind it. A search result alone doesn't count.
+- **Tier 1: Tester and Reviewer, side by side**
+  - The tester ran every suite three times, with an anti-loop rule: one attempt, then report "blocked" with the exact
+    error.
+  - The reviewer only read code: the hexagonal layers, the ports, the composition roots and the tests behind each.
+- **Tier 2: Tie-breaker**
+  - Took every disagreement and re-read the code to settle it, without running the tests again.
+- **Tier 3: Synthesis**
+  - The only agent that writes, so nothing is overwritten: the test report and a code, pipeline, UI and algorithm
+    checklist.
+- **The security audit used the same shape**
+  - Backend, web and iPhone/Watch auditors ran side by side with no live attacks, then a synthesis wrote it up.
+  - A camera-privacy review was done by Muse Code directly.
+- **What it found, and what happened next**
+  - A pipeline crash risk without an Apple GPU, a Watch that could wait forever, logic in routers, no Schemathesis,
+    a silent pairing-link takeover, camera prompts that didn't name Meta's models, and missing rate limits.
+  - Each was checked against the code and fixed. Commits are listed in [docs/muse.md](docs/muse.md#what-muse-code-found).
+- **Where the tests ran**
+  - Muse Code ran the API, pipeline, web and lint suites in its sandbox.
+  - The iOS, Watch and network-server suites run on the Mac with `make test-all`, and every suite passes.
 
 ## Sharing with robots
 
@@ -290,13 +468,41 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
 - **Cost, measured:** a room scan is **456** SAM 3.1 calls and **48 MB** on disk; a question is **2** Muse Spark Open calls, about **2,460 + 261 tokens**.
 - **Flat surfaces:** the geometry-only detector found **12 level patches** in the room; the two largest sit at the heights of the two measured desks.
 - **Viewer:** about 150k points, the gather animation, photo and confidence colouring, and the floor grid, height bands and surfaces as layers, on a phone and a laptop.
-- **Tests:** API 140, pipeline 45 (including a synthetic room run through the whole pipeline), website 143 (accessibility with axe, WCAG 2.2 AA, reduced motion, no-JavaScript, and keyboard-only and 200 % text usability); on the iPhone, accessibility audits and usability tasks done with VoiceOver labels at default and largest text.
+- **Tests:** API 142, pipeline 45 (including a synthetic room run through the whole pipeline), website 164 (accessibility with axe, WCAG 2.2 AA, reduced motion, no-JavaScript, and keyboard-only and 200 % text usability); on the iPhone, 123 unit tests and 27 UI tests: accessibility audits and usability tasks done with VoiceOver labels at default and largest text.
 
 **Planned evaluation:** median position error against hand-measured positions, questions answered correctly, Verifier precision, and time to find an object by touch versus with Recall, scored without AI; the dated table will live in `evals/results.md`. The session plan for a blind or low-vision tester is in `evals/usability/`.
 
+## Installation
+
+**The full guide: [docs/install/README.md](docs/install/README.md).** It covers what Recall answers, then every step
+for a person or an AI agent, each with its command, what you should see, and what to do if you don't. The website
+offers the same guide as a download (`/INSTALL.md`).
+
+| Path | You get | Needs | Time |
+|---|---|---|---|
+| **A. Website** | The landing page and the real 3D scan at `/homes/flat/viewer` | Node 22 | 5 min |
+| **B. Demo, no keys** | `make demo`: Recall answering "where are my keys?" from a recorded real scan, labelled as recorded | uv (Python 3.12 comes with it) | 10 min |
+| **C. Live** | Your own room: `make live`, the iPhone app (Xcode + XcodeGen), pairing by QR, the Watch | A Mac with Apple silicon, your own Meta Model API and Baseten keys, an iPhone with LiDAR on iOS 26 | 45 min |
+
+The short version:
+
+```bash
+git clone https://github.com/coder-RT/recall.git && cd recall
+make setup                       # Python services (uv), the web app (pnpm), generated models, the database
+make demo                        # B: no keys; then: curl -s -X POST localhost:8000/ask -H "Authorization: Bearer demo" ...
+cd apps/web && pnpm dev          # A: http://localhost:3000 and /homes/flat/viewer
+```
+
+- **Keys** go only in `.env` at the repo root, which git ignores. The guide shows the variable names, never values.
+- **The phone reaches the Mac** on the same Wi-Fi or over Tailscale. `make pair URL=…` shows a QR code, and the app
+  asks "Pair with this Mac?" before it uses it.
+- **Checked from a fresh clone:** `make setup`, the website, `make demo`, `make test lint lint-imports` (API 202,
+  pipeline 57) and the iPhone build.
+
 ## How to run it
 
-**Status today:** the website, the 3D viewer, the backend, the pipeline and the iPhone app all run. The Apple Watch app is planned.
+**Status today:** the website, the 3D viewer, the backend, the pipeline, the iPhone app and a preview of the Apple
+Watch app all run.
 
 ### 1. The landing page and the 3D viewer (runs now)
 
@@ -309,7 +515,7 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
   ```
 - Open:
   - `http://localhost:3000/` for the landing page;
-  - `http://localhost:3000/homes/flat/viewer` for your own scanned home (`flat` is the app's default home name); until it has a scan, the page lists the steps (section 2).
+  - `http://localhost:3000/homes/flat/viewer` for the **real scan** of the author's living room. It's published as geometry only (no photo data; `make public-scan`), with which Meta model made each part, the measured numbers, what SAM 3.1 found, and what a robot gets. Any other home name shows your own scan, or the steps to make one (section 2).
 - Optional: "Ask by voice" on the landing page calls Muse Voice Transcribe through a server route. Create `.env` in the repo root with `META_MUSE_API_KEY=<your key>`; without it the card still works with the preset questions. Every spoken line on the site is the browser's own voice.
 - Checks:
   ```bash
@@ -338,6 +544,7 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
 - `make setup`: Python 3.12 with uv, both services, the web app.
 - `make demo`: no keys, no GPU. Builds a memory from a recorded real scan (`samples/replay/`, geometry and labels only, no photos) through the real ingest code, then serves the API on `localhost:8000` with Muse Spark Open's recorded replies; every answer is labelled `replay:muse-spark-open (recorded)`, and the command prints questions to try. `make record` re-records it with real calls.
 - `make live`: the API and the scan worker (`make worker` alone starts the worker: the warm pipeline server plus the job queue), with real Meta model calls using the keys from `.env`. The minimum is one Meta Model API key from [dev.meta.ai](https://dev.meta.ai) with `LLM_PROVIDER=meta`; the demo video uses Muse Spark Open on Baseten (`LLM_PROVIDER=baseten_spark_open`); the local privacy mode uses Muse Glimmer in LM Studio (`LLM_PROVIDER=lmstudio`).
+- **Where the API listens:** `make live` and `make dev` listen on your network (`BIND=0.0.0.0`) so the phone can reach the Mac; behind a Cloudflare Tunnel use `make live BIND=127.0.0.1`. Run on its own (`uv run recall-api`), it listens on 127.0.0.1 only. Every route except `/health` and the API docs needs the device key, the calls that reach a model are rate-limited, and bodies are size-checked.
 - **Home Memory agent (A2A) with `make live`:** its check runs on Muse Spark Open with the Baseten key (`SCREEN_PROVIDER=baseten_spark_open`, the default) or on Glimmer in LM Studio (`SCREEN_PROVIDER=lmstudio`); no other key is needed.
 - `make test`, `make lint`, `make lint-imports`: tests, ruff and ESLint, and the architecture rule (domain ← application ← adapters).
 
@@ -348,7 +555,18 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
 - Tabs:
   - **Devices** (first; the app still opens on Find): where Recall runs. The iPhone is available now; Apple Watch Ultra 4 support is coming next and Meta AI glasses are planned, each labelled as such. **Home robots → Robot Access**: the switch, what robots receive and never receive, a map preview, the export, and recent robot activity. **Your privacy** opens the privacy note.
   - **Find**: ask "where are my keys?" by typing or speaking (Muse Voice Transcribe on the Mac), hear the answer, then **Why?** (the sightings behind it, read aloud) or **Take me there**. Below, **Your rooms** shows a map card per room (swipe sideways; tap one to show only its things), and **Your things** is grouped like Found: each room, then the furniture things are on or near, with **Go** on every row. The phone relocalises in the saved room map, the Mac plans a route, and the phone speaks clock-face turns with the compass point and distance ("At 2 o'clock, north-east, 3 metres"), with a tick when you face the right way and a blue arrow over the thing in the camera view for a sighted helper. Without a map match it says the landmark and which way it lies, and ticks when you face it.
-  - **Scans**: record a room, led by voice, with a step card, a top-down mini-map and the room-map state on screen; then upload it. **Scan again** compares the room with its last scan and says what moved, what's new and what's gone. Deleting a scan asks first, then erases it from the iPhone and the Mac.
+  - **Scans**: record a room, led step by step:
+    - **Before:** "How to scan well" lists every step, with what to do, why it matters, when it's done, and how high to hold the phone.
+    - **During:**
+      - the step card shows a progress meter ("Wall sides seen 5 of 9");
+      - the phone's measured height above the floor (chest height 1.1 to 1.5 m, waist height 0.8 to 1.1 m to sweep tables), with a gentle spoken reminder;
+      - the distance to the wall on the walls step;
+      - Camera, LiDAR (depth as heat) and Edges views;
+      - a neon grid of 1 m columns by Recall's five height zones that glows where the LiDAR has looked;
+      - live readouts of distance, zones, photos, blurry photos and speed.
+    - **After:** a report shows how each step went, the zones, walls, floor, pace, light and compass, and up to three tips for next time.
+
+    Then upload it. **Scan again** compares the room with its last scan and says what moved, what's new and what's gone. Deleting a scan asks first, then erases it from the iPhone and the Mac.
   - **Found**: what Recall found, grouped by room and furniture with an icon for each kind of thing; correct the name, colour or height, or forget a thing.
   - **Settings**: **Privacy** (what stays home and what is sent where, read live from the Mac), the Mac's address and key, and Appearance (automatic, light or dark, plus high contrast in black, white and yellow, and Tap sounds: a soft tap and a light buzz when you switch tabs, muted by the silent switch).
 

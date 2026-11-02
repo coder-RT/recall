@@ -728,9 +728,9 @@ extension AccessibilityTests {
             shot("ios-settings-\(name)")
             try auditBothEnds(app)
             app.buttons["appearance"].tap()
-            XCTAssertTrue(app.navigationBars["Appearance"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.navigationBars["Appearance and voice"].waitForExistence(timeout: 5))
             shot("ios-appearance-\(name)")
-            try audit(app)
+            try auditBothEnds(app)  // with the Voice section the page runs past one screen
             app.terminate()
         }
     }

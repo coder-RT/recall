@@ -2,6 +2,7 @@ import Foundation
 import Observation
 import RecallApplication
 import RecallDomain
+import RecallVoice
 
 /// The connection settings being edited, kept saved and handed to the live server on every change.
 @MainActor @Observable
@@ -68,4 +69,20 @@ final class SettingsModel {
     }
 
     func say(_ text: String) { speech.say(text, interrupt: false) }
+
+    /// Settings → Voice: automatic, female or male, kept on this iPhone; the Announcer reads it for every line.
+    var voice: VoicePreference = VoicePreference(rawValue: UserDefaults.standard.string(forKey: Announcer.voiceKey) ?? "")
+        ?? .automatic {
+        didSet { UserDefaults.standard.set(voice.rawValue, forKey: Announcer.voiceKey) }
+    }
+
+    /// The voice that will speak, by name and quality ("Ava (Premium)").
+    var voiceTitle: String { Announcer.chosenVoice(voice)?.title ?? "The iPhone's default voice" }
+
+    /// Whether a downloaded voice (enhanced or premium) is speaking; if not, Settings says how to get one.
+    var hasNaturalVoice: Bool { (Announcer.chosenVoice(voice)?.quality ?? 0) > 0 }
+
+    func previewVoice() {
+        speech.say("Your keys are on the desk, at waist height. Seen 12 minutes ago.", interrupt: true)
+    }
 }

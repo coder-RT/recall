@@ -230,4 +230,21 @@ final class UsabilityTests: XCTestCase {
         toggle.tap()
         XCTAssertTrue(app.descendants(matching: .any)["macAddress"].firstMatch.label.contains("hidden"))
     }
+
+    /// Settings → Appearance and voice: Automatic, Female or Male, the voice that will speak, and a sample to hear.
+    func testTheVoiceCanBeChosenAndHeard() {
+        let app = launch(largestText: false)
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["appearance"].tap()
+        let male = app.buttons["voice-male"]
+        for _ in 0..<3 where !male.isHittable { app.swipeUp() }
+        XCTAssertTrue(male.waitForExistence(timeout: 5))
+        male.tap()
+        XCTAssertTrue(male.isSelected)
+        let hear = app.buttons["voice.hear"]
+        XCTAssertTrue(hear.label.contains("Speaking in "))
+        hear.tap()
+        XCTAssertTrue(waitSpoken(app, contains: "Your keys are on the desk"))
+        app.buttons["voice-automatic"].tap()  // leave the simulator as it was
+    }
 }

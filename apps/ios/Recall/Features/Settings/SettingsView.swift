@@ -44,7 +44,7 @@ struct SettingsView: View {
                             AppearanceView()
                         } label: {
                             HStack {
-                                Label("Appearance", systemImage: "circle.lefthalf.filled").foregroundStyle(Tokens.ink)
+                                Label("Appearance and voice", systemImage: "circle.lefthalf.filled").foregroundStyle(Tokens.ink)
                                 Spacer()
                                 Text(highContrast ? "\(appearance.title), high contrast" : appearance.title)
                                     .foregroundStyle(Tokens.muted)
@@ -212,6 +212,7 @@ private struct AppearanceView: View {
     @AppStorage(Theme.appearanceKey) private var appearance = Appearance.system
     @AppStorage(Theme.highContrastKey) private var highContrast = false
     @AppStorage(TapSound.enabledKey) private var tapSounds = true
+    @Environment(SettingsModel.self) private var model
 
     var body: some View {
         Form {
@@ -231,6 +232,36 @@ private struct AppearanceView: View {
                     }
                 } header: { FormHeader("Theme") } footer: { FormNote("Automatic follows the iPhone's light or dark setting.") }
                 Section {
+                    ForEach(VoicePreference.allCases, id: \.self) { v in
+                        Button { model.voice = v } label: {
+                            HStack {
+                                Text(v.title).foregroundStyle(Tokens.ink)
+                                Spacer()
+                                if model.voice == v {
+                                    Image(systemName: "checkmark").font(.body.weight(.semibold)).foregroundStyle(Tokens.accent)
+                                }
+                            }
+                        }
+                        .accessibilityAddTraits(model.voice == v ? .isSelected : [])
+                        .accessibilityIdentifier("voice-\(v.rawValue)")
+                    }
+                    Button { model.previewVoice() } label: {
+                        HStack {
+                            Text("Speaking in \(model.voiceTitle)").foregroundStyle(Tokens.ink)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Spacer()
+                            Image(systemName: "speaker.wave.2").font(.body.weight(.semibold)).foregroundStyle(Tokens.accent)
+                        }
+                    }
+                    .accessibilityLabel("Hear it. Speaking in \(model.voiceTitle)")
+                    .accessibilityHint("Speaks a sample answer in this voice.")
+                    .accessibilityIdentifier("voice.hear")
+                } header: { FormHeader("Voice") } footer: {
+                    FormNote(model.hasNaturalVoice
+                        ? "Recall uses the most natural voice on this iPhone. With VoiceOver on, it speaks in VoiceOver's own voice."
+                        : "For a more natural voice, download a Premium or Enhanced voice in the iPhone's Settings, under Accessibility, in the spoken content voices. It's free. With VoiceOver on, Recall speaks in VoiceOver's own voice.")
+                }
+                Section {
                     Toggle("High contrast", isOn: $highContrast).tint(Tokens.go)
                 } footer: {
                     FormNote("Black, white and yellow, like the website's high contrast. It also turns on with iOS's Increase Contrast.")
@@ -244,7 +275,7 @@ private struct AppearanceView: View {
             .listRowBackground(Tokens.card)
         }
         .recallScreen()
-        .navigationTitle("Appearance")
+        .navigationTitle("Appearance and voice")
         .navigationBarTitleDisplayMode(.inline)
     }
 }

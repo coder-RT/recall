@@ -58,6 +58,6 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @recall/web exec tsc --noEmit
+      - run: pnpm --filter @recall/web typecheck   # next typegen first: PageProps and LayoutProps are generated
       - run: pnpm --filter @recall/web lint
       - run: pnpm --filter @recall/web build

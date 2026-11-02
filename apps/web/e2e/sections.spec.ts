@@ -130,6 +130,7 @@ test.describe("model cards", () => {
       await expect(cards.nth(i)).not.toContainText(m.path); // no raw paths on the landing page
       await expect(cards.nth(i).getByRole("link", { name: `${m.name}: ${en.models.code}` })).toHaveAttribute("href", `https://github.com/coder-RT/recall/blob/main/${m.path}`);
       await expect(cards.nth(i)).toContainText(en.models.working);
+      await expect(cards.nth(i).locator("[data-runs]")).toContainText(m.runs);
       expect(existsSync(path.join(ROOT, m.path)), m.path).toBe(true); // the path is real
       await expect(cards.nth(i).locator("svg")).toBeVisible();
     }
@@ -138,6 +139,7 @@ test.describe("model cards", () => {
 
   test("the talking illustration types its answer out while on screen", async ({ page }) => {
     await open(page, "/#models");
+    await page.locator("#models [data-ch]").first().scrollIntoViewIfNeeded();  // it types only while on screen
     const hidden = () => page.locator("#models [data-ch]").evaluateAll((chars) => chars.filter((c) => c.getAttribute("fill-opacity") === "0").length);
     await expect.poll(hidden, { timeout: 5_000 }).toBeGreaterThan(0);
   });

@@ -206,7 +206,8 @@ function Scene({ view, mesh, photo, architect, data, uniforms, spin, layers, bou
   if (view === "architect" && architect) {
     return (
       <>
-        <ArchitectRoom model={architect} selected={model.selected} tokens={tokens} cut={options.cut} />
+        {/* an architect's model shows north and scale, not x/y/z axes */}
+        <ArchitectRoom model={architect} selected={model.selected} tokens={tokens} cut={options.cut} north={{ deg: model.room.north_deg, label: axisLabels.north }} />
         <Things items={model.things} selected={model.selected} tokens={tokens} bob={spin} />
         {controls}
       </>
@@ -259,6 +260,11 @@ export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, t
   const [options, setOptions] = useState<Options>({ preset: "iso", axes: true, wallOpacity: 0.45, showFurniture: true, wireframe: false, flat: false, cut: CUT });
   const [moreOpen, setMoreOpen] = useState(false);
   const set = <K extends keyof Options>(key: K, value: Options[K]) => setOptions((o) => ({ ...o, [key]: value }));
+  // the surface reads best as a 3D wireframe with the axes: choosing it selects them (each can be changed after)
+  const chooseView = (v: View) => {
+    setView(v);
+    if (v === "surface") setOptions((o) => ({ ...o, preset: "iso", axes: true, wireframe: true }));
+  };
   const [mesh, setMesh] = useState<MeshData | null>(null);
   const [photo, setPhoto] = useState<PhotoData | null>(null);
   const [architect, setArchitect] = useState<ArchitectData | null>(null);
@@ -373,7 +379,7 @@ export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, t
           <legend className="float-left mr-1 text-sm font-semibold text-muted">{t.view}</legend>
           {views.map((v) => (
             <label key={v} className={chip} data-best={BEST_VIEWS.includes(v) || undefined}>
-              <input type="radio" name={`${id}-view`} value={v} checked={view === v} onChange={() => setView(v)} className={check} />
+              <input type="radio" name={`${id}-view`} value={v} checked={view === v} onChange={() => chooseView(v)} className={check} />
               {t.views[v]}
               {BEST_VIEWS.includes(v) && (
                 <span className="rounded-full bg-cta-dark px-2 py-0.5 text-xs font-bold text-white">

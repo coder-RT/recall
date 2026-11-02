@@ -50,6 +50,12 @@ The Guide, the screen and the voice input are the core of the live question path
   - `adapters/outbound/llm/openai_compatible.py` (one OpenAI-compatible adapter for every Muse provider);
   - `infra/container.py` (picks the provider from `LLM_PROVIDER`).
 
+**Where it runs: Baseten.** Baseten hosts Meta's open-weights Muse Spark Open behind an OpenAI-compatible endpoint
+(`https://inference.baseten.co/v1`, with tool calling). Recall uses it for the Guide by default
+(`LLM_PROVIDER=baseten_spark_open`) and for the screen in section 5 (`SCREEN_PROVIDER=baseten_spark_open`). It gives
+open weights served fast, on the hackathon's Baseten credit, and keeps the Mac's memory free for MapAnything. It needs
+one `BASETEN_API_KEY` in `.env`, and the same adapter serves every Muse provider.
+
 ### 3. Muse Glimmer: private mode
 
 - **What:** the same Guide on Muse Glimmer, run by LM Studio on the Mac (`LLM_PROVIDER=lmstudio`).

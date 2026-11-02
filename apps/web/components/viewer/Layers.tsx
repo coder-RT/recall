@@ -328,3 +328,25 @@ export function Axes({ floor, height, northDeg, tokens, labels }: { floor: numbe
     </group>
   );
 }
+
+
+/** Only magnetic north, the way an architect's model shows orientation: an arrow beside the room, and "N". */
+export function NorthArrow({ floor, northDeg, tokens, label, theta = 0 }: { floor: number[][]; northDeg?: number | null; tokens: Tokens; label: string; theta?: number }) {
+  if (northDeg == null) return null;
+  // `floor` is in the frame this arrow is drawn in; when that frame is the scan's turned by `theta`, north turns back
+  const n = (northDeg * Math.PI) / 180 + theta;
+  // on the floor, inside the room's far corner from the default camera, so it stays in view
+  const x = Math.min(...floor.map((p) => p[0])) + 1.1;
+  const y = Math.max(...floor.map((p) => p[1])) - 1.1;
+  const [dx, dy] = [Math.sin(n), Math.cos(n)];
+  // a shaft and two barbs at the tip
+  const tip = [x + dx * 0.9, y + dy * 0.9];
+  const barb = (a: number) => [tip[0] - Math.sin(n + a) * 0.25, tip[1] - Math.cos(n + a) * 0.25];
+  const [b1, b2] = [barb(0.45), barb(-0.45)];
+  return (
+    <group data-north>
+      <Line points={[x - dx * 0.9, y - dy * 0.9, 0.02, tip[0], tip[1], 0.02, tip[0], tip[1], 0.02, b1[0], b1[1], 0.02, tip[0], tip[1], 0.02, b2[0], b2[1], 0.02]} colour={tokens.cta} />
+      <Label text={label} at={[x + dx * 1.25, y + dy * 1.25, 0.1]} colour={tokens.cta} size={0.4} />
+    </group>
+  );
+}

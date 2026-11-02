@@ -129,3 +129,20 @@ def test_a_long_list_of_things_stays_left_of_the_title_block():
     col_w = (x1 - (drawings.AREA[0] + 60)) / 3
     assert all(float(t.get("x")) + col_w <= x1 + 0.01 for t in listed)
     assert max(float(t.get("y")) for t in listed) <= drawings.AREA[3]
+
+
+def test_furniture_measured_above_the_floor_stands_on_it_and_a_tv_stays_on_the_wall():
+    # SAM 3.1's mask of a desk often stops above its legs: the box starts at 0.16 m
+    desk = arch.furniture_parts("desk", np.array([0.0, 0.0, 0.16]), np.array([1.2, 0.6, 0.75]), np.array([0.6, 2.0]))
+    legs = [p for p in desk if p.kind == "leg"]
+    assert len(legs) == 4 and all(abs(p.centre[2] - p.size[2] / 2) < 1e-3 for p in legs)  # each leg reaches z = 0
+    tv = arch.furniture_parts("tv", np.array([0.0, 0.0, 1.2]), np.array([1.0, 0.1, 1.8]), np.array([0.5, 3.0]))
+    assert min(p.centre[2] - p.size[2] / 2 for p in tv) >= 1.19  # mounted on the wall, left where it was measured
+    # a desk seen only from above (its box starts at 0.6 m) still stands on the floor
+    top_only = arch.furniture_parts("desk", np.array([0.0, 0.0, 0.6]), np.array([1.2, 0.6, 0.76]), np.array([0.6, 2.0]))
+    assert all(abs(p.centre[2] - p.size[2] / 2) < 1e-3 for p in top_only if p.kind == "leg")
+    # a wall shelf high up keeps its height; nothing ever reaches below the floor
+    shelf = arch.furniture_parts("shelf", np.array([0.0, 0.0, 1.4]), np.array([0.8, 0.3, 1.8]), np.array([0.4, 2.0]))
+    assert min(p.centre[2] - p.size[2] / 2 for p in shelf) >= 1.39
+    low = arch.furniture_parts("chair", np.array([0.0, 0.0, 0.0]), np.array([0.5, 0.5, 0.08]), np.array([0.2, 2.0]))
+    assert min(p.centre[2] - p.size[2] / 2 for p in low) >= -1e-3

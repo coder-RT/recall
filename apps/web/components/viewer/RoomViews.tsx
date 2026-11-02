@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { BoxGeometry, BufferAttribute, BufferGeometry, Color, EdgesGeometry, PlaneGeometry, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, type Texture } from "three";
-import type { FurnitureBox, RoomShape, Thing, Tokens } from "./Layers";
+import { NorthArrow, type FurnitureBox, type RoomShape, type Thing, type Tokens } from "./Layers";
 
 /** One colour per kind of furniture, like a semantic map (a legend in the controls names them). */
 export const KIND_COLOURS: Record<string, string> = {
@@ -293,11 +293,13 @@ export interface ArchitectData {
 /** Walls are cut at this height by default, like an architect's model, so the room can be seen into from any side. */
 export const CUT = 1.1;
 
-export function ArchitectRoom({ model, selected, tokens, cut = CUT }: { model: ArchitectData; selected: number | null; tokens: Tokens; cut?: number }) {
+export function ArchitectRoom({ model, selected, tokens, cut = CUT, north }: { model: ArchitectData; selected: number | null; tokens: Tokens; cut?: number; north?: { deg?: number | null; label: string } }) {
   const floor = useMemo(() => new ShapeGeometry(new Shape(model.plan.map(([x, y]) => ({ x, y }) as never))), [model.plan]);
   const wallHeight = Math.min(cut, model.height);
   return (
     <group rotation={[0, 0, model.theta]}>
+      {/* an architect's model shows north, not x/y/z axes; drawn in the plan's own frame */}
+      {north && <NorthArrow floor={model.plan} northDeg={north.deg} tokens={tokens} label={north.label} theta={model.theta} />}
       <hemisphereLight args={["#ffffff", "#c9c2b6", 1.1]} />
       <directionalLight position={[2, -3, 6]} intensity={1.4} />
       <mesh geometry={floor} position={[0, 0, -0.004]}>

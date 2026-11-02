@@ -313,11 +313,12 @@ export const en = {
     status: "Working today in the app. The examples on this page are illustrative; measured results are in the README.",
     working: "Working today",
     code: "See the code on GitHub",
+    runsOn: "Runs on",
     items: [
-      { name: "SAM 3.1", kind: "see" as ModelKind, role: "Finds furniture and everyday things in every frame of the walkthrough, and checks the thing is really there when you arrive.", path: "services/pipeline/src/recall_pipeline/adapters/sam31_meta_api.py" },
-      { name: "MapAnything", kind: "map" as ModelKind, role: "Turns the walkthrough into a metric 3D map, fed the phone's own depth and poses.", path: "services/pipeline/src/recall_pipeline/adapters/mapanything_local.py" },
-      { name: "Muse Spark Open", kind: "talk" as ModelKind, role: "Understands your question, chooses the tools that look up the 3D map and words the answer; it also checks every request a robot sends. Muse Glimmer is the open-weights alternative.", path: "services/api/src/recall_api/application/ask_where_is.py" },
-      { name: "Muse Voice Transcribe", kind: "listen" as ModelKind, role: "Turns your spoken question into text.", path: "services/api/src/recall_api/adapters/outbound/voice/muse_transcribe.py" },
+      { name: "SAM 3.1", kind: "see" as ModelKind, role: "Finds furniture and everyday things in every frame of the walkthrough, and checks the thing is really there when you arrive.", path: "services/pipeline/src/recall_pipeline/adapters/sam31_meta_api.py", runs: "Meta Model API" },
+      { name: "MapAnything", kind: "map" as ModelKind, role: "Turns the walkthrough into a metric 3D map, fed the phone's own depth and poses.", path: "services/pipeline/src/recall_pipeline/adapters/mapanything_local.py", runs: "On the Mac's GPU (open weights)" },
+      { name: "Muse Spark Open", kind: "talk" as ModelKind, role: "Understands your question, chooses the tools that look up the 3D map and words the answer; it also checks every request a robot sends. Muse Glimmer is the open-weights alternative.", path: "services/api/src/recall_api/application/ask_where_is.py", runs: "Baseten, which hosts Meta's open weights; Muse Glimmer can run on the Mac instead" },
+      { name: "Muse Voice Transcribe", kind: "listen" as ModelKind, role: "Turns your spoken question into text.", path: "services/api/src/recall_api/adapters/outbound/voice/muse_transcribe.py", runs: "Meta Model API" },
     ],
     glyph: {
       label: "mug",

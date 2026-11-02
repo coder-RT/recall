@@ -114,7 +114,8 @@ pnpm dev
   - the floor-plan drawings;
   - what a robot gets.
 
-**Check:** the viewer shows the badge "Real scan · not a simulation" and a 3D room you can drag to turn.
+**Check:** the viewer shows the badge "Real scan · not a simulation", then "Actual scan · try it", and a 3D room you
+can drag to turn. The landing page's **Try the demo** button opens the same page.
 
 Path A is done. Stop the server with `Ctrl+C`.
 

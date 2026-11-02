@@ -427,6 +427,17 @@ test.describe("3D viewer: the published real scan", () => {
     await expect(more.getByRole("slider", { name: s.wallOpacity })).toBeVisible();
   });
 
+  test("choosing Surface selects the 3D camera, the axes and the wireframe", async ({ page }) => {
+    await prepare(page);
+    await openPublic(page);
+    await page.getByRole("radio", { name: new RegExp(`^${s.views.surface}`) }).check();
+    await page.getByRole("button", { name: s.more }).click();
+    const more = page.locator("[data-more-options]");
+    await expect(more.getByRole("radio", { name: s.presets.iso, exact: true })).toBeChecked();
+    await expect(more.getByRole("checkbox", { name: s.axes })).toBeChecked();
+    await expect(more.getByRole("checkbox", { name: s.wireframe })).toBeChecked();
+  });
+
   test("the old demo address opens the real scan", async ({ page }) => {
     await prepare(page);
     await openPublic(page, "/homes/demo-flat/viewer");

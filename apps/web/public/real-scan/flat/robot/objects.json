@@ -1,0 +1,983 @@
+{
+ "format": "recall-robot-export/1",
+ "home_id": "flat",
+ "room": "Living room",
+ "scan_id": "bb449f4c-813f-42f7-9c24-0e09d58acfea",
+ "frame_id": "map",
+ "generated_at": "2026-11-01T23:27:06.783065+00:00",
+ "objects": [
+  {
+   "id": "obj_034ef15dce254346",
+   "label": "bottle",
+   "aliases": [],
+   "color": "grey",
+   "position": [
+    -0.971,
+    0.044,
+    0.766
+   ],
+   "orientation": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "frame_id": "map",
+   "size_m": [
+    0.155,
+    0.165,
+    0.096
+   ],
+   "last_seen": "2026-11-01T18:11:32.752813+00:00",
+   "confidence": 0.603
+  },
+  {
+   "id": "obj_0d3a741e54d94daa",
+   "label": "book",
+   "aliases": [],
+   "color": "white",
+   "position": [
+    -3.199,
+    3.279,
+    0.875
+   ],
+   "orientation": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "frame_id": "map",
+   "size_m": [
+    0.25,
+    0.273,
+    0.03
+   ],
+   "last_seen": "2026-11-01T18:11:32.752813+00:00",
+   "confidence": 0.833
+  },
+  {
+   "id": "obj_10501c79f9464c23",
+   "label": "book",
+   "aliases": [],
+   "color": "beige",
+   "position": [
+    -2.358,
+    1.46,
+    0.94
+   ],
+   "orientation": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "frame_id": "map",
+   "size_m": [
+    0.094,
+    0.144,
+    0.047
+   ],
+   "last_seen": "2026-11-01T18:11:32.752813+00:00",
+   "confidence": 0.707
+  },
+  {
+   "id": "obj_1333b835b1454ca3",
+   "label": "glasses",
+   "aliases": [],
+   "color": "red",
+   "position": [
+    -0.678,
+    4.018,
+    0.651
+   ],
+   "orientation": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "frame_id": "map",
+   "size_m": [
+    0.111,
+    0.156,
+    0.087
+   ],
+   "last_seen": "2026-11-01T18:11:32.752813+00:00",
+   "confidence": 0.773
+  },
+  {
+   "id": "obj_4b343c04804f4280",
+   "label": "mug",
+   "aliases": [],
+   "color": "blue",
+   "position": [
+    0.382,
+    0.642,
+    0.851
+   ],
+   "orientation": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "frame_id": "map",
+   "size_m": [
+    0.075,
+    0.155,
+    0.09
+   ],
+   "last_seen": "2026-11-01T18:11:32.752813+00:00",
+   "confidence": 0.938
+  },
+  {
+   "id": "obj_4cdef82688f3473d",
+   "label": "keys",
+   "aliases": [],
+   "color": "brown",
+   "position": [
+    0.054,
+    3.29,
+    0.658
+   ],
+   "orientation": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "frame_id": "map",
+   "size_m": [
+    0.048,
+    0.035,
+    0.01
+   ],
+   "last_seen": "2026-11-01T18:11:32.752813+00:00",
+   "confidence": 0.564
+  },
+  {
+   "id": "obj_51a04bf75058491b",
+   "label": "remote control",
+   "aliases": [],
+   "color": "grey",
+   "position": [
+    0.212,
+    0.645,
+    0.782
+   ],
+   "orientation": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "frame_id": "map",
+   "size_m": [
+    0.105,
+    0.318,
+    0.063
+   ],
+   "last_seen": "2026-11-01T18:11:32.752813+00:00",
+   "confidence": 0.947
+  },
+  {
+   "id": "obj_786abc19ccce4aed",
+   "label": "book",
+   "aliases": [],
+   "color": "grey",
+   "position": [
+    -2.939,
+    3.486,
+    0.878
+   ],
+   "orientation": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "frame_id": "map",
+   "size_m": [
+    0.113,
+    0.145,
+    0.04
+   ],
+   "last_seen": "2026-11-01T18:11:32.752813+00:00",
+   "confidence": 0.787
+  },
+  {
+   "id": "obj_83af7cb7fad746b8",
+   "label": "bottle",
+   "aliases": [],
+   "color": "grey",
+   "position": [
+    -0.055,
+    3.224,
+    0.736
+   ],
+   "orientation": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "frame_id": "map",
+   "size_m": [
+    0.04,
+    0.092,
+    0.112
+   ],
+   "last_seen": "2026-11-01T18:11:32.752813+00:00",
+   "confidence": 0.825
+  },
+  {
+   "id": "obj_88ff2739a5d840c9",
+   "label": "remote control",
+   "aliases": [],
+   "color": "white",
+   "position": [
+    -2.783,
+    3.369,
+    0.857
+   ],
+   "orientation": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "frame_id": "map",
+   "size_m": [
+    0.074,
+    0.062,
+    0.016
+   ],
+   "last_seen": "2026-11-01T18:11:32.752813+00:00",
+   "confidence": 0.909
+  },
+  {
+   "id": "obj_9649ed24fbdf44f3",
+   "label": "bottle",
+   "aliases": [],
+   "color": "grey",
+   "position": [
+    -1.535,
+    4.727,
+    0.812
+   ],
+   "orientation": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "frame_id": "map",
+   "size_m": [
+    0.1,
+    0.09,
+    0.069
+   ],
+   "last_seen": "2026-11-01T18:11:32.752813+00:00",
+   "confidence": 0.699
+  },
+  {
+   "id": "obj_c4741b8f08be454b",
+   "label": "laptop",
+   "aliases": [],
+   "color": "black",
+   "position": [
+    -1.066,
+    0.312,
+    0.774
+   ],
+   "orientation": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "frame_id": "map",
+   "size_m": [
+    0.262,
+    0.289,
+    0.14
+   ],
+   "last_seen": "2026-11-01T18:11:32.752813+00:00",
+   "confidence": 0.818
+  },
+  {
+   "id": "obj_d09f33ace80f4bb2",
+   "label": "book",
+   "aliases": [],
+   "color": "red",
+   "position": [
+    -0.69,
+    3.877,
+    0.656
+   ],
+   "orientation": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "frame_id": "map",
+   "size_m": [
+    0.155,
+    0.162,
+    0.045
+   ],
+   "last_seen": "2026-11-01T18:11:32.752813+00:00",
+   "confidence": 0.677
+  },
+  {
+   "id": "obj_d1eb660dfaad4d90",
+   "label": "watch",
+   "aliases": [],
+   "color": "grey",
+   "position": [
+    -0.35,
+    3.611,
+    0.763
+   ],
+   "orientation": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "frame_id": "map",
+   "size_m": [
+    0.064,
+    0.071,
+    0.016
+   ],
+   "last_seen": "2026-11-01T18:11:32.752813+00:00",
+   "confidence": 0.949
+  },
+  {
+   "id": "obj_e1daba4b32354aa6",
+   "label": "laptop",
+   "aliases": [],
+   "color": "grey",
+   "position": [
+    0.54,
+    0.405,
+    0.794
+   ],
+   "orientation": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "frame_id": "map",
+   "size_m": [
+    0.22,
+    0.219,
+    0.024
+   ],
+   "last_seen": "2026-11-01T18:11:32.752813+00:00",
+   "confidence": 0.953
+  },
+  {
+   "id": "obj_f88fa2727244487b",
+   "label": "bottle",
+   "aliases": [],
+   "color": "grey",
+   "position": [
+    -0.865,
+    4.109,
+    0.724
+   ],
+   "orientation": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "frame_id": "map",
+   "size_m": [
+    0.055,
+    0.095,
+    0.11
+   ],
+   "last_seen": "2026-11-01T18:11:32.752813+00:00",
+   "confidence": 0.93
+  },
+  {
+   "id": "obj_f8a9416012d54076",
+   "label": "bag",
+   "aliases": [],
+   "color": "grey",
+   "position": [
+    -3.074,
+    4.032,
+    0.975
+   ],
+   "orientation": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "frame_id": "map",
+   "size_m": [
+    0.457,
+    0.252,
+    0.212
+   ],
+   "last_seen": "2026-11-01T18:11:32.752813+00:00",
+   "confidence": 0.779
+  }
+ ],
+ "landmarks": [
+  {
+   "id": "lm_f924622d6c1b42b8",
+   "label": "table",
+   "centroid": [
+    0.362,
+    0.661,
+    0.78
+   ],
+   "bbox_min": [
+    0.027,
+    0.317,
+    0.757
+   ],
+   "bbox_max": [
+    0.697,
+    1.005,
+    0.856
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_0def0505884e40f9",
+   "label": "desk",
+   "centroid": [
+    -0.128,
+    3.379,
+    0.643
+   ],
+   "bbox_min": [
+    -0.57,
+    2.978,
+    -0.002
+   ],
+   "bbox_max": [
+    0.313,
+    3.78,
+    0.876
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_a5bf1a803c2845da",
+   "label": "desk",
+   "centroid": [
+    -1.206,
+    0.452,
+    0.768
+   ],
+   "bbox_min": [
+    -1.465,
+    -0.091,
+    0.547
+   ],
+   "bbox_max": [
+    -0.948,
+    0.995,
+    1.307
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_9f930c08d8a747b4",
+   "label": "desk",
+   "centroid": [
+    -0.656,
+    3.961,
+    0.67
+   ],
+   "bbox_min": [
+    -0.868,
+    3.881,
+    0.577
+   ],
+   "bbox_max": [
+    -0.443,
+    4.04,
+    0.825
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_84b13b5357874d76",
+   "label": "table",
+   "centroid": [
+    -0.917,
+    4.619,
+    0.041
+   ],
+   "bbox_min": [
+    -1.0,
+    4.589,
+    0.021
+   ],
+   "bbox_max": [
+    -0.834,
+    4.649,
+    0.136
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_b23c928ef4d146ac",
+   "label": "desk",
+   "centroid": [
+    -1.601,
+    4.739,
+    0.768
+   ],
+   "bbox_min": [
+    -1.862,
+    4.615,
+    0.457
+   ],
+   "bbox_max": [
+    -1.34,
+    4.863,
+    0.894
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_ee3012e341f144d4",
+   "label": "desk",
+   "centroid": [
+    -2.947,
+    3.368,
+    0.863
+   ],
+   "bbox_min": [
+    -3.189,
+    2.977,
+    0.849
+   ],
+   "bbox_max": [
+    -2.706,
+    3.759,
+    0.889
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_5165e9cdf3ea43a2",
+   "label": "tv",
+   "centroid": [
+    -0.252,
+    3.805,
+    1.162
+   ],
+   "bbox_min": [
+    -0.475,
+    3.575,
+    0.995
+   ],
+   "bbox_max": [
+    -0.03,
+    4.035,
+    1.422
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_7f03e777caa04288",
+   "label": "tv",
+   "centroid": [
+    -1.444,
+    0.883,
+    0.802
+   ],
+   "bbox_min": [
+    -1.495,
+    0.866,
+    0.761
+   ],
+   "bbox_max": [
+    -1.392,
+    0.899,
+    0.836
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_20d55f4d4c8c4123",
+   "label": "bed",
+   "centroid": [
+    -1.029,
+    1.889,
+    0.22
+   ],
+   "bbox_min": [
+    -1.535,
+    1.338,
+    -0.062
+   ],
+   "bbox_max": [
+    -0.523,
+    2.439,
+    0.73
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_b5b8370486d549ba",
+   "label": "bed",
+   "centroid": [
+    -2.284,
+    4.962,
+    1.141
+   ],
+   "bbox_min": [
+    -2.596,
+    4.616,
+    0.637
+   ],
+   "bbox_max": [
+    -1.972,
+    5.308,
+    1.653
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_6bb223590e2340eb",
+   "label": "chair",
+   "centroid": [
+    0.408,
+    2.564,
+    0.556
+   ],
+   "bbox_min": [
+    0.076,
+    2.223,
+    0.027
+   ],
+   "bbox_max": [
+    0.739,
+    2.904,
+    0.937
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_355f8dd756784d99",
+   "label": "chair",
+   "centroid": [
+    1.009,
+    0.647,
+    0.772
+   ],
+   "bbox_min": [
+    0.893,
+    0.47,
+    0.744
+   ],
+   "bbox_max": [
+    1.125,
+    0.824,
+    0.85
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_1d258f3d760540df",
+   "label": "chair",
+   "centroid": [
+    -0.74,
+    3.414,
+    -0.098
+   ],
+   "bbox_min": [
+    -0.838,
+    3.219,
+    -0.118
+   ],
+   "bbox_max": [
+    -0.641,
+    3.608,
+    -0.088
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_aaf3ae9dbf6f43dd",
+   "label": "chair",
+   "centroid": [
+    -1.775,
+    1.069,
+    0.581
+   ],
+   "bbox_min": [
+    -1.995,
+    0.883,
+    0.416
+   ],
+   "bbox_max": [
+    -1.554,
+    1.255,
+    0.796
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_6e950a810b154be2",
+   "label": "chair",
+   "centroid": [
+    0.494,
+    3.121,
+    0.687
+   ],
+   "bbox_min": [
+    0.427,
+    3.037,
+    0.418
+   ],
+   "bbox_max": [
+    0.562,
+    3.206,
+    0.908
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_e061f48b80c64b93",
+   "label": "chair",
+   "centroid": [
+    -2.013,
+    4.966,
+    0.716
+   ],
+   "bbox_min": [
+    -2.081,
+    4.905,
+    0.595
+   ],
+   "bbox_max": [
+    -1.946,
+    5.028,
+    0.795
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_14161b3454e54821",
+   "label": "chair",
+   "centroid": [
+    -2.879,
+    4.069,
+    0.878
+   ],
+   "bbox_min": [
+    -2.969,
+    3.911,
+    0.751
+   ],
+   "bbox_max": [
+    -2.79,
+    4.226,
+    1.001
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_141f0069cab24a86",
+   "label": "chair",
+   "centroid": [
+    -3.588,
+    3.546,
+    0.8
+   ],
+   "bbox_min": [
+    -3.839,
+    3.125,
+    0.501
+   ],
+   "bbox_max": [
+    -3.336,
+    3.968,
+    1.015
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_ed05a9614fae4c31",
+   "label": "chair",
+   "centroid": [
+    -3.272,
+    2.566,
+    -0.013
+   ],
+   "bbox_min": [
+    -3.366,
+    2.467,
+    -0.033
+   ],
+   "bbox_max": [
+    -3.177,
+    2.666,
+    0.003
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_3f41bf34e75041ab",
+   "label": "chair",
+   "centroid": [
+    1.066,
+    2.103,
+    0.624
+   ],
+   "bbox_min": [
+    0.934,
+    1.874,
+    0.39
+   ],
+   "bbox_max": [
+    1.199,
+    2.331,
+    0.755
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_65885d0ce23d4839",
+   "label": "cabinet",
+   "centroid": [
+    -0.138,
+    3.322,
+    0.495
+   ],
+   "bbox_min": [
+    -0.544,
+    3.044,
+    0.005
+   ],
+   "bbox_max": [
+    0.268,
+    3.599,
+    0.764
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_e923ea2bbfcd4b86",
+   "label": "sofa",
+   "centroid": [
+    -2.18,
+    1.301,
+    0.818
+   ],
+   "bbox_min": [
+    -2.369,
+    1.133,
+    0.536
+   ],
+   "bbox_max": [
+    -1.991,
+    1.469,
+    1.075
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_7f6e298a0a754951",
+   "label": "sofa",
+   "centroid": [
+    0.867,
+    1.869,
+    1.148
+   ],
+   "bbox_min": [
+    0.562,
+    1.577,
+    0.627
+   ],
+   "bbox_max": [
+    1.172,
+    2.161,
+    1.595
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_c1af6eebacb54315",
+   "label": "shelf",
+   "centroid": [
+    -1.559,
+    5.102,
+    1.256
+   ],
+   "bbox_min": [
+    -1.711,
+    4.931,
+    1.173
+   ],
+   "bbox_max": [
+    -1.407,
+    5.273,
+    1.469
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  },
+  {
+   "id": "lm_63d928d2c7e84f2d",
+   "label": "shelf",
+   "centroid": [
+    -1.688,
+    4.841,
+    0.819
+   ],
+   "bbox_min": [
+    -1.918,
+    4.709,
+    0.709
+   ],
+   "bbox_max": [
+    -1.458,
+    4.973,
+    0.992
+   ],
+   "front_dir": null,
+   "frame_id": "map"
+  }
+ ]
+}

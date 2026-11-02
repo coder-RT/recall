@@ -44,6 +44,12 @@ Indie track · Theme: <strong>Build for Your World</strong></p>
 </p>
 
 <p align="center">
+  <strong>Live site:</strong> <a href="https://recall-ten-khaki.vercel.app">recall-ten-khaki.vercel.app</a>
+  (also at <a href="https://recall.onica.ai">recall.onica.ai</a>) ·
+  <a href="https://recall-ten-khaki.vercel.app/homes/flat/viewer">Explore a real room</a>
+</p>
+
+<p align="center">
   <a href="#3-backend-pipeline-and-demo">Try it (no keys)</a> ·
   <a href="#architecture-in-brief">Architecture</a> ·
   <a href="#api">API</a> ·

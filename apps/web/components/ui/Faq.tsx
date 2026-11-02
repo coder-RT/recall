@@ -39,17 +39,18 @@ export function Faq() {
                   transition={{ duration: 0.25, ease: "easeOut" }}
                   className="overflow-hidden"
                 >
-                  <p className="px-5 pb-5 text-[1.05rem] leading-relaxed text-muted">
-                    {item.a}
-                    {"href" in item && (
-                      <>
-                        {" "}
-                        <a href={item.href} className="font-bold text-fb-blue-dark underline">
-                          {item.link}
-                        </a>
-                      </>
-                    )}
-                  </p>
+                  <p className="px-5 pb-3 text-[1.05rem] leading-relaxed text-muted">{item.a}</p>
+                  {"links" in item && item.links && (
+                    <ul className="flex flex-wrap gap-x-5 px-5 pb-5" data-faq-links>
+                      {item.links.map((l) => (
+                        <li key={l.href}>
+                          <a href={l.href} className="inline-flex min-h-11 items-center font-bold text-fb-blue-dark underline">
+                            {l.text}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>

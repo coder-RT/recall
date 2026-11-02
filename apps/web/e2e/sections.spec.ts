@@ -311,3 +311,34 @@ test("Try the demo and the hero both open the actual scan of the author's room",
   await expect(hero).toHaveAttribute("href", "/homes/flat/viewer");
   await expect(hero).toContainText(en.hero.actualScan);
 });
+
+
+test.describe("questions that point at real things", () => {
+  test("the FAQ answers with the actual scan, the Meta models, Baseten and the code, each with links", async ({ page }) => {
+    await open(page, "/#faq");
+    const faq = page.locator("#faq");
+    const open_ = async (q: string) => {
+      const b = faq.getByRole("button", { name: q });
+      if ((await b.getAttribute("aria-expanded")) !== "true") await b.click();
+    };
+    const item = (q: string) => en.faq.items.find((i) => i.q.startsWith(q))!;
+    const real = item("Is there a real scan");
+    await open_(real.q);
+    await expect(faq.getByRole("link", { name: "See the actual scan" })).toHaveAttribute("href", "/homes/flat/viewer");
+    for (const q of ["Which Meta models", "Does Recall use Baseten", "Is the code open", "Does Recall ever guess"]) {
+      const it = item(q);
+      await open_(it.q);
+      await expect(faq.getByText(it.a)).toBeVisible();
+      for (const l of it.links ?? []) await expect(faq.getByRole("link", { name: l.text })).toHaveAttribute("href", l.href);
+    }
+    // no answer says the page shows nothing real
+    expect(en.faq.items.some((i) => /feed on this page real/.test(i.q))).toBe(false);
+  });
+
+  test("the Never guesses card says how, and links to the check in code", async ({ page }) => {
+    await open(page, "/#never-guesses");
+    const card = page.locator("#never-guesses");
+    await expect(card).toContainText("the code catches it");
+    await expect(card.getByRole("link", { name: "How it never guesses (the code)" })).toHaveAttribute("href", /grounding\.py$/);
+  });
+});

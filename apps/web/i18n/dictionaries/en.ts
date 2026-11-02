@@ -405,7 +405,7 @@ export const en = {
     title: "Built to be trusted without looking.",
     items: [
       { id: "voice-first", title: "VoiceOver first", body: "Every screen works without sight. Every control has a spoken label. Nothing depends on colour alone. Ask out loud and hear the way.", link: { text: "Try asking", href: "#ask" } },
-      { id: "never-guesses", title: "Geometry decides", body: "Places, distances and times come from the 3D map. Meta's language model understands your question, picks the tools that look them up and words the answer, so it never has to guess a location. Ask why, and it tells you what the camera saw and when." },
+      { id: "never-guesses", title: "Geometry decides", body: "Places, distances and times come from the 3D map. Meta's language model understands your question, picks the tools that look them up and words the answer, so it never has to guess a location. Ask why, and it tells you what the camera saw and when. If a sentence names a place or a number no tool returned, the code catches it, asks once more, and otherwise answers with the tool’s facts alone.", link: { text: "How it never guesses (the code)", href: "https://github.com/coder-RT/recall/blob/main/services/api/src/recall_api/domain/assistant/grounding.py" } },
       { id: "private", title: "Your home stays yours", body: "Your scans and memory live on your own computer (a Mac today), not on a Recall server. Delete a scan and it is erased everywhere it was kept.", link: { text: "What is sent where", href: "/privacy" } },
       { id: "honest", title: "Honest when unsure", body: "If something has not been seen, or was seen long ago, Recall says so and suggests which room to walk through." },
       { id: "secure", title: "Locked to your phone", body: "Your phone and your Mac share one key, checked on every call that touches your home; a pairing link asks before it changes anything. The calls that reach a model are rate-limited, uploads are size-checked, and every change and refusal is written to an append-only activity log on your Mac. No account, no password to leak, no Recall server." },
@@ -419,6 +419,14 @@ export const en = {
       {
         q: "Who is Recall for?",
         a: "Anyone who loses track of everyday things at home, and above all blind and low-vision people, for whom searching by touch or asking for help costs the most. Recall is designed for them first: every step works by voice, without looking. That is also why it is quick for everyone else.",
+      },
+      {
+        q: "Is there a real scan I can see?",
+        a: "Yes. The author's own living room, scanned with an iPhone and rebuilt by Meta's models, is on this site in 3D: geometry only, no photos. The memory feed higher up this page shows the kind of answers Recall gives, and is labelled as an illustration.",
+        links: [
+          { text: "See the actual scan", href: "/homes/flat/viewer" },
+          { text: "The code on GitHub", href: "https://github.com/coder-RT/recall" },
+        ],
       },
       { q: "Do I need special hardware?", a: "An iPhone with LiDAR: the LiDAR measures, and Meta's models build the 3D map (MapAnything) and find your things in it (SAM 3.1). The Apple Watch Ultra 4 app is in preview." },
       {
@@ -437,12 +445,36 @@ export const en = {
       {
         q: "Where is my data kept?",
         a: "On your own computer, a Mac today. Scan photos go to Meta's SAM 3.1 to find things, and your questions to Muse Spark Open, or stay on it in private mode. The privacy page lists everything that leaves your computer.",
-        href: "/privacy",
-        link: "Read the privacy page",
+        links: [{ text: "Read the privacy page", href: "/privacy" }],
       },
       {
-        q: "Is the feed on this page real?",
-        a: "No. The memories and answers shown here are illustrative examples of the kind of answer Recall is designed to give.",
+        q: "Does Recall ever guess where something is?",
+        a: "No, and that is checked in code, not just asked of the model. The 3D map decides every place, height and time; Meta's language model only chooses the tools and words the answer. Before anything is spoken, Recall checks that every place and number in the sentence came from those tools; if one did not, the model is asked once more, and otherwise Recall answers with the tool's facts alone. If a thing hasn't been seen, it says so.",
+        links: [
+          { text: "The grounding check (code)", href: "https://github.com/coder-RT/recall/blob/main/services/api/src/recall_api/domain/assistant/grounding.py" },
+          { text: "Its tests", href: "https://github.com/coder-RT/recall/blob/main/services/api/tests/unit/test_ask_where_is.py" },
+        ],
+      },
+      {
+        q: "Which Meta models does Recall use, and why?",
+        a: "Five Meta models, each with one job: MapAnything rebuilds the room in 3D, in metres; SAM 3.1 finds the furniture and your things by name; Muse Voice Transcribe turns your question into text; Muse Spark Open understands it, chooses the tools and words the answer; and Muse Spark 1.1 double-checks an uncertain arrival. Every model Recall calls is a Meta model.",
+        links: [
+          { text: "Made by Meta models", href: "/#models" },
+          { text: "How Meta Muse is used", href: "https://github.com/coder-RT/recall/blob/main/docs/muse.md" },
+        ],
+      },
+      {
+        q: "Does Recall use Baseten?",
+        a: "Yes. Baseten serves Meta's open-weights Muse Spark Open, which answers your questions and checks what outside apps send. It is fast (a median of 2.3 seconds from question to answer) and keeps the Mac's memory free for the 3D rebuild. For full privacy, Muse Glimmer can answer on your own Mac instead.",
+        links: [{ text: "Baseten in Recall", href: "https://github.com/coder-RT/recall/blob/main/docs/muse.md" }],
+      },
+      {
+        q: "Is the code open?",
+        a: "Yes, all of it, under the Apache-2.0 licence, built during the hackathon: the iPhone and Watch apps, the API, the scan pipeline and this website, with their tests.",
+        links: [
+          { text: "Recall on GitHub", href: "https://github.com/coder-RT/recall" },
+          { text: "Install guide", href: "https://github.com/coder-RT/recall/blob/main/docs/install/README.md" },
+        ],
       },
     ],
   },

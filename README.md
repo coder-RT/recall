@@ -438,6 +438,12 @@ Every route except `/health` needs a key: the owner's device key, or a robot's o
   4. If tracking is limited, give landmark directions only, and say so.
   5. One or two short sentences: landmark first, then shelf and height, then time.
   6. At most 6 agent steps; on failure, the best grounded partial answer.
+- **Never guesses, in four checks:**
+  1. *The tools decide.* Places, relations, heights and times are computed from the 3D map (`domain/spatial`, `application/tools.py`); the model only chooses tools and words the answer.
+  2. *The rule is in the prompt:* never state a place, distance or time that no tool returned.
+  3. *The rule is in code:* `check_grounding` (`domain/assistant/grounding.py`) checks every number and every known place name in the model's sentence against the tool results. One miss gets one correction; a second miss drops the model's words, and a sentence built only from the tool facts is spoken (`application/ask_where_is.py`).
+  4. *Not found is a fixed sentence,* never the model's: "I haven't seen that yet."
+  5. *Tested:* `tests/unit/test_grounding.py` (an invented place or number is caught) and `tests/unit/test_ask_where_is.py` (an invented place is corrected, then replaced by the tool facts; a place with no sighting behind it is never said).
 - **Every answer is traceable.** Sightings are append-only. Every answer is logged with its model and tool steps and the sightings it rests on, and **Why?** on the phone (or `GET /answers/{answer_id}/evidence`, or asking the Guide "why?") leads back to the camera's view, the scan and the models that made it. An answer that names a place with no sighting behind it is never said.
 - **The Verifier can only downgrade.** The vision model may turn a result into "uncertain"; only SAM plus geometry can confirm.
 - **Two checks on the door.** A robot or outside app can send only one object name (letters, digits, spaces and hyphens, at most 40 characters, `services/api/resources/agents/find-object.input.schema.json`); free text is refused and never reaches a model or a tool. Then Muse Spark Open (or Glimmer) must answer `{"verdict": "safe", ...}` in strict JSON; anything else, a timeout or "injection" refuses. Measured: 21 ordinary names allowed, 18 instruction-like names refused, none wrong.

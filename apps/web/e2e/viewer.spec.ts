@@ -438,6 +438,16 @@ test.describe("3D viewer: the published real scan", () => {
     await expect(more.getByRole("checkbox", { name: s.wireframe })).toBeChecked();
   });
 
+  test("choosing Architect selects the Top camera and a 1.5 m wall cut", async ({ page }) => {
+    await prepare(page);
+    await openPublic(page);
+    await page.getByRole("radio", { name: new RegExp(`^${s.views.architect}`) }).check();
+    await page.getByRole("button", { name: s.more }).click();
+    const more = page.locator("[data-more-options]");
+    await expect(more.getByRole("radio", { name: s.presets.top, exact: true })).toBeChecked();
+    await expect(more.getByRole("slider", { name: s.cut })).toHaveValue("1.5");
+  });
+
   test("the old demo address opens the real scan", async ({ page }) => {
     await prepare(page);
     await openPublic(page, "/homes/demo-flat/viewer");

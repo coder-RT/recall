@@ -596,7 +596,7 @@ export const en = {
           model: "The room as a plan: floor, walls and furniture as boxes, coloured by kind, and each thing at its measured size and colour.",
           surface: "The measured points joined into one coloured surface, with the photo colours. Holes are where the scan saw nothing; nothing is invented.",
           photo: "The surface painted with your own scan photos: each patch from the photo that saw it best. Grey patches are where no photo did.",
-          architect: "The room regenerated as an architect would draw it: walls squared to the room, furniture rebuilt from its measured size and colour. Walls are cut at 1.1 m to see in; faint walls are ones the scan never saw.",
+          architect: "The room regenerated as an architect would draw it: walls squared to the room, furniture rebuilt from its measured size and colour. Seen from above, with the walls cut at 1.5 m to see in; faint walls are ones the scan never saw.",
         },
         drawings: {
           title: "Drawings",

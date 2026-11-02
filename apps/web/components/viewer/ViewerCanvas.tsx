@@ -260,10 +260,13 @@ export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, t
   const [options, setOptions] = useState<Options>({ preset: "iso", axes: true, wallOpacity: 0.45, showFurniture: true, wireframe: false, flat: false, cut: CUT });
   const [moreOpen, setMoreOpen] = useState(false);
   const set = <K extends keyof Options>(key: K, value: Options[K]) => setOptions((o) => ({ ...o, [key]: value }));
-  // the surface reads best as a 3D wireframe with the axes: choosing it selects them (each can be changed after)
+  // each view opens with the settings it reads best in (each can be changed after):
+  // the surface as a 3D wireframe with the axes
   const chooseView = (v: View) => {
     setView(v);
     if (v === "surface") setOptions((o) => ({ ...o, preset: "iso", axes: true, wireframe: true }));
+    // the architect's model reads best from above, with the walls cut at 1.5 m
+    if (v === "architect") setOptions((o) => ({ ...o, preset: "top", cut: 1.5 }));
   };
   const [mesh, setMesh] = useState<MeshData | null>(null);
   const [photo, setPhoto] = useState<PhotoData | null>(null);

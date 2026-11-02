@@ -190,3 +190,8 @@ It also confirmed what was **safe**:
   Recall's API follows for the home's memory.
 - **Evidence or "unresolved".** Every claim carries a file and line, or is listed as open. That is why each finding
   above could be checked and fixed.
+
+---
+
+*Contributor: Muse Code, powered by Meta Muse Spark — ran the Part B test and security workflows described above
+on 1 November 2026.*

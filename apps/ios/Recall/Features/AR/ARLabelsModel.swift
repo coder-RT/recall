@@ -1,6 +1,7 @@
 import ARKit
 import Foundation
 import Observation
+import RecallApplication
 import RecallCapture
 import RecallDomain
 import SwiftUI
@@ -20,13 +21,26 @@ final class ARLabelsModel {
     private let source: any ArLabelsSource
     private let home: String
     private let roomMap: (String) -> Data?
+    private let saveGrownMap: (String, Data) -> Void
+    private let places: (any PlaceLocating)?
     private let speech: any SpeechOutput
+    private let haptics: (any HapticsOutput)?
+    private let clock: any Clock
     private var task: Task<Void, Never>?
+    private var assist: PhotoAssist?
 
+    /// Seconds before the list is shown instead, and how long the room is still looked for after that.
+    static let listAfter = 25.0
+    static let keepLooking = 120.0
+
+    /// `places`: the Mac's photo matcher, to recognise the room alongside ARKit; `saveGrownMap`: keeps the map ARKit
+    /// grew on this visit, so the next one recognises the room from here too.
     init(room: String, home: String, source: any ArLabelsSource, locator: ARLocator, roomMap: @escaping (String) -> Data?,
-         speech: any SpeechOutput) {
+         saveGrownMap: @escaping (String, Data) -> Void = { _, _ in }, places: (any PlaceLocating)? = nil,
+         speech: any SpeechOutput, haptics: (any HapticsOutput)? = nil, clock: any Clock = SystemClock()) {
         self.room = room; self.home = home; self.source = source; self.locator = locator; self.roomMap = roomMap
-        self.speech = speech
+        self.saveGrownMap = saveGrownMap; self.places = places; self.speech = speech; self.haptics = haptics
+        self.clock = clock
     }
 
     func start() {
@@ -35,6 +49,8 @@ final class ARLabelsModel {
 
     func stop() {
         task?.cancel()
+        assist?.cancel()
+        locator.onMapGrown = nil
         locator.clearLabels()
         locator.stop()
     }
@@ -57,20 +73,40 @@ final class ARLabelsModel {
             }
             phase = .locating
             speech.say("Point the phone around \(room) so I can recognise it.", interrupt: true)
+            let scan = found.scanId
+            locator.onMapGrown = { [saveGrownMap] data in saveGrownMap(scan, data) }
             locator.start(roomMap: map)
-            // ARKit says the room is recognised when tracking turns normal in the saved map
-            for _ in 0..<50 {
-                try await Task.sleep(for: .milliseconds(500))
-                if locator.reading()?.tracking == .normal { break }
+            // the Mac's photo matcher helps alongside ARKit (named furniture to point at, a fix from a photo)
+            if let places {
+                let a = PhotoAssist(home: home, scan: scan, room: room, locator: locator, places: places, speech: speech,
+                                    clock: clock)
+                assist = a
+                Task { await a.run() }
             }
-            guard locator.reading()?.tracking == .normal else {
-                return phase = .listOnly("I couldn't recognise \(room) from here, so here is the list.")
+            // recognised when tracking turns normal: ARKit matched the saved map, or two photo fixes agreed
+            let started = clock.now()
+            var late = false
+            while locator.reading()?.tracking != .normal {
+                let waited = clock.now().timeIntervalSince(started)
+                if !late, waited >= Self.listAfter {
+                    late = true  // the list now, but keep looking: the labels come on if the room is recognised
+                    phase = .listOnly("I couldn't recognise \(room) from here yet, so here is the list. Still looking.")
+                }
+                if waited >= Self.listAfter + Self.keepLooking {
+                    assist?.cancel()
+                    return phase = .listOnly("I couldn't recognise \(room) from here, so here is the list.")
+                }
+                try await Task.sleep(for: .milliseconds(250))
             }
+            assist?.cancel()
+            haptics?.tap()
             let tags = labels.map { (label: $0, tag: Self.tagImage($0)) }
             locator.showLabels(tags, floorY: found.floorY)
             phase = .showing
             let n = labels.count == 1 ? "1 thing" : "\(labels.count) things"
-            speech.say("\(n) in \(room). Point at a label and double tap with two fingers to hear it.", interrupt: false)
+            let lead = late ? "Recognised \(room). " : ""
+            speech.say("\(lead)\(n) in \(room). Point at a label and double tap with two fingers to hear it.",
+                       interrupt: late)
         } catch is CancellationError {
         } catch {
             phase = .failed(UserMessage.explain(error))

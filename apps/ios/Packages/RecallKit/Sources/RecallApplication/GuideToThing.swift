@@ -45,15 +45,18 @@ public final class GuideToThing {
     private let haptics: any HapticsOutput
     private let clock: any Clock
     private let compass: (any CompassSensor)?
+    private let photos: (places: any PlaceLocating, scan: String)?
     private let settings: Settings
     private var cancelled = false
 
+    /// `photos`: the Mac's photo matcher and the scan whose room map this is, to recognise the room alongside ARKit.
     public init(home: String, thing: Thing, roomMap: Data?, locator: any Locator, guide: any GuideService,
                 speech: any SpeechOutput, haptics: any HapticsOutput, clock: any Clock,
-                compass: (any CompassSensor)? = nil, settings: Settings = .init()) {
+                compass: (any CompassSensor)? = nil, photos: (places: any PlaceLocating, scan: String)? = nil,
+                settings: Settings = .init()) {
         self.home = home; self.thing = thing; self.roomMap = roomMap; self.locator = locator; self.guide = guide
         self.speech = speech; self.haptics = haptics; self.clock = clock; self.compass = compass
-        self.settings = settings
+        self.photos = photos; self.settings = settings
     }
 
     /// The compass heading when it can be trusted (else directions leave out "north-east").
@@ -122,8 +125,14 @@ public final class GuideToThing {
 
     // MARK: steps
 
-    /// Waits for tracking to turn normal (ARKit recognised the room) or the timeout.
+    /// Waits for tracking to turn normal (ARKit recognised the room, or two photo fixes agreed) or the timeout.
     private func locate() async -> TrackingState {
+        let assist = photos.map {
+            PhotoAssist(home: home, scan: $0.scan, room: thing.room, locator: locator, places: $0.places, speech: speech,
+                        clock: clock)
+        }
+        let helping = assist.map { a in Task { await a.run() } }
+        defer { assist?.cancel(); helping?.cancel() }
         let started = clock.now()
         while !cancelled, clock.now().timeIntervalSince(started) < settings.locateTimeout {
             if locator.reading()?.tracking == .normal { return .normal }

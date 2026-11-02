@@ -13,6 +13,10 @@
   --color-muted: #4b4f56;
   --color-cta: #42b72a;
   --color-cta-dark: #1f6516; /* 7.2:1 with white text */
+  /* the logo ring's warm yellow also marks the actual-scan demo button: ink on it is 12.3:1, and it stands out 5:1
+     against the blue nav (the green sat at 1.05:1 there) */
+  --color-demo: #feda75;
+  --color-demo-hover: #fcc93a;
 
   --color-ig-1: #feda75;
   --color-ig-2: #fa7e1e;
@@ -71,6 +75,15 @@ body {
 html[data-reduce-motion="true"] {
   scroll-behavior: auto;
 }
+/* reduced motion: the demo button changes colour on hover but doesn't lift */
+@media (prefers-reduced-motion: reduce) {
+  [data-demo-button]:hover {
+    transform: none;
+  }
+}
+html[data-reduce-motion="true"] [data-demo-button]:hover {
+  transform: none;
+}
 /* ...and no CSS transitions or animations either: GSAP and Motion stop themselves, these don't */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -104,6 +117,8 @@ html[data-contrast="high"] {
   --color-fb-line: #fff;
   --color-cta: #ffd400;
   --color-cta-dark: #ffd400;
+  --color-demo: #ffd400;
+  --color-demo-hover: #ffd400;
   --shadow-card: 0 0 0 2px #fff;
   --shadow-lift: 0 0 0 2px #fff;
 }
@@ -117,6 +132,15 @@ html[data-contrast="high"] a {
 /* the problem section's three words carry the wordmark's colours inline; in high contrast they are plain yellow */
 html[data-contrast="high"] [data-promise] a {
   color: var(--color-fb-blue) !important;
+}
+/* the demo button is yellow in both themes; its words stay black (the theme's "ink" turns white) */
+html[data-contrast="high"] [data-demo-button] {
+  color: #000;
+  box-shadow: inset 0 0 0 2px #fff;
+}
+html[data-contrast="high"] [data-demo-button] [data-actual-badge] {
+  background: #000;
+  color: #ffd400;
 }
 html[data-contrast="high"] :focus-visible {
   outline-width: 4px;
@@ -188,6 +212,17 @@ html[data-text-scale]:not([data-text-scale="1"]) [data-section-links] {
   }
   .btn-green:hover {
     background: #17500f;
+  }
+  .btn-demo {
+    background: var(--color-demo);
+    color: var(--color-ink);
+    /* a dark-blue edge, so the yellow also stands clear of the light page (3:1 for the button's outline) */
+    box-shadow: inset 0 0 0 2px var(--color-fb-blue-dark);
+    transition: background-color 0.15s, transform 0.15s;
+  }
+  .btn-demo:hover {
+    background: var(--color-demo-hover);
+    transform: translateY(-1px);
   }
   .btn-ghost {
     background: var(--color-white);

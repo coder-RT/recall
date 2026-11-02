@@ -59,9 +59,9 @@ export function Nav() {
         </nav>
         <div className="flex items-center gap-2">
           <AccessibilityMenu />
-          <Link href="/homes/flat/viewer" className="btn btn-green hidden gap-2 sm:inline-flex" data-try-demo>
+          <Link href="/homes/flat/viewer" className="btn btn-demo hidden gap-2 sm:inline-flex" data-try-demo data-demo-button>
             {t.nav.tryDemo}
-            <span className="rounded-full bg-white px-2 py-0.5 text-xs font-bold text-cta-dark">{t.nav.actualScan}</span>
+            <span data-actual-badge className="rounded-full bg-ink px-2 py-0.5 text-xs font-bold text-white">{t.nav.actualScan}</span>
           </Link>
         </div>
       </div>

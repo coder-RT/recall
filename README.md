@@ -133,7 +133,7 @@ floor, furniture and walls as cells, and the things as dots: no photos of the ho
   </tr>
 </table>
 
-![The landing page: "Find your keys", RECALL in Braille, built first for blind and low-vision people and useful to anyone who forgets where they put things, the Ask Recall card, and Try the demo · Actual scan](docs/media/hero.png)
+![The landing page: "Find your keys", RECALL in Braille, built first for blind and low-vision people and useful to anyone who forgets where they put things, the Ask Recall card, and Explore a real room · Actual scan](docs/media/hero.png)
 
 ## What it is
 

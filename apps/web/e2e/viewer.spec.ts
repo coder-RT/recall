@@ -448,6 +448,16 @@ test.describe("3D viewer: the published real scan", () => {
     await expect(more.getByRole("slider", { name: s.cut })).toHaveValue("1.5");
   });
 
+  test("a bar at the top leads back to the landing page", async ({ page }) => {
+    await prepare(page);
+    await openPublic(page);
+    const nav = page.getByRole("navigation", { name: en.app.viewer.back.label });
+    await expect(nav.getByRole("link", { name: en.app.viewer.back.back })).toHaveAttribute("href", "/");
+    await expect(nav.getByRole("link", { name: en.app.viewer.back.ask })).toHaveAttribute("href", "/#ask");
+    await nav.getByRole("link", { name: en.app.viewer.back.back }).click();
+    await expect(page).toHaveURL(/\/$/);
+  });
+
   test("the old demo address opens the real scan", async ({ page }) => {
     await prepare(page);
     await openPublic(page, "/homes/demo-flat/viewer");

@@ -307,6 +307,8 @@ test("Try the demo and the hero both open the actual scan of the author's room",
   await open(page, "/");
   await expect(page.locator("[data-try-demo]")).toHaveAttribute("href", "/homes/flat/viewer");
   await expect(page.locator("[data-try-demo]")).toContainText(en.nav.actualScan);
+  // warm yellow, so it stands out on the blue nav (the old green sat at 1.05:1 against it)
+  expect(await page.locator("[data-try-demo]").evaluate((e) => getComputedStyle(e).backgroundColor)).toBe("rgb(254, 218, 117)");
   const hero = page.locator("[data-actual-scan]");
   await expect(hero).toHaveAttribute("href", "/homes/flat/viewer");
   await expect(hero).toContainText(en.hero.actualScan);

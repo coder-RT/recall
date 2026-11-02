@@ -17,7 +17,7 @@ export const en = {
     skip: "Skip to content",
     home: "Recall, back to top",
     sections: "Sections",
-    tryDemo: "Try the demo",
+    tryDemo: "Explore a real room",
     actualScan: "Actual scan",
     privacy: "Privacy",
     links: [
@@ -661,6 +661,7 @@ export const en = {
           points: "Points shown",
         },
       },
+      back: { label: "Recall", home: "Recall home", back: "Back to Recall", ask: "Ask Recall" },
       real: {
         title: "A real room, scanned with an iPhone",
         badge: "Real scan · not a simulation",

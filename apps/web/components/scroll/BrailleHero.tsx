@@ -242,8 +242,8 @@ export function BrailleHero() {
             <a href="#feed" className="btn btn-ghost">
               {t.hero.browse}
             </a>
-            <Link href="/homes/flat/viewer" className="btn btn-green gap-2" data-actual-scan>
-              <span className="rounded-full bg-white px-2 py-0.5 text-xs font-bold text-cta-dark">{t.hero.actualScan}</span>
+            <Link href="/homes/flat/viewer" className="btn btn-demo gap-2" data-actual-scan data-demo-button>
+              <span data-actual-badge className="rounded-full bg-ink px-2 py-0.5 text-xs font-bold text-white">{t.hero.actualScan}</span>
               {t.hero.seeScan}
             </Link>
           </div>

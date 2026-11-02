@@ -163,11 +163,26 @@ test.describe("where Recall runs", () => {
     await expect(cards).toHaveCount(4);
     const status = (id: string) => page.locator(`#devices [data-device="${id}"] [data-status]`);
     await expect(status("iphone")).toHaveText(en.devices.status.available);
-    await expect(status("watch")).toHaveText(en.devices.status.next);
+    await expect(status("watch")).toHaveText(en.devices.status.preview);  // built, being tried on a real Ultra 4
     await expect(status("glasses")).toHaveText(en.devices.status.planned);
     await expect(status("robots")).toHaveText(en.devices.status.preview);
     await expect(page.locator("#devices").getByText(en.devices.note)).toBeVisible();
-    await expect(page.locator('#devices [data-device="robots"] a')).toHaveAttribute("href", "/privacy");
+    await expect(page.locator('#devices [data-device="robots"] a').last()).toHaveAttribute("href", "/privacy");
+  });
+
+  test("the Watch and Robots cards link to what is built, and say what is not yet tried", async ({ page, request }) => {
+    await open(page, "/#devices");
+    for (const id of ["iphone", "watch", "robots"]) {
+      const card = page.locator(`#devices [data-device="${id}"]`);
+      const item = en.devices.items.find((d) => d.id === id)!;
+      for (const l of item.links ?? []) await expect(card.getByRole("link", { name: l.text })).toHaveAttribute("href", l.href);
+      if (item.built) await expect(card.locator("[data-built]")).toHaveText(item.built);
+    }
+    // the robot package is a real file, served by this site
+    const zip = await request.get("/real-scan/flat/robot/recall-living-room.zip");
+    expect(zip.status()).toBe(200);
+    expect((await zip.body()).subarray(0, 2).toString()).toBe("PK");
+    await expect(page.locator('#devices [data-device="glasses"] [data-device-links]')).toHaveCount(0);  // nothing built yet
   });
 
   test("nothing on the page says the Watch works today", async ({ page }) => {

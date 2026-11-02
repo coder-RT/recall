@@ -39,12 +39,27 @@ export function Devices() {
                   <li key={p}>{p}</li>
                 ))}
               </ul>
-              {d.id === "robots" && (
-                <p className="mt-4">
-                  <a href="/privacy" className="font-bold text-fb-blue-dark underline">
-                    {t.robotsPrivacy}
-                  </a>
-                </p>
+              {d.built && <p className="mt-3 text-base text-muted" data-built>{d.built}</p>}
+              {(d.links?.length || d.id === "robots") && (
+                <div className="mt-4" data-device-links>
+                  <h4 className="text-sm font-bold uppercase tracking-wide text-muted">{t.open}</h4>
+                  <ul className="mt-1 grid gap-1">
+                    {d.links?.map((l) => (
+                      <li key={l.href}>
+                        <a href={l.href} download={l.download || undefined} className="inline-flex min-h-11 items-center font-bold text-fb-blue-dark underline">
+                          {l.text}
+                        </a>
+                      </li>
+                    ))}
+                    {d.id === "robots" && (
+                      <li>
+                        <a href="/privacy" className="inline-flex min-h-11 items-center font-bold text-fb-blue-dark underline">
+                          {t.robotsPrivacy}
+                        </a>
+                      </li>
+                    )}
+                  </ul>
+                </div>
               )}
             </li>
           );

@@ -339,13 +339,22 @@ export const en = {
         status: "available",
         pitch: "The whole of Recall today, by voice and without looking.",
         points: ["Scan a room with LiDAR + Meta models, led step by step by voice", "Ask out loud; hear clock-face turns with compass points", "A blue arrow over the thing on the camera, for a helper"],
+        links: [
+          { text: "Try an actual scan", href: "/homes/flat/viewer" },
+          { text: "Install guide", href: "https://github.com/coder-RT/recall/blob/main/docs/install/README.md" },
+        ],
       },
       {
         id: "watch",
         name: "Apple Watch Ultra 4",
-        status: "next",
+        status: "preview",
         pitch: "Directions you can feel, with the phone in your pocket.",
-        points: ["A tap on the wrist for each turn, a buzz when you arrive", "Ask from your wrist and hear the answer", "Hands free for a cane or a guide dog"],
+        points: ["A tap on the wrist for each turn, a buzz when you arrive", "Ask from your wrist, or turn the Digital Crown to pick a thing", "Hands free for a cane or a guide dog"],
+        built: "Built and unit-tested; it installs with the iPhone app. Being tried on a real Ultra 4 now.",
+        links: [
+          { text: "The Watch app's code on GitHub", href: "https://github.com/coder-RT/recall/tree/main/apps/ios/RecallWatch" },
+          { text: "How to install it and walk with it", href: "https://github.com/coder-RT/recall/blob/main/docs/install/README.md#c7-the-apple-watch-preview" },
+        ],
       },
       {
         id: "glasses",
@@ -360,10 +369,18 @@ export const en = {
         status: "preview",
         pitch: "Your robot can use the same memory to go and find it.",
         points: ["Shares your home's map and where things are; never photos", "A Nav2 map or the A2A protocol; off until you share it", "Finds the thing; picking it up is the robot's own skill"],
+        built: "Works today: the export, the A2A agent and a ROS 2 example. Not yet tried on a physical robot.",
+        links: [
+          { text: "Download a real robot package (.zip)", href: "/real-scan/flat/robot/recall-living-room.zip", download: true },
+          { text: "See the robot files from an actual scan", href: "/homes/flat/viewer#robots-title" },
+          { text: "ROS 2 example on GitHub", href: "https://github.com/coder-RT/recall/tree/main/examples/ros2-robot" },
+          { text: "The A2A Agent Card", href: "https://github.com/coder-RT/recall/blob/main/services/api/resources/agents/home-memory.card.json" },
+        ],
       },
-    ] as { id: string; name: string; status: "available" | "next" | "planned" | "preview"; pitch: string; points: string[] }[],
+    ] as { id: string; name: string; status: "available" | "next" | "planned" | "preview"; pitch: string; points: string[]; built?: string; links?: { text: string; href: string; download?: boolean }[] }[],
+    open: "What you can open now",
     robotsPrivacy: "What robots receive and never receive",
-    note: "Only the iPhone app works today; the Watch and glasses are being built, and robots can use the shared map in a preview. Recall is an independent project, not affiliated with Apple or Meta.",
+    note: "The iPhone app works today. The Watch app is built and being tried on a real Ultra 4; robots can use the shared map in a preview; the glasses are planned. Recall is an independent project, not affiliated with Apple or Meta.",
   },
 
   museCode: {

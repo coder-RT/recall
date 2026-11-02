@@ -92,14 +92,16 @@ Indie track · Theme: <strong>Build for Your World</strong></p>
 10. [Architecture in brief](#architecture-in-brief)
 11. [API](#api)
 12. [Guardrails](#guardrails)
-13. [Algorithms](#algorithms)
-14. [Results so far](#results-so-far)
-15. [Installation](#installation)
-16. [How to run it](#how-to-run-it)
-17. [Not in this submission](#not-in-this-submission)
-18. [Contributing](#contributing)
-19. [Built during the hackathon](#built-during-the-hackathon)
-20. [Licence](#licence)
+13. [Security and privacy](#security-and-privacy)
+14. [Data model](#data-model)
+15. [Algorithms](#algorithms)
+16. [Results so far](#results-so-far)
+17. [Installation](#installation)
+18. [How to run it](#how-to-run-it)
+19. [Not in this submission](#not-in-this-submission)
+20. [Contributing](#contributing)
+21. [Built during the hackathon](#built-during-the-hackathon)
+22. [Licence](#licence)
 
 ## Screenshots
 
@@ -436,9 +438,109 @@ Every route except `/health` needs a key: the owner's device key, or a robot's o
 - **Every answer is traceable.** Sightings are append-only. Every answer is logged with its model and tool steps and the sightings it rests on, and **Why?** on the phone (or `GET /answers/{answer_id}/evidence`, or asking the Guide "why?") leads back to the camera's view, the scan and the models that made it. An answer that names a place with no sighting behind it is never said.
 - **The Verifier can only downgrade.** The vision model may turn a result into "uncertain"; only SAM plus geometry can confirm.
 - **Two checks on the door.** A robot or outside app can send only one object name (letters, digits, spaces and hyphens, at most 40 characters, `services/api/resources/agents/find-object.input.schema.json`); free text is refused and never reaches a model or a tool. Then Muse Spark Open (or Glimmer) must answer `{"verdict": "safe", ...}` in strict JSON; anything else, a timeout or "injection" refuses. Measured: 21 ordinary names allowed, 18 instruction-like names refused, none wrong.
-- **Privacy.** The home's memory lives on the owner's own computer (a Mac today); there is no Recall server. Scan photos go to SAM 3.1 on the Meta Model API, voice clips to Muse Voice Transcribe, and questions (no photos) to Muse Spark Open, or stay on the Mac with Glimmer in private mode. Deleting a scan on the phone erases it from the Mac too. No scan of anyone's home is in the repo or on the hosted site. Full note: [docs/privacy.md](docs/privacy.md), the same as the app's Settings → Privacy and the site's `/privacy`.
+- **Privacy and security.** See [Security and privacy](#security-and-privacy): what stays on the Mac, what is sent where, and how the home's memory is protected.
 - **Honesty.** Sample and recorded data are labelled as such in the UI and the docs; the demo shows only what was built.
 - **Rules.** Only Meta models at runtime; no non-Meta model anywhere, and no TTS model of any kind.
+
+## Security and privacy
+
+**Privacy: what stays home, and what goes where**
+
+- **On your Mac:** every scan you upload, the 3D map, the things and furniture found, your own names and notes, the
+  answer log and the audit log. There is no Recall server and no account; the developer never sees your home.
+- **What leaves, and to which Meta model** (the same table as [docs/privacy.md](docs/privacy.md), the app's
+  Settings → Privacy and the site's `/privacy`):
+
+  | What | Sent to | When |
+  |---|---|---|
+  | Scan photos, about 50 per room (no depth, no sound) | Meta Model API: SAM 3.1 | While the Mac processes a scan |
+  | A spoken question (a few seconds of audio; only the words are kept) | Meta Model API: Muse Voice Transcribe | When you ask by voice |
+  | The question as text and what memory says (no photos) | Baseten: Muse Spark Open, or Muse Glimmer on your Mac in private mode | Each time you ask |
+  | One camera photo | Meta Model API: SAM 3.1, and Muse Spark 1.1 only when SAM is unsure | On arrival |
+  | The room map, things and furniture (no photos, names, notes or anyone's position) | Robots and apps you gave the robot key | Only while Robot Access is on (off by default) |
+
+- **Your controls:** delete a scan and it is erased from the iPhone and the Mac; forget a thing; Robot Access off by
+  default; private mode keeps questions on the Mac.
+- **People in view:** scan when nobody else is in the room. Anyone the camera sees is in the scan photos sent to SAM
+  3.1; Recall never looks for people or faces.
+- **The published demo scan:** the author's own living room is published for `/homes/flat/viewer`, reviewed and
+  approved by the author:
+  - points and surfaces tinted by height, the room model, the drawings, labels and robot files;
+  - no photos, video, depth images, keys or paths; guard tests fail if a photo file or photo colours ever appear.
+
+**Security: how the home's memory is protected**
+
+- **One key, on every call that touches the home**
+  - *What:* a device key the phone and the Mac share (pairing, not a login), compared in constant time; a robot has
+    its own read-only key.
+  - *Where:* `adapters/inbound/http/deps.py`; the warm pipeline server answers nothing without its key.
+- **Pairing asks first**
+  - *What:* a `recall://pair` link shows "Pair with this Mac?" with the address and the key's length, never the key,
+    and changes nothing until you confirm.
+  - *Why:* any app or web page can open such a link.
+- **The key stays on this phone**
+  - The Keychain item is this-device-only; copying the key is this-phone-only and expires after 2 minutes; the key is
+    sent only to the paired Mac; a bare address is https unless it is on your network or Tailscale.
+- **Limits in front of the API**
+  - Per-key rate limits on the calls that reach a model or start the pipeline (429, recorded in the audit log).
+  - Body-size caps per route (413); episode zips refused past 1 GB unpacked or 20,000 files.
+  - Pipeline results with NaN or infinity, or labels with control characters, are refused.
+- **Where the API listens:** loopback unless asked; `make live` opens it to your network (`BIND=0.0.0.0`) so the
+  phone can reach it; behind a tunnel, `make live BIND=127.0.0.1`.
+- **Outside agents:** a schema allows one object name, then Muse Spark Open must return a strict JSON verdict; anything
+  unclear is refused (fails closed).
+- **The website:** no framing, no type sniffing, a quiet referrer, the microphone only; `robots.txt` keeps crawlers off
+  local scans and the API; the contact form uses schema checks, a honeypot, a minimum fill time, BotID and rate limits.
+- **On record:** an append-only audit log of every change, refusal and model call (who, what, outcome), kept 90 days.
+- **In the process:** no secrets in git (`.env` is ignored); CodeQL on Python and TypeScript; Schemathesis checks the
+  running API against its spec; import-linter and an architecture test keep the one-writer rule.
+- **How it was checked:** Meta's Muse Code audited the backend, the website and the iPhone and Watch apps side by
+  side; every finding was checked in the code and 28 were fixed ([docs/muse.md](docs/muse.md#what-muse-code-found)).
+- **Not done yet, honestly:** with `make live` the API is reachable on your home network (still behind the key and the
+  limits); a scan shared from the app as a zip contains its photos (the share button's VoiceOver hint says so; there is no confirm step yet).
+
+## Data model
+
+All of Recall's memory is **SQLite on your Mac** (`data/recall.db`), in metres in the home frame (floor at z = 0,
+z up). Only `services/api` writes it. The schema comes from the Alembic migrations in
+[`services/api/db/migrations/versions/`](services/api/db/migrations/versions) (0001 to 0008).
+
+```mermaid
+erDiagram
+    homes ||--o{ scans : "scanned in"
+    homes ||--o{ landmarks : "furniture"
+    homes ||--o{ objects : "things"
+    homes ||--o{ rejections : "not there"
+    scans ||--o{ keyframes : "frames"
+    scans ||--o{ observations : "saw"
+    objects ||--o{ observations : "sightings"
+    objects ||--o{ set_asides : "set aside"
+    homes ||--o{ answer_log : "answers"
+```
+
+| Table | What it holds | Notes |
+|---|---|---|
+| `homes` | A home: its name, room model (`room.json`), and first scan | |
+| `scans` | One walkthrough: room, status, archive size and SHA-256, part size, frame and object counts, transform to home, the scan it was aligned to, whether memory started fresh, what changed, provenance | |
+| `keyframes` | Per kept frame: index, time, ARKit pose (4×4), tracking state, image and depth file URIs | Files stay in `data/blobs` |
+| `landmarks` | Furniture: label, bounding box, centroid, room, which way its front faces | |
+| `objects` | A thing: label, colour, size, and your corrections (name, colour, height, note), confirmed or not | |
+| `observations` | Each sighting: object, scan, keyframe, time, x/y/z, SAM 3.1 confidence, box in the photo, how many photos showed it | **Append-only** |
+| `set_asides` | Sightings set aside by a rescan or a correction, and why | **Append-only** |
+| `rejections` | "Not there": a label at a place, so later scans don't bring it back | |
+| `answer_log` | Every Guide answer: question, text, grounded or not, tool steps, the sightings behind it, provider, model, tokens, latency | **Append-only**; the evidence behind **Why?** |
+| `audit_events` | Who (owner, robot, pipeline, unknown), what action, outcome, target, a cleaned detail, request id | **Append-only**; kept 90 days |
+| `owner_settings` | Key and value: robot access, trust level | |
+
+- **View `last_seen`:** the newest sighting of each thing with confidence ≥ 0.5 that has not been set aside.
+- **Append-only, in the database itself:** triggers refuse any UPDATE on `observations`, `set_asides`, `answer_log`
+  and `audit_events`.
+- **Indexes:** scans, landmarks, objects and rejections by home; observations and set-asides by object; audit events
+  by time and by action; the answer log by home and time.
+- **The job queue** is a separate SQLite file (`data/jobs.db`, Huey) that holds only queued scan jobs.
+- **Not in SQL:** the scan files (`data/blobs` on the Mac, or Cloudflare R2). On the iPhone there is no database:
+  scans are folders in Application Support, the device key is in the Keychain, and the Mac's address is in
+  UserDefaults.
 
 ## Algorithms
 

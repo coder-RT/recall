@@ -26,6 +26,15 @@ struct ConnectionTests {
         #expect(url("http://mac.example.com") == "http://mac.example.com")  // a typed scheme is kept
     }
 
+    @Test func theAddressIsMaskedButRecognisable() {
+        let masked = { (a: String) in Connection(address: a, key: "k", home: "").maskedAddress }
+        #expect(masked("100.80.5.54:8000") == "http://100••••••:8000")
+        #expect(masked("rachits-macbook-pro-2.tail67b272.ts.net:8000") == "http://rac••••••:8000")
+        #expect(masked("https://mac.example.com") == "https://mac••••••")
+        #expect(!masked("rachits-macbook-pro-2.tail67b272.ts.net:8000").contains("tail67b272"))
+        #expect(masked("") == "")
+    }
+
     @Test func aPairingLinkSaysWhereWithoutShowingTheKey() throws {
         let p = try #require(try PairingLink(URL(string: "recall://pair?url=https://mac:8445&key=abcdefgh1234&home=loft")!))
         #expect(p.summary == "Pair with the Mac at mac:8445? Key: 12 characters, ending in 1 2 3 4.")

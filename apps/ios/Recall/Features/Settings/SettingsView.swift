@@ -13,6 +13,7 @@ struct SettingsView: View {
     @State private var testOK = false
     @State private var testing = false
     @State private var showKey = false
+    @State private var showAddress = false
     @State private var canPaste = UIPasteboard.general.hasStrings  // checking doesn't read it (no paste prompt)
     @AppStorage(Theme.appearanceKey) private var appearance = Appearance.system
     @AppStorage(Theme.highContrastKey) private var highContrast = false
@@ -55,11 +56,37 @@ struct SettingsView: View {
                     TrustSection(trust: trust)
 
                     Section {
-                        TextField("Mac address", text: $model.connection.address,
-                                  prompt: Text("https://your-mac.ts.net:8445").foregroundStyle(Tokens.muted), axis: .vertical)
-                            .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-                            .accessibilityIdentifier("macAddress")
-                            .limited($model.connection.address, to: TextInput.address)
+                        HStack(alignment: .center, spacing: 8) {
+                            if !showAddress && !model.connection.address.isEmpty {
+                                // hidden by default, like the key: enough to recognise it, not to read over a shoulder
+                                Text(model.connection.maskedAddress)
+                                    .font(.body.monospaced()).foregroundStyle(Tokens.ink)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                                    .accessibilityLabel("Mac address, hidden")
+                                    .accessibilityIdentifier("macAddress")
+                            } else {
+                                TextField("Mac address", text: $model.connection.address,
+                                          prompt: Text("https://your-mac.ts.net:8445").foregroundStyle(Tokens.muted), axis: .vertical)
+                                    .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+                                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                                    .accessibilityIdentifier("macAddress")
+                                    .limited($model.connection.address, to: TextInput.address)
+                            }
+                            if !model.connection.address.isEmpty {
+                                Spacer(minLength: 0)
+                                Button { showAddress.toggle() } label: {
+                                    Image(systemName: showAddress ? "eye.slash" : "eye")
+                                        .font(.body.weight(.semibold))
+                                        .foregroundStyle(Tokens.accent)
+                                        .frame(minWidth: 44, minHeight: 44)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plainTap)
+                                .accessibilityLabel(showAddress ? "Hide the Mac address" : "Show the Mac address")
+                                .accessibilityIdentifier("macAddress.toggle")
+                            }
+                        }
                     } header: { FormHeader("Mac address") } footer: {
                         FormNote("The address the Mac's API prints when it starts, a Tailscale or a Cloudflare Tunnel URL.")
                     }

@@ -34,6 +34,14 @@ public struct Connection: Sendable, Equatable {
             || (n[0] == 169 && n[1] == 254) || (n[0] == 100 && (64...127).contains(n[1]))
     }
 
+    /// The address with most of it hidden, enough to recognise it on a shared screen: the scheme, the host's first
+    /// three characters and the port ("http://rac••••••:8000"). Empty when nothing is typed.
+    public var maskedAddress: String {
+        guard let url, let host = url.host else { return address.isEmpty ? "" : "••••••" }
+        let port = url.port.map { ":\($0)" } ?? ""
+        return "\(url.scheme ?? "http")://\(host.prefix(3))••••••\(port)"
+    }
+
     /// The key without the spaces or newline a paste brings along.
     public var cleanKey: String { key.trimmingCharacters(in: .whitespacesAndNewlines) }
 

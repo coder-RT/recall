@@ -216,4 +216,18 @@ final class UsabilityTests: XCTestCase {
         search.typeText("\n")  // Return (Search)
         XCTAssertTrue(keyboard.waitForNonExistence(timeout: 3), "Return hides the keyboard")
     }
+
+    /// The Mac address is hidden by default behind an eye button, like the key.
+    func testTheMacAddressIsHiddenUntilShown() {
+        let app = launch(largestText: false)
+        app.tabBars.buttons["Settings"].tap()
+        let toggle = app.buttons["macAddress.toggle"]
+        guard toggle.waitForExistence(timeout: 5) else { return }  // nothing paired in this run: nothing to hide
+        let address = app.descendants(matching: .any)["macAddress"].firstMatch
+        XCTAssertTrue(address.label.contains("hidden"), "hidden by default")
+        toggle.tap()
+        XCTAssertTrue(app.textFields["macAddress"].exists || app.textViews["macAddress"].exists, "shown as an editable field")
+        toggle.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["macAddress"].firstMatch.label.contains("hidden"))
+    }
 }

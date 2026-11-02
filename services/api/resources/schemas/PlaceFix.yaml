@@ -1,0 +1,27 @@
+type: object
+required: [room, scan_id, score, runner_up_room, runner_up_score, pose, inliers, reproj_px, hint, ms]
+properties:
+  room:
+    type: [string, "null"]
+    description: The room the photo was taken in, when one room clearly matched (it may not be the requested map's room)
+  scan_id: {type: [string, "null"], description: "The scan whose world `pose` is in"}
+  score: {type: integer, minimum: 0, description: "RANSAC inliers of the best room"}
+  runner_up_room: {type: [string, "null"]}
+  runner_up_score: {type: integer, minimum: 0}
+  pose:
+    type: [array, "null"]
+    items: {type: number}
+    minItems: 16
+    maxItems: 16
+    description: >
+      The camera's pose (ARKit camera-to-world, column-major) in the requested map's world; null unless that room
+      matched with at least 30 inliers and at most 4 px mean reprojection error. The phone applies it only when two
+      fixes in a row agree.
+  inliers: {type: integer, minimum: 0, description: "RANSAC inliers in the requested map's world"}
+  reproj_px: {type: [number, "null"], description: "Mean reprojection error of those inliers, pixels"}
+  hint:
+    type: array
+    items: {type: string}
+    maxItems: 3
+    description: What to point the phone at in that room, one-of-a-kind furniture first
+  ms: {type: integer, minimum: 0, description: "Time the Mac took"}

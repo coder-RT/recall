@@ -18,15 +18,18 @@ BODY_LIMITS: list[tuple[str, re.Pattern[str], int]] = [
     ("POST", re.compile(r"^/scans/[^/]+/results$"), 50 * MB),  # the pipeline's result
     ("POST", re.compile(r"^/guidance/sessions/[^/]+/verify$"), 25 * MB),  # one photo and its depth
     ("POST", re.compile(r"^/transcribe$"), 10 * MB),  # a spoken question
+    ("POST", re.compile(r"^/homes/[^/]+/locate$"), 4 * MB),  # one photo (and its depth) to match
     ("*", re.compile(r".*"), 1 * MB),
 ]
 
-# (method, path pattern, calls allowed per minute per key): the routes that reach a model or start the pipeline
+# (method, path pattern, calls allowed per minute per key): the routes that reach a model, start the pipeline or
+# match photos
 RATE_LIMITS: list[tuple[str, re.Pattern[str], int]] = [
     ("POST", re.compile(r"^/ask$"), 30),
     ("POST", re.compile(r"^/transcribe$"), 30),
     ("POST", re.compile(r"^/guidance/sessions/[^/]+/verify$"), 20),
     ("POST", re.compile(r"^/scans/[^/]+/complete$"), 10),
+    ("POST", re.compile(r"^/homes/[^/]+/locate$"), 90),  # no model, but CPU: the phone asks about once a second
 ]
 
 

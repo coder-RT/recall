@@ -7,7 +7,7 @@ BIND ?= 0.0.0.0
 WEB := apps/web
 REDOCLY := npx -y @redocly/cli@2.72.1
 
-.PHONY: help setup dev worker robot-export regression viewer public-scan live demo record probes diagrams pair rerun test test-all lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
+.PHONY: help setup dev worker robot-export place-index regression viewer public-scan live demo record probes diagrams pair rerun test test-all lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -29,6 +29,10 @@ ROBOT_HOME = $(or $(HOME_ID),$(if $(filter command line,$(origin HOME)),$(HOME),
 
 robot-export: ## One room's memory for a robot (Nav2 map, things, furniture): make robot-export [HOME=flat] [ROOM=...] -> exports/robot/<home>/
 	cd $(API) && uv run python -m recall_api.infra.robot_export --home "$(ROBOT_HOME)" $(if $(ROOM),--room "$(ROOM)",) --out "$(CURDIR)/exports/robot/$(ROBOT_HOME)"
+
+place-index: ## Build the photo matcher's index (ORB + LiDAR depth, no model) for every processed scan on this Mac
+	cd $(PIPE) && for e in $(CURDIR)/data/blobs/scans/*/episode; do \
+		[ -f "$$e/result.json" ] && uv run python -m recall_pipeline.adapters.place_index "$$e"; done; true
 
 regression: ## Re-run every processed scan now (no posting; cached SAM answers) and compare with the last run
 	cd $(API) && uv run python -c "from recall_api.infra import jobs, regression; print('\n'.join(regression.run(jobs.settings, jobs.run_pipeline)))"

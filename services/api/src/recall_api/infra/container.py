@@ -40,6 +40,7 @@ from recall_api.application.get_room import GetRoom
 from recall_api.application.get_scan import GetScan
 from recall_api.application.ingest_scan import IngestScan
 from recall_api.application.list_things import ListThings
+from recall_api.application.locate_by_photo import LocateByPhoto
 from recall_api.application.mark_scan_failed import MarkScanFailed
 from recall_api.application.plan_compass_route import PlanCompassRoute
 from recall_api.application.plan_guidance import PlanGuidance
@@ -149,6 +150,12 @@ class Container:
     @cached_property
     def guidance(self) -> PlanGuidance:
         return PlanGuidance(self.homes, self.scans, self.objects, self.blobs, new_id, trust=self.trust)
+
+    @cached_property
+    def locate_by_photo(self) -> LocateByPhoto:
+        from recall_api.adapters.outbound.vision.orb_place_matcher import OrbPlaceMatcher
+
+        return LocateByPhoto(self.homes, self.scans, OrbPlaceMatcher(self.blobs))
 
     @cached_property
     def ar_labels(self) -> ArLabelsInRoom:

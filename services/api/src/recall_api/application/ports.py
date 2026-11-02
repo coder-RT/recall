@@ -191,3 +191,34 @@ class PromptScreener(Protocol):
     """A Meta model (Muse Spark Open or Glimmer) checks an object name from outside before any tool runs."""
 
     def screen(self, text: str) -> Screening: ...
+
+
+@dataclass(frozen=True)
+class PlaceQuery:
+    """One photo from the phone, for the photo matcher: the JPEG and its camera intrinsics (pixels of that JPEG)."""
+
+    jpeg: bytes
+    fx: float
+    fy: float
+    cx: float
+    cy: float
+
+
+@dataclass(frozen=True)
+class PlaceMatch:
+    """How one scan matched the photo: RANSAC inliers (the score) and, when the pose solved, the camera's pose in
+    that scan's ARKit world (camera-to-world, column-major) with its mean reprojection error in pixels."""
+
+    scan_id: str
+    inliers: int
+    pose: tuple[float, ...] | None
+    reproj_px: float | None
+    keyframe: int | None
+
+
+class PlaceMatcher(Protocol):
+    """Classic photo matching (features + PnP, no model) against the scans' place indexes."""
+
+    def match(self, query: PlaceQuery, candidates: dict[str, str], budget_s: float = 0.4) -> list[PlaceMatch]:
+        """`candidates`: scan id -> blob key of its place index. Best first; scans without an index are left out."""
+        ...

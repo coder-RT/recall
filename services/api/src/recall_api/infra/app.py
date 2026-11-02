@@ -43,6 +43,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     recall_logging.configure(settings.log_dir, settings.log_level)
     app = FastAPI(title="Recall API", version="0.1.0")
     app.state.container = Container(settings)
+    _ = app.state.container.engine  # open and migrate the database now, before requests can race to do it
     for r in (
         health.router,
         scans.router,

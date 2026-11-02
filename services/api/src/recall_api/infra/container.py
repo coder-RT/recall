@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import threading
 from dataclasses import dataclass
 from functools import cached_property
 from zoneinfo import ZoneInfo
@@ -63,9 +64,14 @@ class Container:
 
     @cached_property
     def engine(self):
-        engine = make_engine(self.settings.db_url)
-        migrate(self.settings.db_url)
-        return engine
+        # cached_property no longer locks (Python 3.12), and Alembic can't run twice at once: when the phone opens and
+        # sends several requests together, only one thread may open the database and migrate it
+        with _ENGINE_LOCK:
+            if "_engine" not in self.__dict__:
+                engine = make_engine(self.settings.db_url)
+                migrate(self.settings.db_url)
+                self.__dict__["_engine"] = engine
+            return self.__dict__["_engine"]
 
     @cached_property
     def blobs(self):
@@ -251,6 +257,9 @@ class Container:
         if key is None:
             raise RuntimeError("META_MUSE_API_KEY is not set")
         return MuseTranscriber(key.get_secret_value())
+
+
+_ENGINE_LOCK = threading.Lock()
 
 
 class AlwaysAlive:

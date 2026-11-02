@@ -73,7 +73,7 @@ class VerifyArrival:
         last = obj.where() if obj else None
         if last is None:
             raise GuidanceError("object_not_seen", "That object isn't in memory.")
-        T, _ = self.guidance._transform(session.home_id)
+        T, _ = self.guidance._transform(session.home_id, session.scan_id)
         name = obj.corrections.name or " ".join(x for x in (obj.display_color(), obj.label) if x)
         verb = "are" if is_plural(name) else "is"
         remembered = np.array(last.position.as_tuple())

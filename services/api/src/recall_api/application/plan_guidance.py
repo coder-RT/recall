@@ -10,6 +10,7 @@ import numpy as np
 from recall_api.application import scan_geometry
 from recall_api.application.ports import BlobStore
 from recall_api.application.trust import TrustPolicy
+from recall_api.domain.assistant import is_plural
 from recall_api.domain.memory import Scan
 from recall_api.domain.navigation import FloorGrid, NavConfig, NoSafePath, bearing, plan, simplify, to_clock_steps
 from recall_api.domain.ports import HomeRepository, ScanRepository, TrackedObjectRepository
@@ -30,6 +31,7 @@ class Session:
     position: np.ndarray  # home frame
     heading: np.ndarray  # unit (x, y), home frame
     tracking: str
+    scan_id: str | None = None  # the scan whose frame this session's positions are in
 
 
 def _bearing(room, x: float, y: float) -> float | None:
@@ -59,37 +61,41 @@ class PlanGuidance:
         self.sessions: dict[str, Session] = {}
         self._grids: dict[str, tuple[str, FloorGrid]] = {}
 
-    def _transform(self, home_id: str) -> tuple[np.ndarray, Scan]:
+    def _transform(self, home_id: str, scan_id: str | None = None) -> tuple[np.ndarray, Scan]:
+        """The frame to guide in: the scan the thing was last seen in, so the thing's position, the floor grid and the
+        phone's position (it relocalises in the newest scan's room map) are all in one frame. A rescan that started
+        memory afresh has a frame of its own; the home's first scan is only the fallback."""
         home = self.homes.get(home_id)
         if home is None or home.first_scan_id is None:
             raise GuidanceError("no_scan", "This home has no processed scan yet.")
-        scan = self.scans.get(home.first_scan_id)
+        seen = self.scans.get(scan_id) if scan_id else None
+        scan = seen if seen is not None and seen.transform_to_home else self.scans.get(home.first_scan_id)
         if scan is None or not scan.transform_to_home:
             raise GuidanceError("no_transform", "The scan has no frame alignment yet.")
         return np.array(scan.transform_to_home, dtype=float).reshape(4, 4), scan
 
     def _grid(self, home_id: str, scan: Scan) -> FloorGrid:
-        cached = self._grids.get(home_id)
-        if cached and cached[0] == scan.id:
+        cached = self._grids.get(scan.id)
+        if cached:
             return cached[1]
         cloud = scan_geometry.cloud(self.blobs, scan)
         if cloud is None:
             raise GuidanceError("no_cloud", "The scan's point cloud is missing; process the scan again.")
         grid = FloorGrid.from_points(cloud, self.cfg, walked=scan_geometry.walked(self.blobs, scan))
-        self._grids[home_id] = (scan.id, grid)
+        self._grids[scan.id] = (scan.id, grid)
         return grid
 
     def start(self, home_id: str, object_id: str, pose_column_major: list[float], tracking: str) -> dict[str, Any]:
-        T, scan = self._transform(home_id)
-        M = np.array(pose_column_major, dtype=float).reshape(4, 4).T  # ARKit cam-to-world
-        pos = (T @ np.append(M[:3, 3], 1.0))[:3]
-        fwd = T[:3, :3] @ (-M[:3, 2])  # the camera looks along −Z
-        heading = fwd[:2] / (np.linalg.norm(fwd[:2]) or 1.0)
         obj = self.objects.get(object_id)
         last = obj.where(self.trust.level) if obj else None
         if last is None:
             raise GuidanceError("object_not_seen", "That object isn't in memory.")
-        session = Session(self.new_id("gs"), home_id, object_id, pos, heading, tracking)
+        T, scan = self._transform(home_id, last.scan_id)
+        M = np.array(pose_column_major, dtype=float).reshape(4, 4).T  # ARKit cam-to-world
+        pos = (T @ np.append(M[:3, 3], 1.0))[:3]
+        fwd = T[:3, :3] @ (-M[:3, 2])  # the camera looks along −Z
+        heading = fwd[:2] / (np.linalg.norm(fwd[:2]) or 1.0)
+        session = Session(self.new_id("gs"), home_id, object_id, pos, heading, tracking, scan.id)
         self.sessions[session.id] = session
         home = self.homes.get(home_id)
         rel = relate(last.position, home.landmarks)
@@ -100,6 +106,7 @@ class PlanGuidance:
             if rel.landmark
             else "in the room"
         )
+        verb = "are" if is_plural(obj.label) else "is"
         arrive = f"Your {obj.label} should be in front of you, {where}, at {rel.band.value} height."
         # where to draw the arrow in the phone's camera view, and the compass bearing for landmark directions
         target = (np.linalg.inv(T) @ np.array([last.position.x, last.position.y, last.position.z, 1.0]))[:3]
@@ -123,7 +130,7 @@ class PlanGuidance:
                 **base,
                 "mode": "landmarks",
                 "reason": "tracking is limited, so only landmark directions",
-                "steps": [{"clock": 12, "metres": 0, "say": f"Your {obj.label} is {where}."}],
+                "steps": [{"clock": 12, "metres": 0, "say": f"Your {obj.label} {verb} {where}."}],
                 "path": [],
                 "path_arkit": [],
             }
@@ -135,7 +142,7 @@ class PlanGuidance:
                 "mode": "landmarks",
                 "reason": str(e),
                 "steps": [
-                    {"clock": 12, "metres": 0, "say": f"I can't find a clear path. Your {obj.label} is {where}."}
+                    {"clock": 12, "metres": 0, "say": f"I can't find a clear path. Your {obj.label} {verb} {where}."}
                 ],
                 "path": [],
                 "path_arkit": [],
@@ -166,7 +173,7 @@ class PlanGuidance:
         s = self.sessions.get(session_id)
         if s is None:
             return {"result": "unknown_session"}
-        T, _ = self._transform(s.home_id)
+        T, _ = self._transform(s.home_id, s.scan_id)
         M = np.eye(4)
         M[:3, 3] = (np.linalg.inv(T) @ np.append(s.position, 1.0))[:3]
         M[:3, 2] = -(np.linalg.inv(T)[:3, :3] @ np.append(s.heading, 0.0))

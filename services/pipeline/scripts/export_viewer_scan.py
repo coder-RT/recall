@@ -4,6 +4,9 @@ Input: an episode folder the pipeline has processed (home_cloud.npy, home_colors
 manifest.json). Output, in the home frame (floor z = 0, z up, metres) shifted so the room is centred on x/y:
 points.bin (float32 xyz), colors.bin (uint8 rgb), conf.bin (uint8, rank within the room), and meta.json with
 bounds, horizontal surfaces, the room model (floor outline, walls, furniture), the objects and the run's stats.
+A wall RANSAC found twice (its face and a parallel plane in front of it) is exported once. With the Architect view on,
+each furniture box is fitted in the room's own frame and clipped to the room: `centre`, `size` and `yaw` (about z), so
+the viewer draws it square to the walls and inside them; `min`/`max` stay as its world bounds.
 With --mesh (default on) it also writes the room as a coloured surface: Poisson reconstruction over the measured
 points (Open3D, classic geometry; nothing is generated), trimmed to where the scan had points: mesh_pos.bin
 (float32 xyz), mesh_col.bin (uint8 rgb), mesh_idx.bin (uint32 triangles).
@@ -23,6 +26,8 @@ from pathlib import Path
 import numpy as np
 from export_room_views import architect_view, photo_view
 from export_viewer_points import find_surfaces, voxel_downsample
+
+from recall_pipeline.domain.room_model import merge_walls
 
 
 def height_colours(z: np.ndarray) -> np.ndarray:
@@ -127,9 +132,13 @@ def main() -> None:
         "room": {
             "name": room_name,
             "floor": [_xy(p, shift) for p in room["floor_polygon"]],
+            # merged again here so scans processed before merge_walls existed export one sheet per wall too
             "walls": [
-                {"start": _xy(w["start"], shift), "end": _xy(w["end"], shift), "height_m": round(w["height_m"], 2)}
-                for w in room["walls"]
+                {"start": _xy(a, shift), "end": _xy(b, shift), "height_m": round(h, 2)}
+                for a, b, h in merge_walls(
+                    [(w["start"], w["end"], w["height_m"]) for w in room["walls"]],
+                    tuple(np.mean(room["floor_polygon"], axis=0)),
+                )
             ],
             "height_m": round(room["height_m"], 2),
             "north_deg": room.get("north_deg"),

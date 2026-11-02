@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import numpy as np
@@ -46,8 +47,64 @@ def footprint(points: np.ndarray) -> tuple[list[tuple[float, float]], float]:
     return [(float(x), float(y)) for x, y in coords], float(np.percentile(points[:, 2], 98))
 
 
+Segment = tuple[tuple[float, float], tuple[float, float], float]
+
+WALL_MERGE_ANGLE_DEG = 10.0  # two planes this close in direction …
+WALL_MERGE_GAP_M = 0.35  # … and this close together are one wall seen twice (its face and a cabinet front, a curtain)
+
+
+def merge_walls(
+    segs: list[Segment],
+    centre: tuple[float, float],
+    max_angle_deg: float = WALL_MERGE_ANGLE_DEG,
+    max_gap: float = WALL_MERGE_GAP_M,
+) -> list[Segment]:
+    """One segment per real wall. RANSAC often finds a wall twice: its face and a parallel plane a few centimetres in
+    front of it (furniture backs, a curtain, a radiator). Near-parallel segments whose lines are within `max_gap` of
+    each other and whose spans overlap become one wall: it keeps the line of the outer segment (farther from `centre`,
+    the room's middle, since the room is inside its walls), spans both, and takes the larger height."""
+    c = np.asarray(centre, dtype=float)
+    out = [(np.asarray(a, float), np.asarray(b, float), h) for a, b, h in segs]
+    out.sort(key=lambda s: -float(np.linalg.norm(s[1] - s[0])))
+    cos_max = math.cos(math.radians(max_angle_deg))
+
+    def line(s):  # unit direction and the signed distance of the centre from the line
+        u = (s[1] - s[0]) / (np.linalg.norm(s[1] - s[0]) or 1.0)
+        n = np.array([-u[1], u[0]])
+        return u, n, float((c - s[0]) @ n)
+
+    merged = True
+    while merged:
+        merged = False
+        for i in range(len(out)):
+            for j in range(i + 1, len(out)):
+                ui, ni, _ = line(out[i])
+                uj, _, _ = line(out[j])
+                if abs(float(ui @ uj)) < cos_max:
+                    continue
+                mid_j = (out[j][0] + out[j][1]) / 2
+                if abs(float((mid_j - out[i][0]) @ ni)) > max_gap:
+                    continue
+                si = sorted(float((p - out[i][0]) @ ui) for p in out[i][:2])
+                sj = sorted(float((p - out[i][0]) @ ui) for p in out[j][:2])
+                if min(si[1], sj[1]) - max(si[0], sj[0]) < 0:
+                    continue  # side by side along one line (two walls of a corridor), not the same wall twice
+                outer, inner = sorted((out[i], out[j]), key=lambda s: -abs(line(s)[2]))
+                u = line(outer)[0]
+                ts = [float((p - outer[0]) @ u) for p in (*outer[:2], *inner[:2])]
+                a, b = outer[0] + u * min(ts), outer[0] + u * max(ts)
+                out[i] = (a, b, max(outer[2], inner[2]))
+                del out[j]
+                merged = True
+                break
+            if merged:
+                break
+    return [((float(a[0]), float(a[1])), (float(b[0]), float(b[1])), h) for a, b, h in out]
+
+
 def room_json(floor: Polygon, walls: list[WallPlane], furniture: list[tuple[str, np.ndarray]]) -> dict:
-    segs = [wall_segment(w) for w in walls]
+    middle = floor.centroid
+    segs = merge_walls([wall_segment(w) for w in walls], (middle.x, middle.y))
     outline = [(float(x), float(y)) for x, y in floor.exterior.coords][:-1]
     if Polygon(outline).exterior.is_ccw is False:
         outline.reverse()

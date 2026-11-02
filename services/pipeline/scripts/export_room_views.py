@@ -98,6 +98,20 @@ def _place(at: np.ndarray, furniture: list[drawings.Furnishing]) -> str:
     return f"{'on' if on else 'near'} the {near.label}, {band}"
 
 
+def oriented_box(lo: np.ndarray, hi: np.ndarray, theta: float) -> dict:
+    """A plan-frame box as the viewer draws it in the home frame: centre, size and yaw (about z), plus the world bounds
+    of the turned box (min/max) for framing the camera."""
+    corners = arch.rotate(np.array([[lo[0], lo[1]], [hi[0], lo[1]], [hi[0], hi[1]], [lo[0], hi[1]]]), theta)
+    centre = np.r_[arch.rotate(np.array([(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2]), theta), (lo[2] + hi[2]) / 2]
+    return {
+        "centre": np.round(centre, 3).tolist(),
+        "size": np.round(hi - lo, 3).tolist(),
+        "yaw": round(theta, 5),
+        "min": np.round(np.r_[corners.min(0), lo[2]], 3).tolist(),
+        "max": np.round(np.r_[corners.max(0), hi[2]], 3).tolist(),
+    }
+
+
 def architect_view(
     ep: Path, out: Path, result: dict, meta: dict, points: np.ndarray, colors: np.ndarray, room_name: str
 ) -> tuple[dict, list[dict]]:
@@ -124,8 +138,10 @@ def architect_view(
             arch.place_door(walls, np.r_[corners.min(0), lo_h[2]], np.r_[corners.max(0), hi_h[2]])
             continue
         inside = np.all((points >= lo_h) & (points <= hi_h), axis=1)
-        fit = arch.fit_box(pts_plan[inside], lo_h[2], hi_h[2])
+        fit = arch.furniture_box(pts_plan[inside], lo_h[2], hi_h[2], plan)
         lo, hi = fit if fit else (np.r_[corners.min(0), lo_h[2]], np.r_[corners.max(0), hi_h[2]])
+        if fit:  # the viewer's boxes: the same fit, turned with the room, so they stand inside its walls
+            f.update(oriented_box(lo, hi, theta))
         parts = arch.furniture_parts(f["label"], lo, hi, centre)
         colour = arch.hex_colour(colors[inside], "#b9a58a")
         furniture_json.append(

@@ -146,3 +146,23 @@ def test_furniture_measured_above_the_floor_stands_on_it_and_a_tv_stays_on_the_w
     assert min(p.centre[2] - p.size[2] / 2 for p in shelf) >= 1.39
     low = arch.furniture_parts("chair", np.array([0.0, 0.0, 0.0]), np.array([0.5, 0.5, 0.08]), np.array([0.2, 2.0]))
     assert min(p.centre[2] - p.size[2] / 2 for p in low) >= -1e-3
+
+
+def test_a_desk_against_a_wall_in_a_rotated_room_stays_inside_the_room():
+    # the room is turned 35°; the desk (1.2 x 0.6 m) stands against the y = 4 wall, whose points sit right behind it
+    rng = np.random.default_rng(3)
+    theta = math.radians(35)
+    plan = Polygon([(0, 0), (5, 0), (5, 4), (0, 4)])
+    desk = np.c_[rng.uniform(1.0, 2.2, 800), rng.uniform(3.4, 3.98, 800), rng.uniform(0.0, 0.76, 800)]
+    wall = np.c_[rng.uniform(0.0, 5.0, 3000), rng.normal(4.0, 0.02, 3000), rng.uniform(0.0, 2.5, 3000)]
+    pts_home = np.vstack([desk, wall])
+    pts_home[:, :2] = arch.rotate(pts_home[:, :2], theta)
+    # what the exporter feeds it: every point inside the desk's world-axis box (which cuts deep into the wall)
+    desk_home = np.c_[arch.rotate(desk[:, :2], theta), desk[:, 2]]
+    lo_w, hi_w = desk_home.min(0), desk_home.max(0)
+    near = pts_home[np.all((pts_home >= lo_w) & (pts_home <= hi_w), axis=1)]
+    pts_plan = np.c_[arch.rotate(near[:, :2], -theta), near[:, 2]]
+    assert pts_plan[:, 1].max() > 4.0  # the world box really did pull in wall points
+    lo, hi = arch.furniture_box(pts_plan, 0.0, 0.76, plan)
+    assert hi[1] <= 4.0 - 0.03 + 1e-6 and lo[1] > 3.3  # inside the wall, and not stretched by it
+    assert 1.0 <= lo[0] < 1.1 and 2.1 < hi[0] <= 2.2  # no wider than the desk's own points

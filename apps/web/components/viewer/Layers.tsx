@@ -100,8 +100,30 @@ export interface RoomShape {
 
 export interface FurnitureBox {
   label: string;
+  /** world bounds (of the turned box, when it is turned) */
   min: number[];
   max: number[];
+  /** newer exports: the box fitted in the room's own frame, so it sits square to the walls and inside them */
+  centre?: number[];
+  size?: number[];
+  /** radians about z */
+  yaw?: number;
+}
+
+export interface Placement {
+  centre: number[];
+  size: number[];
+  yaw: number;
+}
+
+/** Where a furniture box goes: turned with the walls when the export says so, else axis-aligned from min/max. */
+export function placement(f: FurnitureBox): Placement {
+  if (f.centre && f.size) return { centre: f.centre, size: f.size, yaw: f.yaw ?? 0 };
+  return {
+    centre: [0, 1, 2].map((k) => (f.min[k] + f.max[k]) / 2),
+    size: [0, 1, 2].map((k) => f.max[k] - f.min[k]),
+    yaw: 0,
+  };
 }
 
 export interface Thing {
@@ -164,17 +186,17 @@ export function Furniture({ items, tokens }: { items: FurnitureBox[]; tokens: To
   return (
     <>
       {items.map((f, i) => (
-        <BoxOutline key={i} min={f.min} max={f.max} colour={tokens.muted} />
+        <BoxOutline key={i} at={placement(f)} colour={tokens.muted} />
       ))}
     </>
   );
 }
 
-function BoxOutline({ min, max, colour }: { min: number[]; max: number[]; colour: string }) {
-  const size = [max[0] - min[0], max[1] - min[1], max[2] - min[2]];
-  const edges = useMemo(() => new EdgesGeometry(new BoxGeometry(size[0], size[1], size[2])), [size[0], size[1], size[2]]); // eslint-disable-line react-hooks/exhaustive-deps
+function BoxOutline({ at, colour }: { at: Placement; colour: string }) {
+  const [sx, sy, sz] = at.size;
+  const edges = useMemo(() => new EdgesGeometry(new BoxGeometry(sx, sy, sz)), [sx, sy, sz]);
   return (
-    <lineSegments geometry={edges} position={[min[0] + size[0] / 2, min[1] + size[1] / 2, min[2] + size[2] / 2]}>
+    <lineSegments geometry={edges} position={at.centre as [number, number, number]} rotation={[0, 0, at.yaw]}>
       <lineBasicMaterial color={colour} />
     </lineSegments>
   );

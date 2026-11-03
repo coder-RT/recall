@@ -160,12 +160,20 @@ This step:
 make demo
 ```
 
-This starts two things: Recall's API on a memory built from a recorded real scan, and the website.
+This starts two things: Recall's API on a memory built from a recorded real scan, and the website. It says what
+each step is doing, and the servers' own output goes to `data/demo/api.log` and `data/demo/web.log`.
 
-**Check:** it prints "Recall demo: Recorded output of a real run…", a list of questions to try,
-`Uvicorn running on http://127.0.0.1:8000`, and the website's `Ready`.
-**If it says "No website here":** `make setup` didn't install the web app (it needs Node 22 and pnpm). The API still
+**Check:** four numbered steps, each ending in ✓ or `ready`, then:
+
+```
+Ready. Open  http://localhost:3000/demo   ← ask, then walk
+```
+
+While it runs, each question the API answers adds a line such as `→ asked “Where are my keys?” · answered from the
+recording`. `Ctrl+C` stops both servers.
+**If step 1 says website ✗:** `make setup` didn't install the web app (it needs Node 22 and pnpm). The API still
 runs; the same demo page is online at [recall-ten-khaki.vercel.app/demo](https://recall-ten-khaki.vercel.app/demo).
+**If a step ends in ✗:** the message shows the last lines of that server's log and where the whole log is.
 
 ### B4. Open the demo page
 
@@ -360,7 +368,7 @@ Each run's logs go to `data/test-runs/<time>/`, which git ignores. To run only s
 | `make: uv: No such file or directory` | Open a new terminal after B1 |
 | `pnpm: command not found` | `corepack enable` (A1) |
 | Port 8000 in use | `lsof -i :8000` to find what's using it, or `make demo PORT=8001` |
-| Port 3000 in use, or "another next dev server is running" | Another copy of the website is running: stop it, or open its `/demo` page |
+| Port 3000 in use, or "another next dev server is running" | Another copy of the website is running: stop it, open its `/demo` page, or `make demo WEB_PORT=3001` |
 | The phone can't reach the Mac | Same Wi-Fi (or both on Tailscale), the Mac's firewall allows incoming connections for Python, and the address uses the Mac's IP or Tailscale name, not `localhost` |
 | Xcode: "Validate plug-in OpenAPIGenerator" | Choose Trust & Enable (C4). From the command line, add `-skipPackagePluginValidation` |
 | The first scan is slow | MapAnything's weights download once (C2); later scans take about 2 minutes |

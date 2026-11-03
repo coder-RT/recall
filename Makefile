@@ -59,13 +59,8 @@ viewer: ## Export a home's newest processed scan for /homes/<home>/viewer: make 
 live: ## The API with real Meta model calls (keys from .env), and the scan worker
 	( cd $(API) && RECALL_BIND_HOST=$(BIND) uv run recall-api ) & $(MAKE) worker ; wait
 
-demo: ## Judges, start here. No keys: Recall's API on a recorded real scan and the website's demo page (localhost:3000/demo), labelled recorded
-	@if command -v pnpm >/dev/null 2>&1 && [ -d $(WEB)/node_modules ]; then \
-		( cd $(API) && uv run python -m recall_api.infra.demo serve $(if $(PORT),--port $(PORT)) ) & ( cd $(WEB) && PORT=3000 pnpm dev ) ; wait; \
-	else \
-		echo "No website here (run make setup for it): the API only. The same demo page is online at https://recall-ten-khaki.vercel.app/demo"; \
-		cd $(API) && uv run python -m recall_api.infra.demo serve $(if $(PORT),--port $(PORT)); \
-	fi
+demo: ## Judges, start here. No keys: Recall's API on a recorded real scan and the website's demo page (localhost:3000/demo), told step by step
+	@python3 scripts/demo.py $(if $(PORT),--port $(PORT)) $(if $(WEB_PORT),--web-port $(WEB_PORT))
 
 demo-walks: ## Rebuild the demo page's walks (public/real-scan/flat/walks.json) from samples/replay/ with Recall's own code; no keys
 	cd $(API) && uv run python -m recall_api.infra.demo walks --viewer "$(CURDIR)/$(WEB)/public/real-scan/flat/meta.json" --out "$(CURDIR)/$(WEB)/public/real-scan/flat/walks.json"

@@ -701,7 +701,7 @@ Watch app all run.
 ### 3. Backend, pipeline and demo
 
 - `make setup`: Python 3.12 with uv, both services, the web app.
-- `make demo` (**judges: start here**): no keys, no GPU.
+- `make demo` (**judges: start here**): no keys, no GPU. It says each step as it goes (tools, the recorded scan, the API, the website), then prints **Ready** with the page to open; the servers' own output goes to `data/demo/`, and `Ctrl+C` stops both.
   - It builds a memory from a recorded real scan through the real ingest code. The scan is `samples/replay/`: the room model, labels, a thinned point cloud and the path walked, with no photos.
   - It serves the API on `localhost:8000` with Muse Spark Open's recorded replies. Every answer is labelled `replay:muse-spark-open (recorded)`, and the command prints questions to try.
   - It starts the website, with the demo page at `localhost:3000/demo`: pick a question, read or hear the answer, and GSAP plays the walk. Each clock-face step comes in as the route draws on the floor of the 3D room. The same page is online at [recall-ten-khaki.vercel.app/demo](https://recall-ten-khaki.vercel.app/demo).

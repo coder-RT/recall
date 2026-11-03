@@ -1,0 +1,293 @@
+{
+ "label": "Recorded output of a real run on 2026-11-03: one living-room scan from an iPhone 16 Pro, processed by MapAnything and SAM 3.1, and Muse Spark Open's replies to the questions below.",
+ "recorded_at": "2026-11-03T01:47:26+00:00",
+ "captured_at": "2026-11-01T18:11:32+00:00",
+ "room": "Living room",
+ "frame": "the viewer's: home frame (floor z = 0, z up, metres), x/y centred on the room as in meta.json",
+ "walks": [
+  {
+   "question": "Where are my keys?",
+   "answer": "Your brown keys are near the desk in the living room at knee height, seen on Sunday at 19:11.",
+   "grounded": true,
+   "model": "replay:muse-spark-open (recorded)",
+   "label": "keys",
+   "target": [
+    1.28,
+    1.835,
+    0.658
+   ],
+   "mode": "route",
+   "steps": [
+    {
+     "clock": 11,
+     "metres": 1.1,
+     "say": "Turn to 11 o'clock, then about 1.1 metres."
+    },
+    {
+     "clock": 1,
+     "metres": 0.6,
+     "say": "Turn to 1 o'clock, then about 60 centimetres."
+    },
+    {
+     "clock": 11,
+     "metres": 0.9,
+     "say": "Turn to 11 o'clock, then about 90 centimetres."
+    },
+    {
+     "clock": 1,
+     "metres": 0.9,
+     "say": "Turn to 1 o'clock, then about 90 centimetres."
+    }
+   ],
+   "arrive": "Your keys should be in front of you, near the desk, at knee height.",
+   "path": [
+    [
+     1.261,
+     -1.467
+    ],
+    [
+     0.861,
+     -0.467
+    ],
+    [
+     1.061,
+     0.133
+    ],
+    [
+     0.961,
+     1.033
+    ],
+    [
+     1.261,
+     1.833
+    ]
+   ]
+  },
+  {
+   "question": "Where did I leave my glasses?",
+   "answer": "Your glasses were near the desk in the Living room at knee height, seen on Sunday at 19:11.",
+   "grounded": true,
+   "model": "replay:muse-spark-open (recorded)",
+   "label": "glasses",
+   "target": [
+    0.548,
+    2.563,
+    0.651
+   ],
+   "mode": "route",
+   "steps": [
+    {
+     "clock": 11,
+     "metres": 1.1,
+     "say": "Turn to 11 o'clock, then about 1.1 metres."
+    },
+    {
+     "clock": 1,
+     "metres": 0.6,
+     "say": "Turn to 1 o'clock, then about 60 centimetres."
+    },
+    {
+     "clock": 11,
+     "metres": 1.2,
+     "say": "Turn to 11 o'clock, then about 1.2 metres."
+    },
+    {
+     "clock": 11,
+     "metres": 1.1,
+     "say": "Turn to 11 o'clock, then about 1.1 metres."
+    }
+   ],
+   "arrive": "Your glasses should be in front of you, near the desk, at knee height.",
+   "path": [
+    [
+     1.261,
+     -1.467
+    ],
+    [
+     0.861,
+     -0.467
+    ],
+    [
+     1.061,
+     0.133
+    ],
+    [
+     0.961,
+     1.333
+    ],
+    [
+     0.161,
+     2.133
+    ]
+   ]
+  },
+  {
+   "question": "Where is my laptop?",
+   "answer": "I found two laptops in the living room on Sunday at 19:11, a grey one near the table at waist height and a black one near the desk at waist height. Which one are you looking for?",
+   "grounded": true,
+   "model": "replay:muse-spark-open (recorded)",
+   "asks_which": true
+  },
+  {
+   "question": "Where is my wallet?",
+   "answer": "Your wallet is near the desk in the living room at knee height, seen on Sunday at 19:11.",
+   "grounded": true,
+   "model": "replay:muse-spark-open (recorded)",
+   "label": "wallet",
+   "target": [
+    0.643,
+    2.253,
+    0.664
+   ],
+   "mode": "route",
+   "steps": [
+    {
+     "clock": 11,
+     "metres": 1.1,
+     "say": "Turn to 11 o'clock, then about 1.1 metres."
+    },
+    {
+     "clock": 1,
+     "metres": 1.2,
+     "say": "Turn to 1 o'clock, then about 1.2 metres."
+    },
+    {
+     "clock": 11,
+     "metres": 0.6,
+     "say": "Turn to 11 o'clock, then about 60 centimetres."
+    },
+    {
+     "clock": 11,
+     "metres": 0.4,
+     "say": "Turn to 11 o'clock, then about 40 centimetres."
+    },
+    {
+     "clock": 2,
+     "metres": 0.4,
+     "say": "Turn to 2 o'clock, then about 40 centimetres."
+    }
+   ],
+   "arrive": "Your wallet should be in front of you, near the desk, at knee height.",
+   "path": [
+    [
+     1.261,
+     -1.467
+    ],
+    [
+     0.861,
+     -0.467
+    ],
+    [
+     1.061,
+     0.733
+    ],
+    [
+     0.961,
+     1.333
+    ],
+    [
+     0.661,
+     1.633
+    ],
+    [
+     0.761,
+     2.033
+    ]
+   ]
+  },
+  {
+   "question": "Where is the remote?",
+   "answer": "I found two remotes in the Living room seen on Sunday at 19:11, a grey one near the table at waist height and a white one on the desk at waist height, which one did you mean?",
+   "grounded": true,
+   "model": "replay:muse-spark-open (recorded)",
+   "asks_which": true
+  },
+  {
+   "question": "Where is my bag?",
+   "answer": "Your grey bag is near the chair in the living room at waist height, seen on Sunday at 19:11.",
+   "grounded": true,
+   "model": "replay:muse-spark-open (recorded)",
+   "label": "bag",
+   "target": [
+    -1.848,
+    2.577,
+    0.975
+   ],
+   "mode": "route",
+   "steps": [
+    {
+     "clock": 11,
+     "metres": 1.1,
+     "say": "Turn to 11 o'clock, then about 1.1 metres."
+    },
+    {
+     "clock": 1,
+     "metres": 0.6,
+     "say": "Turn to 1 o'clock, then about 60 centimetres."
+    },
+    {
+     "clock": 11,
+     "metres": 1.2,
+     "say": "Turn to 11 o'clock, then about 1.2 metres."
+    },
+    {
+     "clock": 11,
+     "metres": 1.6,
+     "say": "Turn to 11 o'clock, then about 1.6 metres."
+    },
+    {
+     "clock": 10,
+     "metres": 1.3,
+     "say": "Turn to 10 o'clock, then about 1.3 metres."
+    }
+   ],
+   "arrive": "Your bag should be in front of you, near the chair, at waist height.",
+   "path": [
+    [
+     1.261,
+     -1.467
+    ],
+    [
+     0.861,
+     -0.467
+    ],
+    [
+     1.061,
+     0.133
+    ],
+    [
+     0.961,
+     1.333
+    ],
+    [
+     -0.139,
+     2.433
+    ],
+    [
+     -1.339,
+     2.033
+    ]
+   ]
+  },
+  {
+   "question": "Have you seen a bottle?",
+   "answer": "I saw a grey bottle on the cabinet on shelf 1 at waist height seen on Sunday at 19:11, and two more grey bottles near the desk at waist height seen on Sunday at 19:11. Let me know which one you need and I can guide you to it.",
+   "grounded": true,
+   "model": "replay:muse-spark-open (recorded)",
+   "asks_which": true
+  },
+  {
+   "question": "Where's my book?",
+   "answer": "Your book was seen near the table at waist height in the Living room, and two others near the chair at knee height and the sofa at waist height, all seen on Sunday at 19:11 \u2014 can you describe which book you mean by colour or name?",
+   "grounded": true,
+   "model": "replay:muse-spark-open (recorded)",
+   "asks_which": true
+  },
+  {
+   "question": "Where is my umbrella?",
+   "answer": "I haven't seen that yet. Scan the room it might be in, and I'll remember it.",
+   "grounded": true,
+   "model": "replay:muse-spark-open (recorded)"
+  }
+ ]
+}

@@ -2,6 +2,7 @@
 
 import json
 
+import numpy as np
 import pytest
 
 from recall_api.adapters.outbound.replay.recorded_llm import NotRecorded, RecordedLlm
@@ -34,3 +35,52 @@ def test_the_sample_holds_geometry_and_labels_only():
     raw = {"scan_id": "x", "stats": {"path": "/Users/x"}, "room": {}, "landmarks": [], "transform_to_home": None,
            "objects": [{"label": "keys", "keyframe_index": 3, "note": "mine", "centroid": [0, 0, 0]}]}  # fmt: skip
     assert sanitise(raw)["objects"] == [{"label": "keys", "centroid": [0, 0, 0]}]
+
+
+def test_the_sample_geometry_is_positions_only():
+    from recall_api.infra.demo import thin_cloud, walk_poses
+
+    for line in (SAMPLE / "poses.jsonl").read_text().splitlines():
+        assert set(json.loads(line)) == {"pose"}  # no times, compass readings or tracking notes
+    cloud = np.load(SAMPLE / "home_cloud.npy")
+    assert cloud.ndim == 2 and cloud.shape[1] == 3  # x, y, z only: no colours
+    assert len(thin_cloud(np.array([[0, 0, 0], [0.01, 0.01, 0.01], [1, 1, 1]]))) == 2
+    raw = '{"t": 1, "heading": {"magnetic_deg": 3}, "pose": [1, 0]}\nnot json\n'
+    assert walk_poses(raw) == '{"pose": [1.0, 0.0]}\n'
+
+
+def test_the_demo_routes_each_answer_from_where_the_scan_began(tmp_path):
+    from recall_api.infra.demo import walks
+
+    result = json.loads((SAMPLE / "scan-result.json").read_text())
+    shift = (1.0, -2.0)  # a viewer export centred elsewhere
+    viewer = [{"label": o["label"], "at": [o["centroid"][0] - shift[0], o["centroid"][1] - shift[1], 0]}
+              for o in result["objects"]]  # fmt: skip
+    (tmp_path / "meta.json").write_text(json.dumps({"objects": viewer}))
+    out = walks(SAMPLE, tmp_path / "meta.json")
+    keys = next(w for w in out["walks"] if w["question"] == "Where are my keys?")
+    assert keys["mode"] == "route" and keys["steps"] and keys["label"] == "keys"
+    assert all(set(s) == {"clock", "metres", "say"} for s in keys["steps"])
+    # the route ends at the keys, in the viewer's frame
+    assert np.hypot(keys["path"][-1][0] - keys["target"][0], keys["path"][-1][1] - keys["target"][1]) < 0.8
+    unseen = next(w for w in out["walks"] if "umbrella" in w["question"])
+    assert "path" not in unseen  # nothing to walk to: the answer alone
+
+
+def test_a_viewer_export_of_another_scan_is_refused():
+    from recall_api.infra.demo import viewer_shift
+
+    ours = [{"label": l, "centroid": [i, 0, 0]} for i, l in enumerate(("keys", "mug", "book", "bag"))]  # noqa: E741
+    other = [{"label": l, "at": [i * 2.0, 0, 0]} for i, l in enumerate(("keys", "mug", "book", "bag"))]  # noqa: E741
+    with pytest.raises(ValueError, match="not this scan"):
+        viewer_shift(ours, other)
+
+
+def test_an_answer_that_asks_which_one_gets_no_route(tmp_path):
+    from recall_api.infra.demo import walks
+
+    result = json.loads((SAMPLE / "scan-result.json").read_text())
+    viewer = [{"label": o["label"], "at": o["centroid"]} for o in result["objects"]]
+    (tmp_path / "meta.json").write_text(json.dumps({"objects": viewer}))
+    laptop = next(w for w in walks(SAMPLE, tmp_path / "meta.json")["walks"] if "laptop" in w["question"])
+    assert laptop["asks_which"] and "path" not in laptop

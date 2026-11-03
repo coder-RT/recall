@@ -7,7 +7,7 @@ BIND ?= 0.0.0.0
 WEB := apps/web
 REDOCLY := npx -y @redocly/cli@2.72.1
 
-.PHONY: help setup dev worker robot-export place-index regression viewer public-scan live demo record probes diagrams pair rerun test test-all lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
+.PHONY: help setup dev worker robot-export place-index regression viewer public-scan live demo record probes diagrams pair rerun demo-walks test test-all lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -59,11 +59,20 @@ viewer: ## Export a home's newest processed scan for /homes/<home>/viewer: make 
 live: ## The API with real Meta model calls (keys from .env), and the scan worker
 	( cd $(API) && RECALL_BIND_HOST=$(BIND) uv run recall-api ) & $(MAKE) worker ; wait
 
-demo: ## No keys: the API on a memory built from a recorded real scan; the Guide's replies are replayed (labelled recorded)
-	cd $(API) && uv run python -m recall_api.infra.demo serve $(if $(PORT),--port $(PORT))
+demo: ## Judges, start here. No keys: Recall's API on a recorded real scan and the website's demo page (localhost:3000/demo), labelled recorded
+	@if command -v pnpm >/dev/null 2>&1 && [ -d $(WEB)/node_modules ]; then \
+		( cd $(API) && uv run python -m recall_api.infra.demo serve $(if $(PORT),--port $(PORT)) ) & ( cd $(WEB) && PORT=3000 pnpm dev ) ; wait; \
+	else \
+		echo "No website here (run make setup for it): the API only. The same demo page is online at https://recall-ten-khaki.vercel.app/demo"; \
+		cd $(API) && uv run python -m recall_api.infra.demo serve $(if $(PORT),--port $(PORT)); \
+	fi
+
+demo-walks: ## Rebuild the demo page's walks (public/real-scan/flat/walks.json) from samples/replay/ with Recall's own code; no keys
+	cd $(API) && uv run python -m recall_api.infra.demo walks --viewer "$(CURDIR)/$(WEB)/public/real-scan/flat/meta.json" --out "$(CURDIR)/$(WEB)/public/real-scan/flat/walks.json"
 
 record: ## Re-record samples/replay/ with real Muse Spark Open calls: make record RESULT=<result.json> ROOM="Living room" AT=<iso>
 	cd $(API) && uv run python -m recall_api.infra.demo record "$(abspath $(RESULT))" --room "$(ROOM)" --captured-at "$(AT)"
+	$(MAKE) demo-walks
 
 diagrams: ## Redraw docs/diagrams/*.svg from the Mermaid sources (mermaid-cli; set PUPPETEER_EXECUTABLE_PATH to use a local Chrome)
 	@for f in docs/diagrams/*.mmd; do \

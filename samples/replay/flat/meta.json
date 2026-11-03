@@ -1,56 +1,56 @@
 {
- "label": "Recorded output of a real run on 2026-10-31: one living-room scan from an iPhone 16 Pro, processed by MapAnything and SAM 3.1, and Muse Spark Open's replies to the questions below.",
+ "label": "Recorded output of a real run on 2026-11-03: one living-room scan from an iPhone 16 Pro, processed by MapAnything and SAM 3.1, and Muse Spark Open's replies to the questions below.",
  "scan_id": "demo-living-room",
  "room": "Living room",
- "captured_at": "2026-10-30T03:21:01+00:00",
- "recorded_at": "2026-10-31T18:48:58+00:00",
+ "captured_at": "2026-11-01T18:11:32+00:00",
+ "recorded_at": "2026-11-03T01:47:26+00:00",
  "answers": [
   {
    "question": "Where are my keys?",
-   "answer": "Your keys are in the Living room near the desk at waist height, seen yesterday at 04:21.",
+   "answer": "Your brown keys are near the desk in the living room at knee height, seen on Sunday at 19:11.",
    "tool_calls": 1,
    "model": "meta-models/muse-spark-open-1026"
   },
   {
    "question": "Where did I leave my glasses?",
-   "answer": "Your grey glasses were near the desk in the living room at waist height, seen yesterday at 04:21.",
+   "answer": "Your glasses were near the desk in the Living room at knee height, seen on Sunday at 19:11.",
    "tool_calls": 1,
    "model": "meta-models/muse-spark-open-1026"
   },
   {
    "question": "Where is my laptop?",
-   "answer": "Your laptop was near the desk in the living room at waist height, seen yesterday at 04:21.",
+   "answer": "I found two laptops in the living room on Sunday at 19:11, a grey one near the table at waist height and a black one near the desk at waist height. Which one are you looking for?",
+   "tool_calls": 1,
+   "model": "meta-models/muse-spark-open-1026"
+  },
+  {
+   "question": "Where is my wallet?",
+   "answer": "Your wallet is near the desk in the living room at knee height, seen on Sunday at 19:11.",
+   "tool_calls": 1,
+   "model": "meta-models/muse-spark-open-1026"
+  },
+  {
+   "question": "Where is the remote?",
+   "answer": "I found two remotes in the Living room seen on Sunday at 19:11, a grey one near the table at waist height and a white one on the desk at waist height, which one did you mean?",
    "tool_calls": 1,
    "model": "meta-models/muse-spark-open-1026"
   },
   {
    "question": "Where is my bag?",
-   "answer": "I remember two bags from yesterday at 04:21, a grey bag near the desk at knee height and a white bag on the cabinet on shelf level 1 at waist height in the Living room, which one did you mean?",
+   "answer": "Your grey bag is near the chair in the living room at waist height, seen on Sunday at 19:11.",
    "tool_calls": 1,
    "model": "meta-models/muse-spark-open-1026"
   },
   {
    "question": "Have you seen a bottle?",
-   "answer": "I saw a grey bottle in the Living room near the desk at waist height, seen yesterday at 04:21. I also saw a grey bottle on the desk in the same area at the same time.",
+   "answer": "I saw a grey bottle on the cabinet on shelf 1 at waist height seen on Sunday at 19:11, and two more grey bottles near the desk at waist height seen on Sunday at 19:11. Let me know which one you need and I can guide you to it.",
    "tool_calls": 1,
    "model": "meta-models/muse-spark-open-1026"
   },
   {
    "question": "Where's my book?",
-   "answer": "I last saw two books in the Living room seen yesterday at 04:21 \u2014 a red one on the desk at waist height, and a grey one near the shelf at waist height. Which book did you mean?",
-   "tool_calls": 1,
-   "model": "meta-models/muse-spark-open-1026"
-  },
-  {
-   "question": "Where is the laptop",
-   "answer": "Your laptop was near the desk in the living room at waist height, seen yesterday at 04:21.",
-   "tool_calls": 1,
-   "model": "meta-models/muse-spark-open-1026"
-  },
-  {
-   "question": "Where did I put my reading glasses?",
-   "answer": "Your reading glasses were near the desk in the Living room at waist height, seen yesterday at 04:21.",
-   "tool_calls": 1,
+   "answer": "Your book was seen near the table at waist height in the Living room, and two others near the chair at knee height and the sofa at waist height, all seen on Sunday at 19:11 \u2014 can you describe which book you mean by colour or name?",
+   "tool_calls": 2,
    "model": "meta-models/muse-spark-open-1026"
   },
   {

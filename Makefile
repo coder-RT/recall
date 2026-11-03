@@ -7,7 +7,7 @@ BIND ?= 0.0.0.0
 WEB := apps/web
 REDOCLY := npx -y @redocly/cli@2.72.1
 
-.PHONY: help setup dev worker robot-export place-index regression viewer public-scan live demo record probes diagrams pair rerun demo-walks test test-all lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
+.PHONY: help setup dev worker robot-export place-index regression viewer public-scan live demo record probes diagrams pair rerun demo-walks demo-clips test test-all lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -61,6 +61,9 @@ live: ## The API with real Meta model calls (keys from .env), and the scan worke
 
 demo: ## Judges, start here. No keys: Recall's API on a recorded real scan and the website's demo page (localhost:3000/demo), told step by step
 	@python3 scripts/demo.py $(if $(PORT),--port $(PORT)) $(if $(WEB_PORT),--web-port $(WEB_PORT))
+
+demo-clips: ## Cut the real iPhone recordings (docs/private) into clips for the demo page, on this computer only (gitignored)
+	@python3 scripts/demo_clips.py
 
 demo-walks: ## Rebuild the demo page's walks (public/real-scan/flat/walks.json) from samples/replay/ with Recall's own code; no keys
 	cd $(API) && uv run python -m recall_api.infra.demo walks --viewer "$(CURDIR)/$(WEB)/public/real-scan/flat/meta.json" --out "$(CURDIR)/$(WEB)/public/real-scan/flat/walks.json"

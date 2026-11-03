@@ -171,6 +171,13 @@ def main() -> int:
     result = json.loads((SAMPLE / "scan-result.json").read_text())
     say(f"{meta['room']}: {len(result['objects'])} things, {len(result['landmarks'])} pieces of furniture, "
         f"{len(meta['answers'])} recorded questions")  # fmt: skip
+    clips = WEB / "public" / "local-video" / "clips.json"
+    try:
+        n = len(json.loads(clips.read_text())["clips"])
+    except (OSError, ValueError, KeyError):
+        n = 0
+    found = f"{n} real screen recording{'s' if n != 1 else ''} on this computer (make demo-clips), beside the walk"
+    say(" " * 37 + (found if n else "phone screen: simulated (no recordings on this computer)"))
 
     LOGS.mkdir(parents=True, exist_ok=True)
     api_log, web_log = LOGS / "api.log", LOGS / "web.log"

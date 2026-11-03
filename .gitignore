@@ -21,10 +21,14 @@ __pycache__/
 scans/
 *.mov
 *.mp4
+# the one exception: a 3-second synthetic test pattern (ffmpeg testsrc) the demo page tests play; no home in it
+!apps/web/e2e/fixtures/test-clip.mp4
 
 # the sample room's photo colours stay local (the viewer hides "Photo" when the file is missing)
 # your own scan for /viewer (make viewer); it never leaves your computer
 apps/web/public/local-scan/
+# the real iPhone screen recordings, cut for the demo page on this computer only (make demo-clips); they show the home
+apps/web/public/local-video/
 
 .vscode
 

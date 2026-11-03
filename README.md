@@ -46,11 +46,12 @@ Indie track · Theme: <strong>Build for Your World</strong></p>
 <p align="center">
   <strong>Live site:</strong> <a href="https://recall-ten-khaki.vercel.app">recall-ten-khaki.vercel.app</a>
   (also at <a href="https://recall.onica.ai">recall.onica.ai</a>) ·
+  <a href="https://recall-ten-khaki.vercel.app/demo"><strong>Try the demo: ask, then walk</strong></a> ·
   <a href="https://recall-ten-khaki.vercel.app/homes/flat/viewer">Explore a real room</a>
 </p>
 
 <p align="center">
-  <a href="#3-backend-pipeline-and-demo">Try it (no keys)</a> ·
+  <a href="#for-judges-in-one-minute">Try it (no keys)</a> ·
   <a href="#architecture-in-brief">Architecture</a> ·
   <a href="#api">API</a> ·
   <a href="docs/privacy.md">Privacy</a> ·
@@ -77,11 +78,24 @@ Indie track · Theme: <strong>Build for Your World</strong></p>
 
 ### For judges, in one minute
 
+**Start with the demo.** Nothing to install: open
+**[recall-ten-khaki.vercel.app/demo](https://recall-ten-khaki.vercel.app/demo)**, pick "Where are my keys?", and
+follow the walk to them in the author's real scanned living room. To run the same thing from this repo, with no keys,
+no GPU and no account:
+
+```bash
+git clone https://github.com/coder-RT/recall.git && cd recall && make setup && make demo   # then open localhost:3000/demo
+```
+
+`make demo` starts Recall's API on a memory built from that real scan and the website beside it. The answers are Muse
+Spark Open's real replies, recorded once and replayed through Recall's own code, and labelled as recorded; the routes
+come from the planner the phone uses, on the scan's floor.
+
 | Criterion | Where to look |
 |---|---|
 | **Impact** (30 %) | [Why I built it](#why-i-built-it): a true story · [What it is](#what-it-is): built first for blind and low-vision people, for anyone who misplaces things, voice first · [Privacy](docs/privacy.md): the home stays on your own computer · the [tester session plan](evals/usability/) |
 | **Use of Meta AI tooling** (25 %) | [Only Meta models, each with one job](#how-it-works-the-meta-models): MapAnything, SAM 3.1, Muse Spark Open (Muse Glimmer on your own Mac), Muse Voice Transcribe, Muse Spark 1.1 · [Recall's three agents](#recalls-three-agents) · [Sharing with robots](#sharing-with-robots) over A2A |
-| **Demo** (25 %) | The screenshots below are real output · `make demo` replays a real run with no keys · [How to run it](#how-to-run-it) |
+| **Demo** (25 %) | [The demo page](https://recall-ten-khaki.vercel.app/demo) and `make demo`: a real run, no keys · the screenshots below are real output · [How to run it](#how-to-run-it) |
 | **Technical depth** (20 %) | [Architecture](docs/architecture.md) · [28 decisions](docs/decisions.md) · [Guardrails](#guardrails): geometry decides the facts, the model only phrases them · [Algorithms](#algorithms) · tests on every part ([Results so far](#results-so-far)) |
 
 ---
@@ -173,7 +187,7 @@ floor, furniture and walls as cells, and the things as dots: no photos of the ho
 | iPhone app (Swift 6, SwiftUI, ARKit; VoiceOver first) | `apps/ios` (build with XcodeGen) | Works on an iPhone with LiDAR, iOS 26 |
 | The API on your computer: the Guide, the arrival check, memory, privacy, robots | `services/api` | Works (`make live`) |
 | The pipeline: 3D reconstruction, furniture and things, the room model | `services/pipeline` | Works (`make worker`) |
-| A recorded real run you can try with no keys | `make demo` | Works; the recording is added after a privacy review |
+| A recorded real run you can try with no keys: ask, then walk | `make demo`, [`/demo`](https://recall-ten-khaki.vercel.app/demo) | Works |
 | Website and 3D viewer of your own scan | `apps/web` | Works (`pnpm dev`) |
 | API spec (OpenAPI 3.1, Swagger UI) and the A2A Agent Card | `services/api/resources/` | See [API](#api) |
 | Architecture, decisions, privacy note, measurements | [`docs/`](docs) | [architecture](docs/architecture.md) · [decisions](docs/decisions.md) · [privacy](docs/privacy.md) · [verification](docs/verification.md) |
@@ -496,6 +510,9 @@ Every route except `/health` needs a key: the owner's device key, or a robot's o
   approved by the author:
   - points and surfaces tinted by height, the room model, the drawings, labels and robot files;
   - no photos, video, depth images, keys or paths; guard tests fail if a photo file or photo colours ever appear.
+  - the no-keys demo (`samples/replay/flat/`) holds the same scan's room model and labels, its point cloud thinned to
+    one point per 5 cm (positions only, no colours) and the path the phone walked (camera poses only, no times or
+    compass readings), with the recorded answers; a test checks there is nothing else.
 
 **Security: how the home's memory is protected**
 
@@ -609,7 +626,7 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
 - **Cost, measured:** a room scan is **456** SAM 3.1 calls and **48 MB** on disk; a question is **2** Muse Spark Open calls, about **2,460 + 261 tokens**.
 - **Flat surfaces:** the geometry-only detector found **12 level patches** in the room; the two largest sit at the heights of the two measured desks.
 - **Viewer:** about 150k points, the gather animation, photo and confidence colouring, and the floor grid, height bands and surfaces as layers, on a phone and a laptop.
-- **Tests (2 November):** API 213 (including Schemathesis against the spec), pipeline 64 (including a synthetic room run through the whole pipeline), website 194 (accessibility with axe, WCAG 2.2 AA, reduced motion, no-JavaScript, keyboard-only and 200 % text usability, security headers); on the iPhone, 197 unit tests and 34 UI tests (2 skipped): accessibility audits and usability tasks done with VoiceOver labels at default and largest text; the Watch app builds.
+- **Tests (3 November):** API 218 (including Schemathesis against the spec), pipeline 64 (including a synthetic room run through the whole pipeline), website 201 (accessibility with axe, WCAG 2.2 AA, reduced motion, no-JavaScript, keyboard-only and 200 % text usability, security headers); on the iPhone, 197 unit tests and 34 UI tests (2 skipped): accessibility audits and usability tasks done with VoiceOver labels at default and largest text; the Watch app builds.
 - **Usability, honestly:** the checks above are automated. In person, the author's screen-off run (VoiceOver Screen Curtain: the screen stays black) is planned, and a session with blind and low-vision testers is planned; its plan is ready in `evals/usability/`.
 
 **Planned evaluation:** median position error against hand-measured positions, questions answered correctly, Verifier precision, and time to find an object by touch versus with Recall, scored without AI. The dated table is [`evals/results.md`](evals/results.md); recognising the room from a photo is its first entry. The session plan for a blind or low-vision tester is in `evals/usability/`.
@@ -623,7 +640,7 @@ offers the same guide as a download (`/INSTALL.md`).
 | Path | You get | Needs | Time |
 |---|---|---|---|
 | **A. Website** | The landing page and the real 3D scan at `/homes/flat/viewer` | Node 22 | 5 min |
-| **B. Demo, no keys** | `make demo`: Recall answering "where are my keys?" from a recorded real scan, labelled as recorded | uv (Python 3.12 comes with it) | 10 min |
+| **B. Demo, no keys** (judges: start here) | `make demo`: the demo page at `localhost:3000/demo` (ask, then walk, in a real scanned room) and the API answering from that scan, labelled as recorded | uv (Python 3.12 comes with it), Node 22 | 10 min |
 | **C. Live** | Your own room: `make live`, the iPhone app (Xcode + XcodeGen), pairing by QR, the Watch | A Mac with Apple silicon, your own Meta Model API and Baseten keys, an iPhone with LiDAR on iOS 26 | 45 min |
 
 The short version:
@@ -631,7 +648,7 @@ The short version:
 ```bash
 git clone https://github.com/coder-RT/recall.git && cd recall
 make setup                       # Python services (uv), the web app (pnpm), generated models, the database
-make demo                        # B: no keys; then: curl -s -X POST localhost:8000/ask -H "Authorization: Bearer demo" ...
+make demo                        # B: no keys; open localhost:3000/demo, or curl -s -X POST localhost:8000/ask -H "Authorization: Bearer demo" ...
 cd apps/web && pnpm dev          # A: http://localhost:3000 and /homes/flat/viewer
 ```
 
@@ -684,7 +701,12 @@ Watch app all run.
 ### 3. Backend, pipeline and demo
 
 - `make setup`: Python 3.12 with uv, both services, the web app.
-- `make demo`: no keys, no GPU. Builds a memory from a recorded real scan (`samples/replay/`, geometry and labels only, no photos) through the real ingest code, then serves the API on `localhost:8000` with Muse Spark Open's recorded replies; every answer is labelled `replay:muse-spark-open (recorded)`, and the command prints questions to try. `make record` re-records it with real calls.
+- `make demo` (**judges: start here**): no keys, no GPU.
+  - It builds a memory from a recorded real scan through the real ingest code. The scan is `samples/replay/`: the room model, labels, a thinned point cloud and the path walked, with no photos.
+  - It serves the API on `localhost:8000` with Muse Spark Open's recorded replies. Every answer is labelled `replay:muse-spark-open (recorded)`, and the command prints questions to try.
+  - It starts the website, with the demo page at `localhost:3000/demo`: pick a question, read or hear the answer, and GSAP plays the walk. Each clock-face step comes in as the route draws on the floor of the 3D room. The same page is online at [recall-ten-khaki.vercel.app/demo](https://recall-ten-khaki.vercel.app/demo).
+  - `make demo-walks` rebuilds that page's walks (`apps/web/public/real-scan/flat/walks.json`): the replayed Guide's answer, then the phone's own route planner from where the scan began.
+  - `make record` re-records the answers with real calls, and then the walks.
 - `make live`: the API and the scan worker (`make worker` alone starts the worker: the warm pipeline server plus the job queue), with real Meta model calls using the keys from `.env`. The minimum is one Meta Model API key from [dev.meta.ai](https://dev.meta.ai) with `LLM_PROVIDER=meta`; the demo video uses Muse Spark Open on Baseten (`LLM_PROVIDER=baseten_spark_open`); the local privacy mode uses Muse Glimmer in LM Studio (`LLM_PROVIDER=lmstudio`).
 - **Where the API listens:** `make live` and `make dev` listen on your network (`BIND=0.0.0.0`) so the phone can reach the Mac; behind a Cloudflare Tunnel use `make live BIND=127.0.0.1`. Run on its own (`uv run recall-api`), it listens on 127.0.0.1 only. Every route except `/health` and the API docs needs the device key, the calls that reach a model are rate-limited, and bodies are size-checked.
 - **Home Memory agent (A2A) with `make live`:** its check runs on Muse Spark Open with the Baseten key (`SCREEN_PROVIDER=baseten_spark_open`, the default) or on Glimmer in LM Studio (`SCREEN_PROVIDER=lmstudio`); no other key is needed.

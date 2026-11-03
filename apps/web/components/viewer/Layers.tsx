@@ -1,8 +1,8 @@
 "use client";
 
-import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
-import { BoxGeometry, BufferGeometry, CanvasTexture, Color, EdgesGeometry, Float32BufferAttribute, type Group, PlaneGeometry, SRGBColorSpace } from "three";
+import { useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useMemo, useRef } from "react";
+import { BoxGeometry, BufferGeometry, CanvasTexture, Color, CurvePath, EdgesGeometry, Float32BufferAttribute, type Group, LineCurve3, PlaneGeometry, SRGBColorSpace, TubeGeometry, Vector3 } from "three";
 import { BAND_EDGES } from "./bands";
 
 export interface Surface {
@@ -370,5 +370,62 @@ export function NorthArrow({ floor, northDeg, tokens, label, theta = 0 }: { floo
       <Line points={[x - dx * 0.9, y - dy * 0.9, 0.02, tip[0], tip[1], 0.02, tip[0], tip[1], 0.02, b1[0], b1[1], 0.02, tip[0], tip[1], 0.02, b2[0], b2[1], 0.02]} colour={tokens.cta} />
       <Label text={label} at={[x + dx * 1.25, y + dy * 1.25, 0.1]} colour={tokens.cta} size={0.4} />
     </group>
+  );
+}
+
+/** A walk to show: floor points (x, y) from start to thing, and how much of it is drawn (0 to 1; GSAP tweens it). */
+export interface Walk {
+  path: [number, number][];
+  progress: { value: number };
+}
+
+const ROUTE_Z = 0.03; // just above the floor, so the points don't cover it
+
+/**
+ * The route on the floor as a green band, drawn up to `walk.progress`, with a ring where the walk starts. Like the
+ * arrows it is drawn over the points (no depth test), so furniture never hides it.
+ */
+export function Route({ walk, tokens }: { walk: Walk; tokens: Tokens }) {
+  const { invalidate } = useThree();
+  const tube = useMemo(() => {
+    const curve = new CurvePath<Vector3>();
+    walk.path.slice(1).forEach(([x, y], i) => {
+      const [x0, y0] = walk.path[i];
+      curve.add(new LineCurve3(new Vector3(x0, y0, ROUTE_Z), new Vector3(x, y, ROUTE_Z)));
+    });
+    // the tube's triangles run from start to end, so drawing the first n of them draws the first part of the walk
+    return new TubeGeometry(curve, Math.max(24, Math.round(curve.getLength() * 40)), 0.035, 8, false);
+  }, [walk.path]);
+  const drawn = useRef(-1);
+  const draw = () => {
+    const total = tube.index?.count ?? 0;
+    const n = Math.floor((total * Math.min(1, Math.max(0, walk.progress.value))) / 3) * 3;
+    if (n === drawn.current) return false;
+    tube.setDrawRange(0, n);
+    drawn.current = n;
+    return true;
+  };
+  // the first frame shows the current progress (all of it when motion is reduced); later frames follow the tween
+  useEffect(() => {
+    drawn.current = -1;
+    draw();
+    invalidate();
+    return () => tube.dispose();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- draw reads the same tube and progress box
+  }, [tube, walk.progress, invalidate]);
+  useFrame(() => {
+    draw();
+  });
+  const [sx, sy] = walk.path[0];
+  return (
+    <>
+      <mesh geometry={tube} renderOrder={8}>
+        <meshBasicMaterial color={tokens.cta} transparent depthTest={false} toneMapped={false} />
+      </mesh>
+      <mesh position={[sx, sy, ROUTE_Z]} renderOrder={8}>
+        <ringGeometry args={[0.09, 0.14, 32]} />
+        <meshBasicMaterial color={tokens.cta} transparent depthTest={false} toneMapped={false} />
+      </mesh>
+    </>
   );
 }

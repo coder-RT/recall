@@ -3,54 +3,78 @@
  "scan_id": "demo-living-room",
  "room": "Living room",
  "captured_at": "2026-11-01T18:11:32+00:00",
- "recorded_at": "2026-11-03T01:47:26+00:00",
+ "recorded_at": "2026-11-03T02:48:20+00:00",
  "answers": [
   {
    "question": "Where are my keys?",
-   "answer": "Your brown keys are near the desk in the living room at knee height, seen on Sunday at 19:11.",
+   "answer": "Your keys were near the desk in the living room at knee height, seen on Sunday at 19:11.",
    "tool_calls": 1,
    "model": "meta-models/muse-spark-open-1026"
   },
   {
    "question": "Where did I leave my glasses?",
-   "answer": "Your glasses were near the desk in the Living room at knee height, seen on Sunday at 19:11.",
+   "answer": "Your glasses were near the desk in the living room at knee height, seen on Sunday at 19:11.",
    "tool_calls": 1,
    "model": "meta-models/muse-spark-open-1026"
   },
   {
    "question": "Where is my laptop?",
-   "answer": "I found two laptops in the living room on Sunday at 19:11, a grey one near the table at waist height and a black one near the desk at waist height. Which one are you looking for?",
+   "answer": "I saw two laptops in the living room on Sunday at 19:11. One is a grey laptop near the table at waist height, and another is a black laptop near the desk also at waist height.",
    "tool_calls": 1,
    "model": "meta-models/muse-spark-open-1026"
   },
   {
    "question": "Where is my wallet?",
-   "answer": "Your wallet is near the desk in the living room at knee height, seen on Sunday at 19:11.",
+   "answer": "Your grey wallet is near the desk in the living room at knee height, seen on Sunday at 19:11.",
    "tool_calls": 1,
    "model": "meta-models/muse-spark-open-1026"
   },
   {
    "question": "Where is the remote?",
-   "answer": "I found two remotes in the Living room seen on Sunday at 19:11, a grey one near the table at waist height and a white one on the desk at waist height, which one did you mean?",
+   "answer": "I found two remotes in the Living room. One grey remote is near the table at waist height seen on Sunday at 19:11, the other white remote is on the desk at waist height seen on Sunday at 19:11. Which one did you mean?",
    "tool_calls": 1,
    "model": "meta-models/muse-spark-open-1026"
   },
   {
    "question": "Where is my bag?",
-   "answer": "Your grey bag is near the chair in the living room at waist height, seen on Sunday at 19:11.",
+   "answer": "It's near the chair in the Living room at waist height, seen on Sunday at 19:11.",
    "tool_calls": 1,
    "model": "meta-models/muse-spark-open-1026"
   },
   {
    "question": "Have you seen a bottle?",
-   "answer": "I saw a grey bottle on the cabinet on shelf 1 at waist height seen on Sunday at 19:11, and two more grey bottles near the desk at waist height seen on Sunday at 19:11. Let me know which one you need and I can guide you to it.",
+   "answer": "I've seen bottles in the Living room on Sunday at 19:11. The most confident one was near the desk at waist height and another was on the first shelf of the cabinet at waist height.",
    "tool_calls": 1,
    "model": "meta-models/muse-spark-open-1026"
   },
   {
    "question": "Where's my book?",
-   "answer": "Your book was seen near the table at waist height in the Living room, and two others near the chair at knee height and the sofa at waist height, all seen on Sunday at 19:11 \u2014 can you describe which book you mean by colour or name?",
-   "tool_calls": 2,
+   "answer": "I found three books in the living room, all seen on Sunday at 19:11 \u2014 a grey one near the table at waist height, another grey one near the chair at knee height, and a beige one near the sofa at waist height. Which one did you mean?",
+   "tool_calls": 1,
+   "model": "meta-models/muse-spark-open-1026"
+  },
+  {
+   "question": "Where is my watch?",
+   "answer": "Your grey watch is on the cabinet in the living room on shelf 1 at waist height, seen on Sunday at 19:11.",
+   "tool_calls": 1,
+   "model": "meta-models/muse-spark-open-1026"
+  },
+  {
+   "question": "Where's my mug?",
+   "answer": "I found two mugs in the living room seen on Sunday at 19:11. Your blue mug was on the table at waist height and your brown mug was near the chair at knee height \u2014 which one did you mean?",
+   "tool_calls": 1,
+   "model": "meta-models/muse-spark-open-1026"
+  },
+  {
+   "question": "Have you seen my charger?",
+   "answer": "Your charger is near the desk in the living room at waist height, seen on Sunday at 19:11.",
+   "tool_calls": 1,
+   "model": "meta-models/muse-spark-open-1026"
+  },
+  {
+   "question": "Where is my passport?",
+   "answer": "Your grey passport was near the desk in the living room at knee height, seen on Sunday at 19:11.",
+   "tool_calls": 1,
    "model": "meta-models/muse-spark-open-1026"
   },
   {

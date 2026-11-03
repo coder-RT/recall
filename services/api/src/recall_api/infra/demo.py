@@ -22,6 +22,7 @@ import numpy as np
 from recall_api.adapters.outbound.replay.recorded_llm import RecordingLlm
 from recall_api.application.ask_where_is import AskWhereIs
 from recall_api.application.ingest_scan import IngestScan
+from recall_api.application.tools import ToolContext
 from recall_api.config.settings import REPO_ROOT, Settings
 from recall_api.domain.memory import Home, Scan, ScanStatus, Trust
 from recall_api.infra.container import Container
@@ -33,6 +34,7 @@ DEMO_KEY = "demo"  # the demo's device key: it runs on 127.0.0.1 with recorded d
 QUESTIONS = [
     "Where are my keys?", "Where did I leave my glasses?", "Where is my laptop?", "Where is my wallet?",
     "Where is the remote?", "Where is my bag?", "Have you seen a bottle?", "Where's my book?",
+    "Where is my watch?", "Where's my mug?", "Have you seen my charger?", "Where is my passport?",
     "Where is my umbrella?",
 ]  # fmt: skip
 # what a scan result may carry into the public sample: geometry, labels and colours; never paths, names or notes
@@ -131,6 +133,13 @@ def viewer_shift(objects: list[dict], viewer_objects: list[dict]) -> np.ndarray:
     return shift
 
 
+def place(match: dict) -> str:
+    """Where a match is, in the words of the tool's own fields: "near the table · waist height"."""
+    where = f"{match['relation'].replace('_', ' ')} the {match['landmark']}" if match.get("landmark") else "in the room"
+    shelf = f" · shelf {match['shelf_level']}" if match.get("shelf_level") else ""
+    return f"{where}{shelf} · {match['height_band']} height"
+
+
 def walks(sample: Path, viewer_meta: Path) -> dict:
     """Each recorded question, answered by the replayed Guide, and the route the phone would give from where the scan
     began: the same A* on the scan's floor and the same clock-face steps. Positions are in the viewer's frame."""
@@ -140,25 +149,35 @@ def walks(sample: Path, viewer_meta: Path) -> dict:
     shift = viewer_shift(result["objects"], json.loads(viewer_meta.read_text())["objects"])
     xy = lambda p: [round(float(p[0] - shift[0]), 3), round(float(p[1] - shift[1]), 3)]  # noqa: E731
     first = json.loads((sample / "poses.jsonl").read_text().splitlines()[0])["pose"]
+
+    def walk_to(object_id: str) -> dict:
+        obj = c.objects.get(object_id)
+        seen = obj.where(Trust.EVERYTHING)
+        g = c.guidance.start(HOME, object_id, first, "normal")
+        return {
+            "label": obj.label,
+            "target": [*xy((seen.position.x, seen.position.y)), round(seen.position.z, 3)],
+            "mode": g["mode"],
+            "steps": [{k: s[k] for k in ("clock", "metres", "say")} for s in g["steps"]],
+            "arrive": g["arrive_say"],
+            "path": [xy(p) for p in g["path"]],
+        }
+
     items = []
     for rec in meta["answers"]:
         a = c.ask(HOME, rec["question"])
         item: dict = {"question": rec["question"], "answer": a.text, "grounded": a.grounded, "model": a.model}
         obj = c.objects.get(a.object_id) if a.object_id else None
-        seen = obj.where(Trust.EVERYTHING) if obj else None
-        alike = [o for o in c.objects.list_for_home(HOME) if obj and o.label == obj.label and o.where(Trust.EVERYTHING)]
-        if len(alike) > 1:
-            item["asks_which"] = True  # several alike: the answer asks which one, so no route until the person says
-        elif seen:
-            g = c.guidance.start(HOME, obj.id, first, "normal")
-            item |= {
-                "label": obj.label,
-                "target": [*xy((seen.position.x, seen.position.y)), round(seen.position.z, 3)],
-                "mode": g["mode"],
-                "steps": [{k: s[k] for k in ("clock", "metres", "say")} for s in g["steps"]],
-                "arrive": g["arrive_say"],
-                "path": [xy(p) for p in g["path"]],
-            }
+        # the matches the Guide's own tool gives for this thing (at most 3, newest first): one is walked to at once;
+        # several are offered as choices, the way the phone asks "which one?" and walks once you say
+        found = c.tools.find_object(ToolContext(HOME), obj.label) if obj else {"result": "not_found"}
+        choices = [
+            {**walk_to(m["object_id"]), "color": m["color"], "place": place(m)} for m in found.get("matches", [])
+        ]
+        if len(choices) == 1:
+            item |= choices[0]
+        elif choices:
+            item["choices"] = choices
         items.append(item)
     return {
         "label": meta["label"],

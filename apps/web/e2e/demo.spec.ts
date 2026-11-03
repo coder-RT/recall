@@ -50,6 +50,8 @@ test("says it is recorded, and shows the first answer and its walk", async ({ pa
   await expect(page.locator("[data-walk-arrive]")).toContainText(keys.arrive!);
   await expect(page.locator("[data-simulated-phone]")).toBeVisible();
   await expect(page.getByText(t.phone.simulated)).toBeVisible();
+  // no recordings, as on the hosted site: no badge and no shortcut
+  await expect(page.locator("[data-recorded-chip], [data-show-recording]")).toHaveCount(0);
 });
 
 test("every question: a walk, a choice of walks, or an honest 'not seen'", async ({ page }) => {
@@ -132,7 +134,12 @@ test("a real recording plays on the phone for its thing, with captions, when thi
   await page.route("**/local-video/watch.mp4", (route) => route.fulfill({ status: 200, contentType: "video/mp4", body: clip }));
   await page.route("**/demo-video/**", (route) => route.fulfill({ status: 404, body: "" }));
   await open(page, PAGE);
-  await page.getByText("Where is my watch?", { exact: true }).click();
+  // the watch question says it has a real recording, and the shortcut beside the phone plays it
+  await expect(page.locator("[data-recorded-chip]")).toHaveCount(1);
+  await expect(page.locator("label", { has: page.locator("[data-recorded-chip]") })).toContainText("Where is my watch?");
+  await page.locator("[data-show-recording]").click();
+  await expect(page.locator("[data-answer-text]")).toHaveText(byQuestion("Where is my watch?").answer);
+  await expect(page.locator("[data-show-recording]")).toHaveCount(0);
   const phone = page.locator("[data-recorded-phone='watch']");
   await expect(phone).toBeVisible();
   await expect(page.getByText(t.phone.localOnly).first()).toBeVisible();

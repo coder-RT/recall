@@ -116,6 +116,9 @@ export function WalkDemo({ walks, src }: { walks: Walks; src: string }) {
   const option = optionOf(item, pick);
   const clip = clips?.clips.find((c) => c.kind === "find" && option && c.thing === option.label) ?? null;
   const scanClip = clips?.clips.find((c) => c.kind === "scan") ?? null;
+  // the questions that walk to a thing this computer has a real recording of (by label, as the phone panel matches)
+  const recorded = (w: WalkItem) => Boolean(clips?.clips.some((c) => c.kind === "find" && (w.choices ?? [w]).some((o) => o.label === c.thing)));
+  const firstRecorded = walks.walks.findIndex(recorded);
   const playing = Boolean(clip) && phone === "recording";
 
   useEffect(() => {
@@ -245,6 +248,12 @@ export function WalkDemo({ walks, src }: { walks: Walks; src: string }) {
             >
               <input type="radio" name={`${id}-question`} value={i} checked={chosen === i} onChange={() => choose(i)} className="sr-only" data-question />
               {w.question}
+              {recorded(w) && (
+                <span data-recorded-chip className="ml-2 rounded-full bg-fb-blue-dark px-2 py-0.5 text-xs font-bold text-white">
+                  <span aria-hidden>▶ </span>
+                  {t.phone.recordingBadge}
+                </span>
+              )}
             </label>
           ))}
         </div>
@@ -359,6 +368,11 @@ export function WalkDemo({ walks, src }: { walks: Walks; src: string }) {
           <h2 id={`${id}-phone`} className="text-sm font-bold text-ink">
             {t.phone.title}
           </h2>
+          {firstRecorded >= 0 && !playing && (
+            <button type="button" onClick={() => choose(firstRecorded)} className="rounded-xl border border-fb-blue bg-fb-blue-pale px-3 py-2 text-left text-sm text-ink" data-show-recording>
+              {t.phone.recordingHint} <span className="font-bold text-fb-blue-dark underline">{format(t.phone.recordingAsk, { q: walks.walks[firstRecorded].question })}</span>
+            </button>
+          )}
           {clip && (
             <fieldset className="flex flex-wrap gap-2" data-phone-mode>
               <legend className="sr-only">{t.phone.view}</legend>

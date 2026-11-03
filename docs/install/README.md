@@ -182,7 +182,10 @@ Open `http://localhost:3000/demo`.
 **Check:**
 - the badge says "Recorded demo · real scan, real answers";
 - Recall's answer to "Where are my keys?" is shown, with the walk to them as clock-face steps;
-- choosing "Where is my bag?" draws a green route on the floor of the 3D room, one step at a time.
+- choosing "Where is my bag?" draws a green route on the floor of the 3D room, one step at a time, while "you" move
+  along it and the phone beside it shows the step being spoken (a simulated screen, labelled as such);
+- choosing "Where is my laptop?" offers the two laptops Recall found, each with its own walk;
+- on a wide screen, every measured point and the architect's room are side by side.
 
 The answers are Muse Spark Open's real replies, recorded once and replayed through Recall's own code. The routes come
 from the same planner the phone uses, on the scan's floor. Nothing on this page calls a model.

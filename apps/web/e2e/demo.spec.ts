@@ -1,22 +1,36 @@
 import fs from "node:fs";
 import path from "node:path";
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { en } from "../i18n/dictionaries/en";
 import { open, prepare } from "./helpers";
 
 /**
  * /demo: the no-keys demo. Recorded answers from a real run (samples/replay/flat) and the planner's walks, read from
- * public/real-scan/flat/walks.json (`make demo-walks`). Nothing here calls a model or the API.
+ * public/real-scan/flat/walks.json (`make demo-walks`). Nothing here calls a model or the API. The real screen
+ * recordings live only on the author's computer (public/local-video, gitignored), so these tests never use them: a
+ * made-up test pattern (fixtures/test-clip.mp4) stands in when the recording path is tested.
  */
 
 const PAGE = "/demo";
 const t = en.app.demo;
-const walks = JSON.parse(fs.readFileSync(path.join(__dirname, "../public/real-scan/flat/walks.json"), "utf8"));
+type Option = { label: string; steps: { say: string }[]; arrive: string; mode: string; path: number[][] };
+type Item = Partial<Option> & { question: string; answer: string; model: string; choices?: Option[] };
+const walks: { recorded_at: string; walks: Item[] } = JSON.parse(fs.readFileSync(path.join(__dirname, "../public/real-scan/flat/walks.json"), "utf8"));
 const recorded = JSON.parse(fs.readFileSync(path.join(__dirname, "../../../samples/replay/flat/meta.json"), "utf8"));
-const keys = walks.walks.find((w: { question: string }) => w.question === "Where are my keys?");
+const byQuestion = (q: string) => walks.walks.find((w) => w.question === q)!;
+const keys = byQuestion("Where are my keys?");
+const played = (page: Page) => page.waitForFunction(() => document.querySelector<HTMLElement>("[data-walk-demo]")?.dataset.played === "true", null, { timeout: 15_000 });
 
-test.beforeEach(async ({ page }) => prepare(page));
+/** No clips: what the hosted site shows (this computer's own clips, if any, are hidden from the tests). */
+async function noClips(page: Page) {
+  await page.route(/\/(local|demo)-video\//, (route) => route.fulfill({ status: 404, body: "" }));
+}
+
+test.beforeEach(async ({ page }) => {
+  await prepare(page);
+  await noClips(page);
+});
 
 test("the walks are the recorded run's answers, labelled as replayed", () => {
   expect(walks.recorded_at).toBe(recorded.recorded_at);
@@ -25,7 +39,6 @@ test("the walks are the recorded run's answers, labelled as replayed", () => {
     expect(w.answer, w.question).toBe(answers[w.question]);
     expect(w.model).toMatch(/^replay:.*\(recorded\)$/);
   }
-  expect(keys.steps.length).toBeGreaterThan(0);
 });
 
 test("says it is recorded, and shows the first answer and its walk", async ({ page }) => {
@@ -33,40 +46,69 @@ test("says it is recorded, and shows the first answer and its walk", async ({ pa
   await expect(page.locator("[data-recorded-badge]")).toHaveText(t.badge);
   await expect(page.locator("[data-recorded]")).toContainText("Recorded output, not live");
   await expect(page.locator("[data-answer-text]")).toHaveText(keys.answer);
-  await expect(page.getByText(keys.answer, { exact: true }).first()).toBeAttached(); // the screen reader's copy
-  await expect(page.locator("[data-walk-step]")).toHaveCount(keys.steps.length);
-  await expect(page.locator("[data-walk-arrive]")).toContainText(keys.arrive);
+  await expect(page.locator("[data-walk-step]")).toHaveCount(keys.steps!.length);
+  await expect(page.locator("[data-walk-arrive]")).toContainText(keys.arrive!);
+  await expect(page.locator("[data-simulated-phone]")).toBeVisible();
+  await expect(page.getByText(t.phone.simulated)).toBeVisible();
 });
 
-test("picking a question shows its answer and walks there step by step", async ({ page }) => {
-  const bag = walks.walks.find((w: { question: string }) => w.question === "Where is my bag?");
+test("every question: a walk, a choice of walks, or an honest 'not seen'", async ({ page }) => {
+  test.setTimeout(180_000); // 13 questions, each walk played to the end
+  await open(page, PAGE);
+  for (const [i, w] of walks.walks.entries()) {
+    await page.locator("[data-question]").nth(i).check({ force: true });
+    await expect(page.locator("[data-answer-text]")).toHaveText(w.answer);
+    if (!w.steps && !w.choices) {
+      await expect(page.locator("[data-walk-note]"), w.question).toHaveText(t.notSeen);
+      await expect(page.locator("[data-walk-step]")).toHaveCount(0);
+      continue;
+    }
+    const options = w.choices ?? [w as Option];
+    await expect(page.locator("[data-choice]"), w.question).toHaveCount(w.choices ? options.length : 0);
+    for (const [j, o] of options.entries()) {
+      if (w.choices) await page.locator("[data-choice]").nth(j).check();
+      const steps = page.locator("[data-walk-step]");
+      await expect(steps, `${w.question} #${j}`).toHaveCount(o.steps.length);
+      await expect(steps.first()).toContainText(o.steps[0].say);
+      if (o.mode === "route") await expect(page.locator("[data-walk-arrive]")).toContainText(o.arrive);
+      else await expect(page.locator("[data-walk-note]")).toHaveText(t.noPath); // no clear path: landmark directions
+    }
+    await played(page);
+    // once the walk has played, every step is fully shown
+    for (const el of await page.locator("[data-walk-step]").all()) await expect(el).toHaveCSS("opacity", "1");
+  }
+});
+
+test("the phone speaks the step the route has reached, and ends 'there'", async ({ page }) => {
   await open(page, PAGE);
   await page.getByText("Where is my bag?", { exact: true }).click();
-  await expect(page.locator("[data-answer-text]")).toHaveText(bag.answer);
-  const steps = page.locator("[data-walk-step]");
-  await expect(steps).toHaveCount(bag.steps.length);
-  await expect(steps.first()).toContainText(bag.steps[0].say);
-  // once the walk has played, every step is fully shown
-  await expect.poll(() => steps.last().evaluate((el) => getComputedStyle(el).opacity), { timeout: 10_000 }).toBe("1");
+  const phone = page.locator("[data-simulated-phone]");
+  await expect.poll(() => phone.getAttribute("data-step"), { timeout: 10_000 }).toBe("0");
+  const bag = byQuestion("Where is my bag?");
+  await expect.poll(() => phone.getAttribute("data-step"), { timeout: 15_000 }).toBe(String(bag.steps!.length));
+  await expect(phone).toContainText(bag.arrive!);
 });
 
-test("an answer that asks which one, or a thing never seen, has no walk", async ({ page }) => {
+test("on a wide screen, every point and the architect's room side by side", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await open(page, PAGE);
-  await page.getByText("Where is my laptop?", { exact: true }).click();
-  await expect(page.locator("[data-walk-note]")).toHaveText(t.asksWhich);
-  await expect(page.locator("[data-walk-step]")).toHaveCount(0);
-  await page.getByText("Where is my umbrella?", { exact: true }).click();
-  await expect(page.locator("[data-walk-note]")).toHaveText(t.notSeen);
+  await expect(page.locator("[data-viewer-pair] canvas")).toHaveCount(2, { timeout: 20_000 });
+  await expect(page.locator("[data-viewer-single]")).toBeHidden();
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await expect(page.locator("[data-viewer-pair]")).toBeHidden();
+  await expect(page.locator("[data-viewer-single]")).toBeVisible();
 });
 
-test("with motion reduced, every step is there at once", async ({ browser }) => {
+test("with motion reduced, every step is there at once and the phone shows the end", async ({ browser }) => {
   const context = await browser.newContext({ reducedMotion: "reduce" });
   const page = await context.newPage();
   await prepare(page);
+  await noClips(page);
   await open(page, PAGE);
   await page.getByText("Where is my wallet?", { exact: true }).click();
-  const steps = page.locator("[data-walk-step]");
-  for (const el of await steps.all()) await expect(el).toHaveCSS("opacity", "1");
+  for (const el of await page.locator("[data-walk-step]").all()) await expect(el).toHaveCSS("opacity", "1");
+  const wallet = byQuestion("Where is my wallet?");
+  await expect(page.locator("[data-simulated-phone]")).toHaveAttribute("data-step", String(wallet.steps!.length));
   await context.close();
 });
 
@@ -75,14 +117,38 @@ test("reads without JavaScript: the answer and the steps are in the page", async
   const page = await context.newPage();
   await page.goto(PAGE);
   await expect(page.locator("[data-answer-text]")).toHaveText(keys.answer);
-  await expect(page.locator("[data-walk-step]")).toHaveCount(keys.steps.length);
+  await expect(page.locator("[data-walk-step]")).toHaveCount(keys.steps!.length);
   await context.close();
+});
+
+test("a real recording plays on the phone for its thing, with captions, when this computer has one", async ({ page }) => {
+  await page.unrouteAll();
+  const clip = fs.readFileSync(path.join(__dirname, "fixtures/test-clip.mp4"));
+  const clips = {
+    source: "local",
+    clips: [{ id: "watch", kind: "find", thing: "watch", title: "Finding the watch", recorded: "2026-11-02", walk: [0.5, 2.5], file: "watch.mp4", seconds: 3, captions: [[0, "First line"], [1, "Second line"]] }],
+  };
+  await page.route("**/local-video/clips.json", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(clips) }));
+  await page.route("**/local-video/watch.mp4", (route) => route.fulfill({ status: 200, contentType: "video/mp4", body: clip }));
+  await page.route("**/demo-video/**", (route) => route.fulfill({ status: 404, body: "" }));
+  await open(page, PAGE);
+  await page.getByText("Where is my watch?", { exact: true }).click();
+  const phone = page.locator("[data-recorded-phone='watch']");
+  await expect(phone).toBeVisible();
+  await expect(page.getByText(t.phone.localOnly).first()).toBeVisible();
+  await phone.locator("video").evaluate((v: HTMLVideoElement) => {
+    v.currentTime = 1.5;
+  });
+  await expect(phone.locator("[data-clip-caption]")).toHaveText("Second line");
+  // the simulated screen is one switch away
+  await page.getByLabel(t.phone.showSimulated).check();
+  await expect(page.locator("[data-simulated-phone]")).toBeVisible();
 });
 
 test("has no WCAG 2.2 AA violations", async ({ page }) => {
   await open(page, PAGE);
   // measured once the walk has played (mid-fade, words are lighter on purpose)
-  await page.waitForFunction(() => document.querySelector<HTMLElement>("[data-walk-demo]")?.dataset.played === "true");
+  await played(page);
   const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
   expect(results.violations).toEqual([]);
 });

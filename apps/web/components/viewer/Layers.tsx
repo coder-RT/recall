@@ -396,6 +396,9 @@ export function Route({ walk, tokens }: { walk: Walk; tokens: Tokens }) {
     // the tube's triangles run from start to end, so drawing the first n of them draws the first part of the walk
     return new TubeGeometry(curve, Math.max(24, Math.round(curve.getLength() * 40)), 0.035, 8, false);
   }, [walk.path]);
+  // the whole walk, faint, so where it goes reads before and while it is drawn
+  const ahead = useMemo(() => tube.clone(), [tube]);
+  useEffect(() => () => ahead.dispose(), [ahead]);
   const drawn = useRef(-1);
   const draw = () => {
     const total = tube.index?.count ?? 0;
@@ -413,12 +416,43 @@ export function Route({ walk, tokens }: { walk: Walk; tokens: Tokens }) {
     return () => tube.dispose();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- draw reads the same tube and progress box
   }, [tube, walk.progress, invalidate]);
+  // the walker: where the person is along the route now, facing the way they walk
+  const legs = useMemo(() => {
+    const out: { x0: number; y0: number; dx: number; dy: number; length: number; end: number }[] = [];
+    let total = 0;
+    for (let i = 1; i < walk.path.length; i++) {
+      const [x0, y0] = walk.path[i - 1];
+      const [x, y] = walk.path[i];
+      const length = Math.hypot(x - x0, y - y0);
+      total += length;
+      out.push({ x0, y0, dx: x - x0, dy: y - y0, length, end: total });
+    }
+    return { out, total };
+  }, [walk.path]);
+  const walker = useRef<Group>(null);
+  const place = () => {
+    const g = walker.current;
+    if (!g || legs.total === 0) return;
+    const d = Math.min(1, Math.max(0, walk.progress.value)) * legs.total;
+    const leg = legs.out.find((l) => d <= l.end) ?? legs.out[legs.out.length - 1];
+    const k = leg.length ? 1 - (leg.end - d) / leg.length : 1;
+    g.position.set(leg.x0 + leg.dx * k, leg.y0 + leg.dy * k, ROUTE_Z + 0.01);
+    g.rotation.set(0, 0, Math.atan2(leg.dy, leg.dx));
+  };
   useFrame(() => {
-    draw();
+    if (draw()) place();
   });
+  useEffect(() => {
+    place();
+    invalidate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- place reads the same legs and progress box
+  }, [legs, walk.progress, invalidate]);
   const [sx, sy] = walk.path[0];
   return (
     <>
+      <mesh geometry={ahead} renderOrder={7}>
+        <meshBasicMaterial color={tokens.cta} transparent opacity={0.3} depthTest={false} toneMapped={false} />
+      </mesh>
       <mesh geometry={tube} renderOrder={8}>
         <meshBasicMaterial color={tokens.cta} transparent depthTest={false} toneMapped={false} />
       </mesh>
@@ -426,6 +460,21 @@ export function Route({ walk, tokens }: { walk: Walk; tokens: Tokens }) {
         <ringGeometry args={[0.09, 0.14, 32]} />
         <meshBasicMaterial color={tokens.cta} transparent depthTest={false} toneMapped={false} />
       </mesh>
+      {/* you: a dark disc with a white edge and a wedge pointing the way you walk (+x in the group, turned to the leg) */}
+      <group ref={walker} renderOrder={12}>
+        <mesh renderOrder={12}>
+          <circleGeometry args={[0.13, 32]} />
+          <meshBasicMaterial color={tokens.bg} transparent depthTest={false} toneMapped={false} />
+        </mesh>
+        <mesh position={[0, 0, 0.001]} renderOrder={13}>
+          <circleGeometry args={[0.1, 32]} />
+          <meshBasicMaterial color={tokens.blueDark} transparent depthTest={false} toneMapped={false} />
+        </mesh>
+        <mesh position={[0.17, 0, 0.002]} rotation={[0, 0, -Math.PI / 2]} renderOrder={13}>
+          <coneGeometry args={[0.07, 0.12, 3]} />
+          <meshBasicMaterial color={tokens.blueDark} transparent depthTest={false} toneMapped={false} />
+        </mesh>
+      </group>
     </>
   );
 }

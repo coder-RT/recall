@@ -89,6 +89,8 @@ export interface ViewerProps {
   /** how the viewer opens (default: every point, from the side, turning slowly); `distance` scales the camera's
    * distance so a whole room fits a smaller frame */
   start?: { view: View; preset: Preset; distance?: number; spin?: boolean };
+  /** false hides the view switch and the other controls (two viewers side by side on the demo page) */
+  controls?: boolean;
   t: ViewerStrings;
 }
 
@@ -264,7 +266,7 @@ async function load(src: string): Promise<CloudData> {
   return { positions: new Float32Array(positions!), colors: colors ? new Uint8Array(colors) : null, conf: new Uint8Array(conf!) };
 }
 
-export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, things, selected, hasMesh = false, hasPhoto = false, hasArchitect = false, walk = null, start, t }: ViewerProps) {
+export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, things, selected, hasMesh = false, hasPhoto = false, hasArchitect = false, walk = null, start, controls = true, t }: ViewerProps) {
   const root = useRef<HTMLDivElement>(null);
   const id = useId();
   const { reduced } = useMotionPrefs();
@@ -392,6 +394,7 @@ export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, t
           <p className="grid size-full place-items-center text-sm text-muted">{t.loading}</p>
         )}
       </div>
+      {controls && (
       <div data-viewer-controls className="flex flex-wrap gap-x-6 gap-y-3 border-t border-fb-line px-4 py-3">
         <fieldset className="flex w-full flex-wrap items-center gap-2">
           <legend className="float-left mr-1 text-sm font-semibold text-muted">{t.view}</legend>
@@ -522,6 +525,7 @@ export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, t
           </AnimatePresence>
         </div>
       </div>
+      )}
     </div>
   );
 }

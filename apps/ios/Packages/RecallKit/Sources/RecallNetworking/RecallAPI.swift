@@ -135,6 +135,20 @@ extension RecallAPI: HomeMemory {
 
 // MARK: GuideService, Transcriber
 
+extension RecallAPI: ReplyReading {
+    /// nil for "unknown": the Mac's model couldn't tell, so the phone decides.
+    public func read(reply: String, about thing: String) async throws -> FoundReply? {
+        let r = try await call { try await client.readReply(body: .json(.init(said: String(reply.prefix(300)), thing: String(thing.prefix(80))))) }
+        guard case .ok(let ok) = r else { return nil }
+        return switch try ok.body.json.intent.rawValue {
+        case "go_back": .goBack
+        case "done": .done
+        case "question": .question
+        default: nil
+        }
+    }
+}
+
 extension RecallAPI: GuideService, Transcriber {
     public func ask(home: String, question: String, about: String?) async throws -> Answer {
         let r = try await call { try await client.ask(body: .json(.init(homeId: home, question: question, about: about))) }

@@ -1,7 +1,8 @@
 import Foundation
 
-/// What the person meant after "Do you want to go back, or are you done?". Plain word rules on what Muse Voice
-/// Transcribe heard, because a wrong guess here only costs a sentence; anything else is a new question for the Guide.
+/// What the person meant after "Do you want to go back, or are you done?". A Meta model on the Mac reads the reply
+/// (`ReadFoundReply`); `read` is the fallback for when the Mac can't be reached, so the walk never stalls on it. Plain
+/// word rules, because a wrong guess here only costs a sentence; anything else is a new question for the Guide.
 public enum FoundReply: Sendable, Equatable {
     case goBack, done, question
 

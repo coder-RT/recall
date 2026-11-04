@@ -392,3 +392,27 @@ struct GuideKeepsTheCameraTests {
         #expect(locator.marks.last == .some(nil))  // its arrow is gone all the same
     }
 }
+
+@Suite("Replies after a find") struct ReadFoundReplyTests {
+    @Test func theModelsReadingWins() async {
+        let read = ReadFoundReply(reader: FakeReplyReader(answer: .goBack))
+        #expect(await read("get me out of here", about: "keys") == .goBack)
+        // the rules would have called this a new question: the model understood it
+        let done = ReadFoundReply(reader: FakeReplyReader(answer: .done))
+        #expect(await done("nah I'm good", about: "keys") == .done)
+    }
+
+    @Test func thePhoneDecidesWhenTheMacCantTell() async {
+        #expect(await ReadFoundReply(reader: FakeReplyReader(answer: nil))("no thank you", about: "keys") == .done)
+    }
+
+    @Test func aSlowModelDoesntKeepAnyoneWaiting() async {
+        let read = ReadFoundReply(reader: FakeReplyReader(answer: .goBack, hangs: true), patience: 0.05)
+        #expect(await read("no thank you", about: "keys") == .done)
+    }
+
+    @Test func thePhoneDecidesWhenTheMacIsUnreachable() async {
+        #expect(await ReadFoundReply(reader: FakeReplyReader(fails: true))("take me back", about: "keys") == .goBack)
+        #expect(await ReadFoundReply(reader: nil)("where's my wallet", about: "keys") == .question)
+    }
+}

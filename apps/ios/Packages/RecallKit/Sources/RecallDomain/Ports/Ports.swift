@@ -53,6 +53,11 @@ public protocol Transcriber: Sendable {
     func transcribe(wav: Data) async throws -> String
 }
 
+/// A Meta model on the Mac reads a spoken reply after a find; nil when it couldn't tell.
+public protocol ReplyReading: Sendable {
+    func read(reply: String, about thing: String) async throws -> FoundReply?
+}
+
 /// The Mac's processing status of an uploaded scan.
 public protocol ScanProcessing: Sendable {
     func status(scan: String) async throws -> ScanReport

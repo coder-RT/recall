@@ -98,3 +98,5 @@ paths:
     $ref: paths/guidance.yaml#/verify
   /transcribe:
     $ref: paths/voice.yaml#/transcribe
+  /reply:
+    $ref: paths/voice.yaml#/reply

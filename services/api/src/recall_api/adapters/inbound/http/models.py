@@ -464,6 +464,7 @@ class Action(StrEnum):
     arrival_verified = "arrival.verified"
     guide_answered = "guide.answered"
     voice_transcribed = "voice.transcribed"
+    reply_read = "reply.read"
     audit_pruned = "audit.pruned"
     rate_limited = "rate.limited"
 
@@ -835,3 +836,28 @@ class Transcript(BaseModel):
     text: str
     model: str | None = None
     latency_ms: int | None = None
+
+
+class ReplyRequest(BaseModel):
+    said: Annotated[
+        str,
+        Field(description="What the person replied, as Muse Voice Transcribe heard it", max_length=300, min_length=1),
+    ]
+    thing: Annotated[str | None, Field(description="What they were just guided to", max_length=80)] = None
+
+
+class Intent(StrEnum):
+    go_back = "go_back"
+    done = "done"
+    question = "question"
+    unknown = "unknown"
+
+
+class ReplyIntent(BaseModel):
+    intent: Annotated[
+        Intent,
+        Field(
+            description="unknown when the model couldn't be reached or broke the format; the phone then decides by itself"
+        ),
+    ]
+    by: Annotated[str, Field(description="The model that read the reply")]

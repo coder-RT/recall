@@ -98,7 +98,7 @@ enum UITestSamples {
             PrivacyStatus(storedOn: "This Mac", sent: [
                 DataFlow(what: "Scan photos, about 50 per room (no depth, no sound)", to: "Meta Model API: SAM 3.1",
                          when: "While this Mac processes a scan, to find furniture and things"),
-                DataFlow(what: "Your question as text", to: "Baseten: Muse Spark Open", when: "Each time you ask"),
+                DataFlow(what: "Your question, or your reply after a find, as text", to: "Baseten: Muse Spark Open", when: "Each time you ask"),
             ], robotAccess: false, auditDays: 90)
         }
     }

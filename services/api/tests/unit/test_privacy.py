@@ -12,13 +12,13 @@ def test_scan_photos_voice_and_arrival_photos_go_to_metas_api_and_say_so():
     to = {x.what.split(" (")[0].split(",")[0]: x.to for x in f.sent}
     assert to["Scan photos"] == "Meta Model API: SAM 3.1"
     assert to["Your spoken question"] == "Meta Model API: Muse Voice Transcribe"
-    assert to["Your question as text"] == "Baseten: Muse Spark Open"
+    assert to["Your question"] == "Baseten: Muse Spark Open"
     assert f.stored_on == "This Mac" and not any("robot" in x.to.lower() for x in f.sent)
 
 
 def test_private_mode_keeps_the_question_on_the_mac():
     f = describe_privacy("lmstudio", "lmstudio", "local", False, 90)
-    question = next(x for x in f.sent if x.what.startswith("Your question as text"))
+    question = next(x for x in f.sent if x.what.startswith("Your question,"))
     assert question.on_this_mac and "this Mac" in question.to
 
 

@@ -22,6 +22,7 @@ final class ARLabelsModel {
     struct Asking {
         let ask: AskInAR
         let transcriber: any Transcriber
+        let replies: ReadFoundReply
         let voice: any VoiceInput
         let things: ThingsModel
         let makeGuide: @MainActor (Thing, (scan: String, data: Data)?) -> GuideModel
@@ -201,7 +202,7 @@ final class ARLabelsModel {
             heard = question
             if afterFound {
                 afterFound = false
-                switch FoundReply.read(question) {
+                switch await asking.replies(question, about: guide?.thing.title ?? "") {
                 case .goBack:
                     hearing = .idle
                     return goBack()

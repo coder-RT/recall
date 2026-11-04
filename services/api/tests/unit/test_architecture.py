@@ -9,7 +9,7 @@ ROUTERS = sorted((SRC / "adapters" / "inbound" / "http").glob("*.py"))
 
 # container attributes that are storage or outbound adapters, not use cases
 NOT_FOR_ROUTERS = {"engine", "blobs", "homes", "scans", "objects", "owner_settings", "audit_log", "answer_log", "llm",
-                   "transcriber", "worker_status"}  # fmt: skip
+                   "transcriber", "reply_reader", "worker_status"}  # fmt: skip
 # Allowed on purpose: httpx (ask.py maps an unreachable model's HTTPError to a 503) and numpy (guidance.py decodes
 # the uploaded 16-bit depth bytes into an array: parsing the request, no maths on it).
 ROUTER_IMPORTS_BANNED = ("PIL", "sqlalchemy", "recall_api.adapters.outbound", "recall_api.domain.ports")

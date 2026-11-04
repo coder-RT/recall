@@ -27,6 +27,7 @@ BODY_LIMITS: list[tuple[str, re.Pattern[str], int]] = [
 RATE_LIMITS: list[tuple[str, re.Pattern[str], int]] = [
     ("POST", re.compile(r"^/ask$"), 30),
     ("POST", re.compile(r"^/transcribe$"), 30),
+    ("POST", re.compile(r"^/reply$"), 30),
     ("POST", re.compile(r"^/guidance/sessions/[^/]+/verify$"), 20),
     ("POST", re.compile(r"^/scans/[^/]+/complete$"), 10),
     ("POST", re.compile(r"^/homes/[^/]+/locate$"), 90),  # no model, but CPU: the phone asks about once a second

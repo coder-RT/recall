@@ -46,7 +46,8 @@ def describe_privacy(
              "While this Mac processes a scan, to find furniture and things"),
         Flow("Your spoken question (a few seconds of audio)", "Meta Model API: Muse Voice Transcribe",
              "When you ask by voice"),
-        Flow("Your question as text, and what memory says about the thing (names, rooms, heights, times; no photos)",
+        Flow("Your question, or your reply after a find, as text, "
+             "and what memory says about the thing (names, rooms, heights, times; no photos)",
              guide_to, "Each time you ask", guide_local),
         Flow("One photo from the camera",
              "Meta Model API: SAM 3.1, and Muse Spark 1.1 when SAM is unsure or the thing seems to have moved",

@@ -26,10 +26,10 @@ class OpenAICompatibleLlm:
         body = {
             "model": self.model,
             "messages": messages,
-            "tools": tools,
-            "tool_choice": "auto",
             "max_tokens": self.max_tokens,
         }
+        if tools:  # a plain question has neither: tool_choice without tools is an error
+            body |= {"tools": tools, "tool_choice": "auto"}
         if self.reasoning_effort:
             body["reasoning_effort"] = self.reasoning_effort
         for attempt in range(3):

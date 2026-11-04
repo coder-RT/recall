@@ -187,6 +187,14 @@ class OwnerSettings(Protocol):
     def put(self, key: str, value: str) -> None: ...
 
 
+class ReplyReader(Protocol):
+    """A Meta model reads what someone said after a find: "go_back", "done", "question", or "unknown" if it can't."""
+
+    name: str
+
+    def read(self, said: str, thing: str) -> str: ...
+
+
 class PromptScreener(Protocol):
     """A Meta model (Muse Spark Open or Glimmer) checks an object name from outside before any tool runs."""
 

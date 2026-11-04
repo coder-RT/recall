@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from recall_api.application.ports import ModelUnavailable
 
 from .deps import container, require_device_key
-from .models import Answer, AskRequest, Transcript
+from .models import Answer, AskRequest, ReplyIntent, ReplyRequest, Transcript
 
 router = APIRouter(dependencies=[Depends(require_device_key)])
 
@@ -33,6 +33,12 @@ def ask(body: AskRequest, c=Depends(container)) -> Answer:
         latency_ms=a.latency_ms,
         answer_id=a.answer_id,
     )
+
+
+@router.post("/reply", response_model=ReplyIntent, tags=["voice"])
+def read_reply(body: ReplyRequest, c=Depends(container)) -> ReplyIntent:
+    r = c.read_reply(body.said, body.thing or "")
+    return ReplyIntent(intent=r.intent, by=r.by)
 
 
 @router.post("/transcribe", response_model=Transcript, tags=["voice"])

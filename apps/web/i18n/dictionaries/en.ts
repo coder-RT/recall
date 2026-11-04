@@ -507,7 +507,7 @@ export const en = {
     sent: [
       { what: "Scan photos, about 50 per room (no depth, no sound)", to: "Meta Model API: SAM 3.1", when: "While your Mac processes a scan, to find furniture and things" },
       { what: "Your spoken question (a few seconds of audio)", to: "Meta Model API: Muse Voice Transcribe", when: "When you ask by voice" },
-      { what: "Your question as text, and what memory says about the thing (names, rooms, heights, times; no photos)", to: "Baseten: Muse Spark Open. In private mode, Muse Glimmer on your Mac, so nothing leaves", when: "Each time you ask" },
+      { what: "Your question, or your reply after a find, as text, and what memory says about the thing (names, rooms, heights, times; no photos)", to: "Baseten: Muse Spark Open. In private mode, Muse Glimmer on your Mac, so nothing leaves", when: "Each time you ask" },
       { what: "One photo from the camera", to: "Meta Model API: SAM 3.1, and Muse Spark 1.1 when SAM is unsure or the thing seems to have moved", when: "When you check on arrival" },
       { what: "The room map, things and furniture (no photos, your names or notes, or anyone's position)", to: "Robots and agents you gave the robot key", when: "Only while Robot Access is on (off by default)" },
       { what: "The object name a robot asked about", to: "Muse Spark Open (or Glimmer on your Mac), to check it is only a name", when: "Before any robot request is answered" },

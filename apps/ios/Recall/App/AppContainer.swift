@@ -70,7 +70,8 @@ final class AppContainer {
                              roomMap: { scans.roomMap(scan: $0) }, saveGrownMap: { scans.saveGrownMap(scan: $0, $1) },
                              places: UITestSamples.enabled ? nil : server,
                              asking: .init(ask: AskInAR(ask: AskWhereIs(guide: UITestSamples.enabled ? UITestSamples.Guide() : server)),
-                                           transcriber: server, voice: WavRecorder(), things: things,
+                                           transcriber: server, replies: ReadFoundReply(reader: UITestSamples.enabled ? nil : server),
+                                           voice: WavRecorder(), things: things,
                                            makeGuide: { thing, map in self.arGuideModel(for: thing, map: map) }),
                              speech: speech, haptics: haptics, clock: clock)
     }
@@ -163,7 +164,7 @@ struct SystemClock: Clock {
 
 /// The Mac, as every Mac-facing port, reached with the current connection settings. Changing Settings swaps the
 /// client underneath; a call made before setup throws the setup issue, in words.
-final class LiveServer: HomeMemory, GuideService, PlaceLocating, Transcriber, ScanProcessing, ConnectionCheck, ScanServer, RobotSharing,
+final class LiveServer: HomeMemory, GuideService, PlaceLocating, Transcriber, ReplyReading, ScanProcessing, ConnectionCheck, ScanServer, RobotSharing,
     RoomMaps, RobotPackages, CompassRoutes, ArLabelsSource, TrustSettings, PrivacySource, EvidenceSource, @unchecked Sendable {
     private let lock = NSLock()
     private var api: RecallAPI?
@@ -223,6 +224,9 @@ final class LiveServer: HomeMemory, GuideService, PlaceLocating, Transcriber, Sc
     }
     func activity(limit: Int) async throws -> [AuditEntry] { try await current().activity(limit: limit) }
     func transcribe(wav: Data) async throws -> String { try await current().transcribe(wav: wav) }
+    func read(reply: String, about thing: String) async throws -> FoundReply? {
+        try await current().read(reply: reply, about: thing)
+    }
     func status(scan: String) async throws -> ScanReport { try await current().status(scan: scan) }
     func erase(scan: String) async throws { try await current().erase(scan: scan) }
     func privacy() async throws -> PrivacyStatus { try await current().privacy() }

@@ -200,6 +200,20 @@ public extension Pose {
     }
 }
 
+public struct FakeReplyReader: ReplyReading {
+    public var answer: FoundReply?
+    public var fails = false
+    public var hangs = false
+    public init(answer: FoundReply? = nil, fails: Bool = false, hangs: Bool = false) {
+        self.answer = answer; self.fails = fails; self.hangs = hangs
+    }
+    public func read(reply: String, about thing: String) async throws -> FoundReply? {
+        if hangs { try await Task.sleep(for: .seconds(30)) }
+        if fails { throw RecallError.status(503) }
+        return answer
+    }
+}
+
 @MainActor public final class FakeVoice: VoiceInput {
     public var allowed = true
     public var recording = Data("RIFF".utf8)

@@ -24,7 +24,7 @@ nobody else holds your scans or your memory. Some steps use **Meta's models onli
 |---|---|---|
 | Scan photos, about 50 per room (no depth, no sound) | Meta Model API: SAM 3.1 | While your Mac processes a scan, to find furniture and things |
 | Your spoken question (a few seconds of audio) | Meta Model API: Muse Voice Transcribe | When you ask by voice. In the AR view the microphone opens by itself after Recall asks a question (the phone taps, and it says Listening); it closes when you stop talking |
-| Your question as text, and what memory says about the thing (names, rooms, heights, times; no photos) | Baseten: Muse Spark Open. **Private mode:** Muse Glimmer on your Mac, so nothing leaves | Each time you ask |
+| Your question, or your reply after a find, as text, and what memory says about the thing (names, rooms, heights, times; no photos) | Baseten: Muse Spark Open. **Private mode:** Muse Glimmer on your Mac, so nothing leaves | Each time you ask |
 | One photo from the camera | Meta Model API: SAM 3.1, and Muse Spark 1.1 when SAM is unsure or the thing seems to have moved | When you check on arrival |
 | The room map, things and furniture (no photos, your names or notes, or anyone's position) | Robots and agents you gave the robot key | Only while **Robot Access** is on (off by default) |
 | The object name a robot asked about | Muse Spark Open (or Glimmer on your Mac), to check it is only a name | Before any robot request is answered |

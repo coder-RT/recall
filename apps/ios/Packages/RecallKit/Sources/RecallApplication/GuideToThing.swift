@@ -141,7 +141,7 @@ public final class GuideToThing {
         switch phase {
         case .locating: speech.say("Still finding where you are. Turn slowly.", interrupt: true)
         case .planning: speech.say("Planning the way.", interrupt: true)
-        case .checking: speech.say("Checking with the camera. Hold the phone towards it.", interrupt: true)
+        case .checking: speech.say("Checking with the camera. Hold the phone out in front of you.", interrupt: true)
         case .guiding(let cue, _): speech.say(Directions.say(cue, heading: heading), interrupt: true)
         case .landmarks(let t), .arrived(let t), .failed(let t): speech.say(t, interrupt: true)
         }
@@ -223,7 +223,7 @@ public final class GuideToThing {
     /// last word. Without a frame or an answer the arrival stands, and says so.
     private func check(session: String, arrive: String) async {
         phase = .checking
-        speech.say(arrive + " Hold the phone towards it. I'm checking with the camera.", interrupt: true)
+        speech.say(arrive + " Hold the phone out in front of you. I'm checking with the camera.", interrupt: true)
         try? await clock.sleep(seconds: settings.aimSeconds)
         guard !cancelled else { return }
         guard let frame = locator.arrivalFrame() else {

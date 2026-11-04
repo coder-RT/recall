@@ -8,7 +8,7 @@ public struct PlaceFix: Sendable, Equatable {
     /// The camera's pose in the room map's world, when that room matched well enough.
     public let pose: Pose?
     public let inliers: Int
-    /// What to point the phone at in that room, one-of-a-kind furniture first ("tv", "cabinet").
+    /// One-of-a-kind furniture in that room ("tv", "cabinet").
     public let hint: [String]
 
     public init(room: String?, pose: Pose?, inliers: Int, hint: [String]) {
@@ -67,11 +67,9 @@ public struct FixAgreement: Sendable {
 
 /// The spoken lines while the room is being recognised.
 public enum LocateCoaching {
-    /// "Point the phone slowly at the TV." then "Now at the cabinet." (`turn` counts the lines said so far).
-    public static func point(at hint: [String], turn: Int) -> String? {
-        guard !hint.isEmpty else { return nil }
-        let name = spoken(hint[turn % hint.count])
-        return turn == 0 ? "Point the phone slowly at the \(name)." : "Now at the \(name)."
+    /// While nothing is recognised yet: what to do with your body, never where to look (`turn` counts the lines said).
+    public static func keepTurning(turn: Int) -> String {
+        turn == 0 ? "Keep turning slowly, with the phone at chest height." : "Keep turning. Tilt the phone a little up, then down."
     }
 
     public static func elsewhere(found: String, wanted: String) -> String {

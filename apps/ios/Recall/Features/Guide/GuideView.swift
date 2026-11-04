@@ -114,7 +114,7 @@ struct GuidePanel: View {
     private var headline: String {
         switch model.phase {
         case .locating: "Finding where you are. Turn slowly."
-        case .checking: "Checking with the camera. Hold the phone towards it."
+        case .checking: "Checking with the camera. Hold the phone out in front of you."
         case .planning: "Planning the way…"
         case .guiding(let cue, _): Directions.say(cue)
         case .landmarks(let text), .arrived(let text), .failed(let text): text

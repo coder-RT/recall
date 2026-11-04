@@ -23,5 +23,5 @@ properties:
     type: array
     items: {type: string}
     maxItems: 3
-    description: What to point the phone at in that room, one-of-a-kind furniture first
+    description: One-of-a-kind furniture in that room
   ms: {type: integer, minimum: 0, description: "Time the Mac took"}

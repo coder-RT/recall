@@ -38,7 +38,19 @@ private let mapPose = Pose(columnMajor: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 2, 
     #expect(a.fixed && places.asked.count == 2 && places.asked[0].scan == "s1")
     #expect(locator.correction != nil)
     #expect(locator.reading()?.tracking == .normal)  // the guide can plan now
-    #expect(speech.lines == ["Point the phone slowly at the TV."])
+    #expect(speech.lines.isEmpty)  // the opening line said how to move; it was found before another was due
+}
+
+@MainActor @Test func itNeverSendsAnyoneToFindFurniture() async {
+    let locator = limitedLocator(), clock = FakeClock()
+    let places = FakePlaces([.success(PlaceFix(room: "Living room", pose: nil, inliers: 4, hint: ["tv", "shelf"]))])
+    let speech = FakeSpeech()
+    var s = PhotoAssist.Settings()
+    s.maxAsks = 12
+    let a = PhotoAssist(home: "flat", scan: "s1", room: "Living room", locator: locator, places: places, speech: speech,
+                        clock: clock, settings: s)
+    await a.run()
+    #expect(!speech.lines.isEmpty && speech.lines.allSatisfy { $0.hasPrefix("Keep turning") })
 }
 
 @MainActor @Test func inAnotherRoomItSaysSoOnceAndGivesNoFix() async {

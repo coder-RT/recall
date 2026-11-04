@@ -4,7 +4,8 @@ import RecallDomain
 /// Helps ARKit recognise the room, never replaces it: while ARKit hasn't matched the saved room map, about once a
 /// second one camera photo goes to the Mac's photo matcher (classic features + PnP, no model). From its answers:
 /// - the room is somewhere else → said once ("You seem to be in Bedroom, not Living room…");
-/// - what to point at → said every few seconds ("Point the phone slowly at the TV.");
+/// - how to move → said every few seconds ("Keep turning slowly…"), never where to look: someone who can't see the
+///   room can't point at a shelf, and furniture is only named once the room is recognised;
 /// - two fixes in a row that agree → the locator takes the correction and tracking reads normal at once.
 /// The moment ARKit matches by itself it stops asking. No Mac, or an error: nothing is said and ARKit carries on.
 @MainActor
@@ -13,7 +14,7 @@ public final class PhotoAssist {
         public var firstAfter: Double = 1.0  // ARKit often matches within a second: then nothing is sent
         public var every: Double = 1.0  // the Mac answers in about 35 ms; one photo a second is plenty
         public var maxAsks = 40
-        public var hintEvery: Double = 8  // seconds between "point at …" lines
+        public var hintEvery: Double = 8  // seconds between "keep turning" lines
         public init() {}
     }
 
@@ -45,7 +46,7 @@ public final class PhotoAssist {
         try? await clock.sleep(seconds: settings.firstAfter)
         var agreement = FixAgreement()
         var turn = 0
-        var lastHint: Date?
+        var lastHint = clock.now()  // the opening line has just said how to move
         var toldElsewhere = false
         for _ in 0..<settings.maxAsks {
             guard !cancelled, !located else { return }
@@ -57,9 +58,8 @@ public final class PhotoAssist {
                         speech.say(LocateCoaching.elsewhere(found: found, wanted: room), interrupt: true)
                         toldElsewhere = true
                     }
-                } else if lastHint.map({ clock.now().timeIntervalSince($0) >= settings.hintEvery }) ?? true,
-                          let line = LocateCoaching.point(at: fix.hint, turn: turn) {
-                    speech.say(line, interrupt: false)
+                } else if clock.now().timeIntervalSince(lastHint) >= settings.hintEvery {
+                    speech.say(LocateCoaching.keepTurning(turn: turn), interrupt: false)
                     turn += 1
                     lastHint = clock.now()
                 }

@@ -100,7 +100,7 @@ final class ARLabelsModel {
     func goToLabelInView() {
         guard canGo else { return }
         guard let label = locator.labelInView() else {
-            speech.say("Point the phone at a label.", interrupt: true)
+            speech.say("There's no label in front of the phone. Turn a little, or say what you're looking for.", interrupt: true)
             return
         }
         go(to: label)
@@ -304,12 +304,12 @@ final class ARLabelsModel {
                 return phase = .listOnly("The room map of this scan isn't on this iPhone, so here is the list.")
             }
             phase = .locating
-            speech.say("Scanning \(room). Point the phone around the room.", interrupt: true)
+            speech.say("Scanning \(room). Hold the phone at chest height and turn slowly.", interrupt: true)
             let scan = found.scanId
             mapInUse = (scan, map)
             locator.onMapGrown = { [saveGrownMap] data in saveGrownMap(scan, data) }
             locator.start(roomMap: map)
-            // the Mac's photo matcher helps alongside ARKit (named furniture to point at, a fix from a photo)
+            // the Mac's photo matcher helps alongside ARKit (what the phone is pointing at, a fix from a photo)
             if let places {
                 let a = PhotoAssist(home: home, scan: scan, room: room, locator: locator, places: places, speech: speech,
                                     clock: clock)

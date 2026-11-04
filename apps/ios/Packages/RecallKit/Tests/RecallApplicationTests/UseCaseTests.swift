@@ -45,7 +45,7 @@ struct GuideToThingTests {
         #expect(phases.contains { if case .guiding(let c, _) = $0 { c.clock == 3 } else { false } })
         #expect(speech.lines.first == "Finding where you are. Hold the phone up at chest height and turn slowly.")
         #expect(speech.lines.contains("Straight ahead, then 2 metres."))
-        #expect(speech.lines.contains("Your keys should be in front of you, on the desk. Hold the phone towards it. "
+        #expect(speech.lines.contains("Your keys should be in front of you, on the desk. Hold the phone out in front of you. "
                                       + "I'm checking with the camera."))
         #expect(speech.lines.last == "Found it. Your keys are at 12 o'clock, 40 centimetres away.")  // the camera check has the last word
         #expect(service.verified.count == 1)

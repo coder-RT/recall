@@ -39,10 +39,8 @@ private func pose(_ x: Double, _ y: Double, _ z: Double, yaw: Double = 0) -> Pos
 }
 
 @Test func coachingNamesThingsToPointAt() {
-    #expect(LocateCoaching.point(at: ["tv", "cabinet"], turn: 0) == "Point the phone slowly at the TV.")
-    #expect(LocateCoaching.point(at: ["tv", "cabinet"], turn: 1) == "Now at the cabinet.")
-    #expect(LocateCoaching.point(at: ["tv", "cabinet"], turn: 2) == "Now at the TV.")
-    #expect(LocateCoaching.point(at: [], turn: 0) == nil)
+    // what to do with your body, never where to look: nobody has to find a thing they can't see
+    for turn in 0..<3 { #expect(!LocateCoaching.keepTurning(turn: turn).contains("Point")) }
     #expect(LocateCoaching.elsewhere(found: "Bedroom", wanted: "Living room")
         == "You seem to be in Bedroom, not Living room. Walk to Living room and I'll keep looking.")
 }

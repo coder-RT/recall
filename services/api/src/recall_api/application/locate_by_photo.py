@@ -4,7 +4,8 @@ It runs alongside ARKit's own relocalisation, never instead of it: the phone ask
 room yet and uses whichever answers first. It answers:
 - the room the photo was taken in, when one room clearly wins (it may not be the room the thing is in);
 - the camera's pose in the world of the room map the phone runs, when that room matched well enough;
-- what to point at: the room's biggest one-of-a-kind furniture, for the spoken coaching.
+- the room's biggest one-of-a-kind furniture. It isn't spoken: nobody can point at what they can't see, and the
+  memory's boxes aren't reliable enough to say what the phone faces (5 of 7 real frames; 2026-11-04).
 """
 
 from __future__ import annotations

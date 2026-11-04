@@ -12,7 +12,7 @@ public enum ScanTips {
             tips.append("Walls were seen on \(walls) of 12 sides. Walk the whole way round, about a metre from each wall.")
         }
         if let seen = m.zonesSeen, let total = m.zonesTotal, total > 0, Double(seen) / Double(total) < 0.6 {
-            tips.append("Height zones seen \(seen) of \(total). Point the phone at knee height and up at shelves too, not only straight ahead.")
+            tips.append("Height zones seen \(seen) of \(total). Sweep the phone from knee height to above your head, not only straight ahead.")
         }
         if m.directionsCovered < 10 {
             tips.append("\(m.directionsCovered) of 12 directions were seen. Turn slowly all the way round at the start.")

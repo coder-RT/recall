@@ -89,7 +89,7 @@ public struct ScanSignals: Sendable {
         case .moveCloser: "Too far. Move closer to the walls."
         case .moreLight: "It's too dark to see well. Turn on a light, or move closer."
         case .tiltDown: "Tilt the phone down a little so I can see the floor."
-        case .lowerPhone: "Lower the phone. Point it at the walls, not the ceiling."
+        case .lowerPhone: "Lower the phone. Hold it level with your chest."
         case .keepMoving: "Keep moving slowly. I haven't seen anything new for a while."
         }
     }
@@ -161,7 +161,7 @@ public struct ScanGuide: Sendable {
 
         public var spoken: String {
             switch self {
-            case .recognise: "Scanning again. Point the phone slowly around the room so I can recognise it."
+            case .recognise: "Scanning again. Hold the phone at chest height and turn slowly so I can recognise the room."
             case .start: "Stand by the door with the phone at chest height, camera facing the room."
             case .turnAround: "Turn slowly all the way round."
             case .alongWalls: "Now walk along the walls, about a metre away, with the phone pointing at the wall."

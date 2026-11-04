@@ -675,10 +675,7 @@ class PlaceFix(BaseModel):
     ]
     inliers: Annotated[int, Field(description="RANSAC inliers in the requested map's world", ge=0)]
     reproj_px: Annotated[float | None, Field(description="Mean reprojection error of those inliers, pixels")]
-    hint: Annotated[
-        list[str],
-        Field(description="What to point the phone at in that room, one-of-a-kind furniture first", max_length=3),
-    ]
+    hint: Annotated[list[str], Field(description="One-of-a-kind furniture in that room", max_length=3)]
     ms: Annotated[int, Field(description="Time the Mac took", ge=0)]
 
 

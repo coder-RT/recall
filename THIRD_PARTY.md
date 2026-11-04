@@ -105,7 +105,7 @@ Speech input is Muse Voice Transcribe (above).
 | What | Where | Terms |
 |---|---|---|
 | Sound of our own screen recording of a walk | `apps/web/public/demo-video/watch.mp4` | Ours, Apache-2.0 |
-| Music: [Soft Technology Music](https://pixabay.com/music/ambient-soft-technology-music-629712/) by MiroMaxMusic | Background of the demo video only; the file is not in this repo | [Pixabay Content License](https://pixabay.com/service/license-summary/): free, commercial use allowed, no attribution required. |
+| Music: [Peaceful Corporate](https://www.youtube.com/watch?v=I34bTKW8ud0) by Stock-Waves | Background of the demo video on YouTube only; the file is not in this repo | Free in YouTube videos, per the artist's terms in the track's video description, provided the artist is credited in the video description (done). |
 | Sound effects in the demo video | The demo video only; not in this repo | Ours: generated from noise and sine waves by our own script, no samples |
 
 ## Images

@@ -17,11 +17,17 @@ final class GuideModel {
     private var task: Task<Void, Never>?
 
     private let ended: () -> Void
+    /// Told when the walk reaches an end of its own (arrived, landmarks, failed), not when it is stopped.
+    var onFinished: ((GuideToThing.Phase) -> Void)?
+    var canWalkBack: Bool { guide.canWalkBack }
 
     init(guide: GuideToThing, session: ARSession, scene: SCNScene, supported: Bool, ended: @escaping () -> Void = {}) {
         self.guide = guide; self.session = session; self.scene = scene; self.supported = supported; thing = guide.thing
         self.ended = ended
-        guide.onChange = { [weak self] in self?.phase = $0 }
+        guide.onChange = { [weak self] in
+            self?.phase = $0
+            if $0.isFinished { self?.onFinished?($0) }
+        }
     }
 
     func start() {
@@ -39,4 +45,9 @@ final class GuideModel {
     }
 
     func repeatLast() { guide.repeatLast() }
+
+    func walkBack() {
+        phase = .planning
+        task = Task { await guide.walkBack() }
+    }
 }

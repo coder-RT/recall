@@ -108,9 +108,13 @@ def to_clock_steps(waypoints: list[tuple[float, float]], heading_xy: tuple[float
 
 
 def _say_m(m: float) -> str:
-    if m < 1:
-        return f"{int(round(m * 10)) * 10} centimetres"
-    return f"{m:.1f} metres".replace(".0 metres", " metres")
+    """Spoken to the nearest 10 cm: "70 centimetres", "1 metre" (not "1 metres" or "100 centimetres"), "1.5 metres"."""
+    tenths = round(m * 10)
+    if tenths < 10:
+        return f"{tenths * 10} centimetres"
+    if tenths == 10:
+        return "1 metre"
+    return f"{tenths / 10:.1f} metres".replace(".0 metres", " metres")
 
 
 def bearing(dx: float, dy: float, north_deg: float) -> float:

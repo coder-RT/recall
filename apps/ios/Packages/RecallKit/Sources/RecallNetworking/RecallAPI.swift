@@ -70,6 +70,38 @@ public struct RecallAPI: Sendable {
     }
 }
 
+// MARK: PlaceLocating
+
+extension RecallAPI: PlaceLocating {
+    /// Where am I? One photo to the Mac's matcher (LocateRequest.yaml). A short timeout: an answer that comes late is
+    /// worth less than the next photo.
+    public func locate(home: String, scan: String, room: String?, frame: ArrivalFrame) async throws -> PlaceFix {
+        let boundary = "recall-\(UUID().uuidString)"
+        var body = Data()
+        func part(_ name: String, filename: String? = nil, type: String? = nil, _ data: Data) {
+            body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"".utf8))
+            if let filename { body.append(Data("; filename=\"\(filename)\"".utf8)) }
+            body.append(Data("\r\n".utf8))
+            if let type { body.append(Data("Content-Type: \(type)\r\n".utf8)) }
+            body.append(Data("\r\n".utf8))
+            body.append(data)
+            body.append(Data("\r\n".utf8))
+        }
+        part("image", filename: "now.jpg", type: "image/jpeg", frame.jpeg)
+        part("pose", frame.poseJSON)
+        part("scan_id", Data(scan.utf8))
+        if let room { part("room", Data(room.utf8)) }
+        body.append(Data("--\(boundary)--\r\n".utf8))
+        let path = "homes/\(home.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? home)/locate"
+        var req = request(path, method: "POST", contentType: "multipart/form-data; boundary=\(boundary)", body: body)
+        req.timeoutInterval = 4
+        let json = try await send(req)
+        let pose = (json["pose"] as? [Double]).flatMap { $0.count == 16 ? Pose(columnMajor: $0) : nil }
+        return PlaceFix(room: json["room"] as? String, pose: pose, inliers: json["inliers"] as? Int ?? 0,
+                        hint: json["hint"] as? [String] ?? [])
+    }
+}
+
 // MARK: HomeMemory
 
 extension RecallAPI: HomeMemory {
@@ -102,6 +134,20 @@ extension RecallAPI: HomeMemory {
 }
 
 // MARK: GuideService, Transcriber
+
+extension RecallAPI: ReplyReading {
+    /// nil for "unknown": the Mac's model couldn't tell, so the phone decides.
+    public func read(reply: String, about thing: String) async throws -> FoundReply? {
+        let r = try await call { try await client.readReply(body: .json(.init(said: String(reply.prefix(300)), thing: String(thing.prefix(80))))) }
+        guard case .ok(let ok) = r else { return nil }
+        return switch try ok.body.json.intent.rawValue {
+        case "go_back": .goBack
+        case "done": .done
+        case "question": .question
+        default: nil
+        }
+    }
+}
 
 extension RecallAPI: GuideService, Transcriber {
     public func ask(home: String, question: String, about: String?) async throws -> Answer {

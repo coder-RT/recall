@@ -62,7 +62,7 @@ public struct SpeedCoach: Sendable {
         case .walkingFast: return "Slow down. Walk more slowly."
         case .turningFast: return "Slow down. Turn more slowly."
         case .trackingExcessiveMotion: return "Slow down. The phone is moving too fast to follow."
-        case .trackingFewFeatures: return "Point at something with more detail, and turn on a light."
+        case .trackingFewFeatures: return "The camera can't see much here. Turn a little, and turn on a light if you can."
         }
     }
 }

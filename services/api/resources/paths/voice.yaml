@@ -30,3 +30,26 @@ transcribe:
               $ref: ../schemas/Transcript.yaml
       "503":
         $ref: ../schemas/Responses.yaml#/Unavailable
+
+reply:
+  post:
+    tags: [voice]
+    operationId: readReply
+    summary: What a spoken reply means after a find, read by Muse Spark Open as a strict JSON verdict
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/ReplyRequest.yaml
+    responses:
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
+      "429":
+        $ref: ../schemas/Responses.yaml#/RateLimited
+      "200":
+        description: What the person wants next
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/ReplyIntent.yaml

@@ -1,8 +1,8 @@
 "use client";
 
-import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
-import { BoxGeometry, BufferGeometry, CanvasTexture, Color, EdgesGeometry, Float32BufferAttribute, type Group, PlaneGeometry, SRGBColorSpace } from "three";
+import { useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useMemo, useRef } from "react";
+import { BoxGeometry, BufferGeometry, CanvasTexture, Color, CurvePath, EdgesGeometry, Float32BufferAttribute, type Group, LineCurve3, PlaneGeometry, SRGBColorSpace, TubeGeometry, Vector3 } from "three";
 import { BAND_EDGES } from "./bands";
 
 export interface Surface {
@@ -100,8 +100,30 @@ export interface RoomShape {
 
 export interface FurnitureBox {
   label: string;
+  /** world bounds (of the turned box, when it is turned) */
   min: number[];
   max: number[];
+  /** newer exports: the box fitted in the room's own frame, so it sits square to the walls and inside them */
+  centre?: number[];
+  size?: number[];
+  /** radians about z */
+  yaw?: number;
+}
+
+export interface Placement {
+  centre: number[];
+  size: number[];
+  yaw: number;
+}
+
+/** Where a furniture box goes: turned with the walls when the export says so, else axis-aligned from min/max. */
+export function placement(f: FurnitureBox): Placement {
+  if (f.centre && f.size) return { centre: f.centre, size: f.size, yaw: f.yaw ?? 0 };
+  return {
+    centre: [0, 1, 2].map((k) => (f.min[k] + f.max[k]) / 2),
+    size: [0, 1, 2].map((k) => f.max[k] - f.min[k]),
+    yaw: 0,
+  };
 }
 
 export interface Thing {
@@ -164,17 +186,17 @@ export function Furniture({ items, tokens }: { items: FurnitureBox[]; tokens: To
   return (
     <>
       {items.map((f, i) => (
-        <BoxOutline key={i} min={f.min} max={f.max} colour={tokens.muted} />
+        <BoxOutline key={i} at={placement(f)} colour={tokens.muted} />
       ))}
     </>
   );
 }
 
-function BoxOutline({ min, max, colour }: { min: number[]; max: number[]; colour: string }) {
-  const size = [max[0] - min[0], max[1] - min[1], max[2] - min[2]];
-  const edges = useMemo(() => new EdgesGeometry(new BoxGeometry(size[0], size[1], size[2])), [size[0], size[1], size[2]]); // eslint-disable-line react-hooks/exhaustive-deps
+function BoxOutline({ at, colour }: { at: Placement; colour: string }) {
+  const [sx, sy, sz] = at.size;
+  const edges = useMemo(() => new EdgesGeometry(new BoxGeometry(sx, sy, sz)), [sx, sy, sz]);
   return (
-    <lineSegments geometry={edges} position={[min[0] + size[0] / 2, min[1] + size[1] / 2, min[2] + size[2] / 2]}>
+    <lineSegments geometry={edges} position={at.centre as [number, number, number]} rotation={[0, 0, at.yaw]}>
       <lineBasicMaterial color={colour} />
     </lineSegments>
   );
@@ -348,5 +370,111 @@ export function NorthArrow({ floor, northDeg, tokens, label, theta = 0 }: { floo
       <Line points={[x - dx * 0.9, y - dy * 0.9, 0.02, tip[0], tip[1], 0.02, tip[0], tip[1], 0.02, b1[0], b1[1], 0.02, tip[0], tip[1], 0.02, b2[0], b2[1], 0.02]} colour={tokens.cta} />
       <Label text={label} at={[x + dx * 1.25, y + dy * 1.25, 0.1]} colour={tokens.cta} size={0.4} />
     </group>
+  );
+}
+
+/** A walk to show: floor points (x, y) from start to thing, and how much of it is drawn (0 to 1; GSAP tweens it). */
+export interface Walk {
+  path: [number, number][];
+  progress: { value: number };
+}
+
+const ROUTE_Z = 0.03; // just above the floor, so the points don't cover it
+
+/**
+ * The route on the floor as a green band, drawn up to `walk.progress`, with a ring where the walk starts. Like the
+ * arrows it is drawn over the points (no depth test), so furniture never hides it.
+ */
+export function Route({ walk, tokens }: { walk: Walk; tokens: Tokens }) {
+  const { invalidate } = useThree();
+  const tube = useMemo(() => {
+    const curve = new CurvePath<Vector3>();
+    walk.path.slice(1).forEach(([x, y], i) => {
+      const [x0, y0] = walk.path[i];
+      curve.add(new LineCurve3(new Vector3(x0, y0, ROUTE_Z), new Vector3(x, y, ROUTE_Z)));
+    });
+    // the tube's triangles run from start to end, so drawing the first n of them draws the first part of the walk
+    return new TubeGeometry(curve, Math.max(24, Math.round(curve.getLength() * 40)), 0.035, 8, false);
+  }, [walk.path]);
+  // the whole walk, faint, so where it goes reads before and while it is drawn
+  const ahead = useMemo(() => tube.clone(), [tube]);
+  useEffect(() => () => ahead.dispose(), [ahead]);
+  const drawn = useRef(-1);
+  const draw = () => {
+    const total = tube.index?.count ?? 0;
+    const n = Math.floor((total * Math.min(1, Math.max(0, walk.progress.value))) / 3) * 3;
+    if (n === drawn.current) return false;
+    tube.setDrawRange(0, n);
+    drawn.current = n;
+    return true;
+  };
+  // the first frame shows the current progress (all of it when motion is reduced); later frames follow the tween
+  useEffect(() => {
+    drawn.current = -1;
+    draw();
+    invalidate();
+    return () => tube.dispose();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- draw reads the same tube and progress box
+  }, [tube, walk.progress, invalidate]);
+  // the walker: where the person is along the route now, facing the way they walk
+  const legs = useMemo(() => {
+    const out: { x0: number; y0: number; dx: number; dy: number; length: number; end: number }[] = [];
+    let total = 0;
+    for (let i = 1; i < walk.path.length; i++) {
+      const [x0, y0] = walk.path[i - 1];
+      const [x, y] = walk.path[i];
+      const length = Math.hypot(x - x0, y - y0);
+      total += length;
+      out.push({ x0, y0, dx: x - x0, dy: y - y0, length, end: total });
+    }
+    return { out, total };
+  }, [walk.path]);
+  const walker = useRef<Group>(null);
+  const place = () => {
+    const g = walker.current;
+    if (!g || legs.total === 0) return;
+    const d = Math.min(1, Math.max(0, walk.progress.value)) * legs.total;
+    const leg = legs.out.find((l) => d <= l.end) ?? legs.out[legs.out.length - 1];
+    const k = leg.length ? 1 - (leg.end - d) / leg.length : 1;
+    g.position.set(leg.x0 + leg.dx * k, leg.y0 + leg.dy * k, ROUTE_Z + 0.01);
+    g.rotation.set(0, 0, Math.atan2(leg.dy, leg.dx));
+  };
+  useFrame(() => {
+    if (draw()) place();
+  });
+  useEffect(() => {
+    place();
+    invalidate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- place reads the same legs and progress box
+  }, [legs, walk.progress, invalidate]);
+  const [sx, sy] = walk.path[0];
+  return (
+    <>
+      <mesh geometry={ahead} renderOrder={7}>
+        <meshBasicMaterial color={tokens.cta} transparent opacity={0.3} depthTest={false} toneMapped={false} />
+      </mesh>
+      <mesh geometry={tube} renderOrder={8}>
+        <meshBasicMaterial color={tokens.cta} transparent depthTest={false} toneMapped={false} />
+      </mesh>
+      <mesh position={[sx, sy, ROUTE_Z]} renderOrder={8}>
+        <ringGeometry args={[0.09, 0.14, 32]} />
+        <meshBasicMaterial color={tokens.cta} transparent depthTest={false} toneMapped={false} />
+      </mesh>
+      {/* you: a dark disc with a white edge and a wedge pointing the way you walk (+x in the group, turned to the leg) */}
+      <group ref={walker} renderOrder={12}>
+        <mesh renderOrder={12}>
+          <circleGeometry args={[0.13, 32]} />
+          <meshBasicMaterial color={tokens.bg} transparent depthTest={false} toneMapped={false} />
+        </mesh>
+        <mesh position={[0, 0, 0.001]} renderOrder={13}>
+          <circleGeometry args={[0.1, 32]} />
+          <meshBasicMaterial color={tokens.blueDark} transparent depthTest={false} toneMapped={false} />
+        </mesh>
+        <mesh position={[0.17, 0, 0.002]} rotation={[0, 0, -Math.PI / 2]} renderOrder={13}>
+          <coneGeometry args={[0.07, 0.12, 3]} />
+          <meshBasicMaterial color={tokens.blueDark} transparent depthTest={false} toneMapped={false} />
+        </mesh>
+      </group>
+    </>
   );
 }

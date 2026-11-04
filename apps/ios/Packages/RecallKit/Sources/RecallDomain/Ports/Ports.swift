@@ -53,6 +53,11 @@ public protocol Transcriber: Sendable {
     func transcribe(wav: Data) async throws -> String
 }
 
+/// A Meta model on the Mac reads a spoken reply after a find; nil when it couldn't tell.
+public protocol ReplyReading: Sendable {
+    func read(reply: String, about thing: String) async throws -> FoundReply?
+}
+
 /// The Mac's processing status of an uploaded scan.
 public protocol ScanProcessing: Sendable {
     func status(scan: String) async throws -> ScanReport
@@ -112,7 +117,10 @@ public protocol ScanLibrary: Sendable {
 public protocol EpisodeFiles: Sendable {
     func directory(scan: String) -> URL
     func manifest(scan: String) -> Manifest?
+    /// The scan's room map: the one ARKit grew from later visits when there is one, else the one the scan saved.
     func roomMap(scan: String) -> Data?
+    /// Keeps a grown room map (the scan's own stays as uploaded).
+    func saveGrownRoomMap(scan: String, _ data: Data)
     func delete(scan: String)
 }
 
@@ -151,10 +159,17 @@ public protocol Clock: Sendable {
 }
 
 /// Records a spoken question. `finished` is called once, with the recording, when the user stops or time runs out.
+/// `endOnSilence`: it also ends by itself when the person stops talking, with nil if they never spoke.
 @MainActor public protocol VoiceInput: AnyObject {
     var isRecording: Bool { get }
-    func start(maxSeconds: Double, finished: @escaping @MainActor (Data?) -> Void) async -> Bool
+    func start(maxSeconds: Double, endOnSilence: Bool, finished: @escaping @MainActor (Data?) -> Void) async -> Bool
     func stop()
+}
+
+extension VoiceInput {
+    public func start(maxSeconds: Double, finished: @escaping @MainActor (Data?) -> Void) async -> Bool {
+        await start(maxSeconds: maxSeconds, endOnSilence: false, finished: finished)
+    }
 }
 
 /// The phone's place in the room for guidance: relocalises in a saved room map, then reports the camera's pose.
@@ -169,6 +184,16 @@ public protocol Clock: Sendable {
     func arrivalFrame() -> ArrivalFrame?
     /// Lays arrows on the floor along the route (ARKit x, z), at the floor's height when known; empty clears them.
     func showPath(_ path: [SIMD2<Double>], floorY: Double?)
+    /// A photo fix's correction, T(map ← session) as a column-major 4 x 4: from now on `reading()` and
+    /// `arrivalFrame()` answer in the room map's world and tracking reads normal. nil drops it; so does ARKit's own
+    /// match of the room (its world then is the map's).
+    func correct(mapFromSession: Pose?)
+}
+
+/// The Mac's photo matcher: which room a camera photo shows, and the camera's pose in a room map's world.
+public protocol PlaceLocating: Sendable {
+    /// `scan`: the scan whose room map the phone runs; `room`: the room being looked for.
+    func locate(home: String, scan: String, room: String?, frame: ArrivalFrame) async throws -> PlaceFix
 }
 
 /// The phone's compass (magnetic north; no location is read).

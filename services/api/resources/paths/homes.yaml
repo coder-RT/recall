@@ -143,3 +143,38 @@ ar_labels:
             schema: {$ref: ../schemas/ArLabels.yaml}
       "404":
         $ref: ../schemas/Responses.yaml#/NotFound
+locate:
+  post:
+    tags: [homes]
+    operationId: locateByPhoto
+    summary: Where am I? One camera photo matched against the room scans (classic features + PnP, no model)
+    description: >
+      Asked by the phone while ARKit hasn't yet recognised the saved room map, alongside it (never instead of it).
+      Answers the room the photo was taken in when one room clearly wins, the camera's pose in the requested map's
+      world when that room matched well enough, and what to point the phone at. The photo is matched in memory and not
+      stored.
+    parameters:
+      - $ref: ../schemas/Params.yaml#/home_id
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            $ref: ../schemas/LocateRequest.yaml
+    responses:
+      "413":
+        $ref: ../schemas/Responses.yaml#/TooLarge
+      "429":
+        $ref: ../schemas/Responses.yaml#/RateLimited
+      "401":
+        $ref: ../schemas/Responses.yaml#/Unauthorized
+      "422":
+        $ref: ../schemas/Responses.yaml#/Invalid
+      "200":
+        description: What the photo matched
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/PlaceFix.yaml
+      "404":
+        $ref: ../schemas/Responses.yaml#/NotFound

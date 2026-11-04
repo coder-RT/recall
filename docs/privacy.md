@@ -15,16 +15,17 @@ nobody else holds your scans or your memory. Some steps use **Meta's models onli
 - **On your iPhone**: your scans until you delete them, the room map used to find your way, and the Mac's address.
   The device key is in the iPhone's Keychain.
 - Between them: your home network, or an encrypted tunnel you set up yourself (Tailscale or Cloudflare Tunnel). Every
-  request needs the device key.
+  request needs the device key. While Recall finds the room, about one camera photo a second goes to your Mac (only
+  there), to be matched against your scans; it is not stored.
 
 ## What leaves your Mac, to whom, and when
 
 | What | To | When |
 |---|---|---|
 | Scan photos, about 50 per room (no depth, no sound) | Meta Model API: SAM 3.1 | While your Mac processes a scan, to find furniture and things |
-| Your spoken question (a few seconds of audio) | Meta Model API: Muse Voice Transcribe | When you ask by voice |
-| Your question as text, and what memory says about the thing (names, rooms, heights, times; no photos) | Baseten: Muse Spark Open. **Private mode:** Muse Glimmer on your Mac, so nothing leaves | Each time you ask |
-| One photo from the camera | Meta Model API: SAM 3.1, and Muse Spark 1.1 only when SAM is unsure | When you check on arrival |
+| Your spoken question (a few seconds of audio) | Meta Model API: Muse Voice Transcribe | When you ask by voice. In the AR view the microphone opens by itself after Recall asks a question (the phone taps, and it says Listening); it closes when you stop talking |
+| Your question, or your reply after a find, as text, and what memory says about the thing (names, rooms, heights, times; no photos) | Baseten: Muse Spark Open. **Private mode:** Muse Glimmer on your Mac, so nothing leaves | Each time you ask |
+| One photo from the camera | Meta Model API: SAM 3.1, and Muse Spark 1.1 when SAM is unsure or the thing seems to have moved | When you check on arrival |
 | The room map, things and furniture (no photos, your names or notes, or anyone's position) | Robots and agents you gave the robot key | Only while **Robot Access** is on (off by default) |
 | The object name a robot asked about | Muse Spark Open (or Glimmer on your Mac), to check it is only a name | Before any robot request is answered |
 

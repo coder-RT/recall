@@ -1,5 +1,6 @@
 # Recall's robot skill on ROS 2 Jazzy with Nav2 and its loopback simulator (a simulated robot that moves exactly as
-# commanded: classic software, no models). Built by `make robot-demo`; nothing here runs on the iPhone or the Mac's API.
+# commanded: classic software, no models). An in-progress example, not part of the submission or Recall's install
+# (Recall itself runs without Docker). Build: docker build -t recall-fetch examples/ros2-robot
 FROM ros:jazzy-ros-base
 
 RUN apt-get update && apt-get install -y --no-install-recommends \

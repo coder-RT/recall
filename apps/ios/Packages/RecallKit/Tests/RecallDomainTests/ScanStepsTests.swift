@@ -57,7 +57,7 @@ struct ScanStepsTests {
         var m = metrics()
         m.zonesSeen = 12
         m.zonesTotal = 40
-        #expect(ScanTips.make(m) == ["Height zones seen 12 of 40. Point the phone at knee height and up at shelves too, not only straight ahead."])
+        #expect(ScanTips.make(m) == ["Height zones seen 12 of 40. Sweep the phone from knee height to above your head, not only straight ahead."])
     }
 
     @Test func tipsSayWhatToDoBetterAtMostThree() {

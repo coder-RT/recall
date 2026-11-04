@@ -106,13 +106,20 @@ final class ScansModel {
         return await Task.detached { archiver.archive(episode: dir) }.value
     }
 
-    /// The saved room map to relocalise in: the home's first processed scan made on this phone (routes are planned
-    /// in that scan's world).
-    /// The room map guidance starts from: the newest processed scan's (a recognised rescan's map holds the first
-    /// scan's world, extended).
-    func roomMap() -> Data? {
-        scans.filter(\.isProcessed).sorted { $0.createdAt > $1.createdAt }.lazy.compactMap { self.files.roomMap(scan: $0.id) }.first
+    /// The room map to guide to a thing in `room`: that room's newest processed scan with a map on this phone (the
+    /// Mac plans in that scan's world: a scan that wasn't recognised started the room's memory over). Without a room,
+    /// or no map of it, the newest processed scan's.
+    func guideMap(room: String?) -> (scan: String, data: Data)? {
+        let ready = scans.filter(\.isProcessed).sorted { $0.createdAt > $1.createdAt }
+        let inRoom = room.map { r in ready.filter { $0.room == r } } ?? []
+        for s in inRoom + ready {
+            if let data = files.roomMap(scan: s.id) { return (s.id, data) }
+        }
+        return nil
     }
+
+    /// Keeps the room map ARKit grew on a later visit (the next visit recognises the room from there too).
+    func saveGrownMap(scan: String, _ data: Data) { files.saveGrownRoomMap(scan: scan, data) }
 
     /// One scan's saved room map (the AR labels are placed in it).
     func roomMap(scan id: String) -> Data? { files.roomMap(scan: id) }

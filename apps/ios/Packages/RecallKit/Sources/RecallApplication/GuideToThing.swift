@@ -30,6 +30,7 @@ public final class GuideToThing {
         public var replanAfterMetres: Double = 1.5  // off the route by more than this → a new route
         public var maxReplans = 3
         public var faceTimeout: Double = 30  // seconds to turn towards a compass bearing
+        public var keepsSession = false  // guiding inside the AR view: the camera stays on when the guide ends
         public init() {}
     }
 
@@ -45,15 +46,20 @@ public final class GuideToThing {
     private let haptics: any HapticsOutput
     private let clock: any Clock
     private let compass: (any CompassSensor)?
+    private let photos: (places: any PlaceLocating, scan: String)?
     private let settings: Settings
     private var cancelled = false
+    /// The route just walked, to retrace it; a walk that needed a new route goes back along the last one.
+    private var walked: (path: [SIMD2<Double>], floorY: Double?)?
 
+    /// `photos`: the Mac's photo matcher and the scan whose room map this is, to recognise the room alongside ARKit.
     public init(home: String, thing: Thing, roomMap: Data?, locator: any Locator, guide: any GuideService,
                 speech: any SpeechOutput, haptics: any HapticsOutput, clock: any Clock,
-                compass: (any CompassSensor)? = nil, settings: Settings = .init()) {
+                compass: (any CompassSensor)? = nil, photos: (places: any PlaceLocating, scan: String)? = nil,
+                settings: Settings = .init()) {
         self.home = home; self.thing = thing; self.roomMap = roomMap; self.locator = locator; self.guide = guide
         self.speech = speech; self.haptics = haptics; self.clock = clock; self.compass = compass
-        self.settings = settings
+        self.photos = photos; self.settings = settings
     }
 
     /// The compass heading when it can be trusted (else directions leave out "north-east").
@@ -87,8 +93,11 @@ public final class GuideToThing {
                 return
             }
             locator.showPath(route.waypoints, floorY: route.floorY)  // arrows on the floor, leading the way
+            walked = (route.waypoints, route.floorY)
             if let first = route.steps.first { speech.say(first.say, interrupt: true) }
-            switch await follow(route) {
+            let arrive = route.arriveSay ?? "You should be at your \(thing.title)."
+            let end = await follow(route.waypoints) { [self] in await check(session: route.sessionId, arrive: arrive) }
+            switch end {
             case .done: return
             case .offRoute where replans < settings.maxReplans:
                 replans += 1
@@ -100,13 +109,31 @@ public final class GuideToThing {
         }
     }
 
+    /// Whether there is a walked route to go back along.
+    public var canWalkBack: Bool { (walked?.path.count ?? 0) > 1 }
+
+    /// Back the way the person came, on the phone alone: that path was clear a moment ago, so it needs no new route.
+    public func walkBack() async {
+        guard canWalkBack, let walked else { return }
+        let path = Array(walked.path.reversed())
+        locator.mark(nil)
+        locator.showPath(path, floorY: walked.floorY)
+        speech.say("Going back.", interrupt: true)
+        _ = await follow(path, replanning: false) { [self] in finish(.arrived("You're back.")) }
+    }
+
     public func stop() {
         cancelled = true
         locator.mark(nil)
         locator.showPath([], floorY: nil)
-        locator.stop()
+        release()
         compass?.stop()
         speech.stop()
+    }
+
+    /// Lets the camera go, unless the AR view that started this guide still needs it.
+    private func release() {
+        if !settings.keepsSession { locator.stop() }
     }
 
     /// Says the current instruction again (the Repeat button and the magic tap).
@@ -114,7 +141,7 @@ public final class GuideToThing {
         switch phase {
         case .locating: speech.say("Still finding where you are. Turn slowly.", interrupt: true)
         case .planning: speech.say("Planning the way.", interrupt: true)
-        case .checking: speech.say("Checking with the camera. Hold the phone towards it.", interrupt: true)
+        case .checking: speech.say("Checking with the camera. Hold the phone out in front of you.", interrupt: true)
         case .guiding(let cue, _): speech.say(Directions.say(cue, heading: heading), interrupt: true)
         case .landmarks(let t), .arrived(let t), .failed(let t): speech.say(t, interrupt: true)
         }
@@ -122,8 +149,14 @@ public final class GuideToThing {
 
     // MARK: steps
 
-    /// Waits for tracking to turn normal (ARKit recognised the room) or the timeout.
+    /// Waits for tracking to turn normal (ARKit recognised the room, or two photo fixes agreed) or the timeout.
     private func locate() async -> TrackingState {
+        let assist = photos.map {
+            PhotoAssist(home: home, scan: $0.scan, room: thing.room, locator: locator, places: $0.places, speech: speech,
+                        clock: clock)
+        }
+        let helping = assist.map { a in Task { await a.run() } }
+        defer { assist?.cancel(); helping?.cancel() }
         let started = clock.now()
         while !cancelled, clock.now().timeIntervalSince(started) < settings.locateTimeout {
             if locator.reading()?.tracking == .normal { return .normal }
@@ -146,12 +179,13 @@ public final class GuideToThing {
 
     private enum FollowEnd { case done, offRoute }
 
-    private func follow(_ route: Route) async -> FollowEnd {
-        var follower = RouteFollower(waypoints: route.waypoints)
+    /// `replanning` false: off the path it keeps pointing at the next waypoint, because no new route is coming.
+    private func follow(_ waypoints: [SIMD2<Double>], replanning: Bool = true,
+                        arrived: () async -> Void) async -> FollowEnd {
+        var follower = RouteFollower(waypoints: waypoints)
         var throttle = CueThrottle()
         var lastTick = Date.distantPast
         var warnedWeak = false
-        let arrive = route.arriveSay ?? "You should be at your \(thing.title)."
         while !cancelled {
             try? await clock.sleep(seconds: settings.tick)
             guard !cancelled, let reading = locator.reading() else { continue }
@@ -171,10 +205,10 @@ public final class GuideToThing {
             if cue.arrived {
                 locator.showPath([], floorY: nil)
                 haptics.success()
-                await check(session: route.sessionId, arrive: arrive)
+                await arrived()
                 return .done
             }
-            if cue.offRouteMetres > settings.replanAfterMetres { return .offRoute }
+            if replanning, cue.offRouteMetres > settings.replanAfterMetres { return .offRoute }
             let now = clock.now()
             if cue.clock == 12, now.timeIntervalSince(lastTick) > 1.5 {  // a tick while facing the right way
                 haptics.tap()
@@ -189,7 +223,7 @@ public final class GuideToThing {
     /// last word. Without a frame or an answer the arrival stands, and says so.
     private func check(session: String, arrive: String) async {
         phase = .checking
-        speech.say(arrive + " Hold the phone towards it. I'm checking with the camera.", interrupt: true)
+        speech.say(arrive + " Hold the phone out in front of you. I'm checking with the camera.", interrupt: true)
         try? await clock.sleep(seconds: settings.aimSeconds)
         guard !cancelled else { return }
         guard let frame = locator.arrivalFrame() else {
@@ -231,7 +265,7 @@ public final class GuideToThing {
                 facedSince = nil
             }
         }
-        locator.stop()
+        release()
     }
 
     private func finish(_ end: Phase) {
@@ -240,6 +274,6 @@ public final class GuideToThing {
         case .landmarks(let t), .arrived(let t), .failed(let t): speech.say(t, interrupt: true)
         default: break
         }
-        locator.stop()
+        release()
     }
 }

@@ -21,26 +21,45 @@ struct GuideView: View {
             VStack(spacing: 12) {
                 if case .guiding(_, weakTracking: true) = model.phase { CueBanner("Slow down, tracking is weak") }
                 Spacer()
-                // the panel keeps its own solid fill (glass in the container was drawn over its words); only the
-                // buttons are glass
-                panel
-                GlassEffectContainer(spacing: 12) {
-                    HStack(spacing: 12) {
-                        BigButton("Repeat", systemImage: "speaker.wave.2.fill", hint: "Says the direction again.",
-                                  style: .secondary) { model.repeatLast() }
-                        BigButton(finished ? "Done" : "Stop", systemImage: finished ? "checkmark" : "stop.fill",
-                                  hint: "Ends the directions.", style: finished ? .primary : .stop) {
-                            model.stop()
-                            close()
-                        }
-                    }
-                }
+                GuidePanel(model: model, close: close)
             }
             .padding(16)
         }
         .onAppear { model.start() }
         .onDisappear { model.stop() }
         .accessibilityAction(.magicTap) { model.repeatLast() }
+    }
+}
+
+/// The directions: the clock dial, the words and Repeat / Stop. On the guide screen, and under the camera in AR.
+struct GuidePanel: View {
+    let model: GuideModel
+    /// In AR: back the way you came, once you've arrived (nil on the guide screen).
+    var goBack: (() -> Void)?
+    let close: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            // the panel keeps its own solid fill (glass in the container was drawn over its words); only the buttons
+            // are glass
+            panel
+            if let goBack, case .arrived = model.phase, model.canWalkBack {
+                BigButton("Go back", systemImage: "arrow.uturn.backward", hint: "Walks you back the way you came.",
+                          style: .secondary, action: goBack)
+                    .accessibilityIdentifier("ar-go-back")
+            }
+            GlassEffectContainer(spacing: 12) {
+                HStack(spacing: 12) {
+                    BigButton("Repeat", systemImage: "speaker.wave.2.fill", hint: "Says the direction again.",
+                              style: .secondary) { model.repeatLast() }
+                    BigButton(finished ? "Done" : "Stop", systemImage: finished ? "checkmark" : "stop.fill",
+                              hint: "Ends the directions.", style: finished ? .primary : .stop) {
+                        model.stop()
+                        close()
+                    }
+                }
+            }
+        }
     }
 
     private var finished: Bool {
@@ -95,7 +114,7 @@ struct GuideView: View {
     private var headline: String {
         switch model.phase {
         case .locating: "Finding where you are. Turn slowly."
-        case .checking: "Checking with the camera. Hold the phone towards it."
+        case .checking: "Checking with the camera. Hold the phone out in front of you."
         case .planning: "Planning the way…"
         case .guiding(let cue, _): Directions.say(cue)
         case .landmarks(let text), .arrived(let text), .failed(let text): text

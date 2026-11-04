@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { BoxGeometry, BufferAttribute, BufferGeometry, Color, EdgesGeometry, PlaneGeometry, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, type Texture } from "three";
-import { NorthArrow, type FurnitureBox, type RoomShape, type Thing, type Tokens } from "./Layers";
+import { NorthArrow, placement, type FurnitureBox, type Placement, type RoomShape, type Thing, type Tokens } from "./Layers";
 
 /** One colour per kind of furniture, like a semantic map (a legend in the controls names them). */
 export const KIND_COLOURS: Record<string, string> = {
@@ -73,29 +73,18 @@ export function RoomModel({
       {showFurniture && furniture.map((f, i) => (
         <SolidBox
           key={i}
-          min={f.min}
-          max={f.max}
+          at={placement(f)}
           colour={kindColour(f.label)}
           edge={tokens.blueDark}
         />
       ))}
       {things.map((t, i) => {
+        // a thing's size is measured along the world axes (min/max), so its box stays square to them
         const s = (t.size ?? [0.12, 0.12, 0.12]).map((v) => Math.max(v, 0.05));
-        const min = [
-          t.at[0] - s[0] / 2,
-          t.at[1] - s[1] / 2,
-          t.at[2] - s[2] / 2,
-        ];
-        const max = [
-          t.at[0] + s[0] / 2,
-          t.at[1] + s[1] / 2,
-          t.at[2] + s[2] / 2,
-        ];
         return (
           <SolidBox
             key={`t${i}`}
-            min={min}
-            max={max}
+            at={{ centre: t.at, size: s, yaw: 0 }}
             colour={(t.color && NAMED[t.color]) || tokens.cta}
             edge={i === selected ? tokens.blueDark : tokens.muted}
             thick={i === selected}
@@ -150,30 +139,21 @@ function SolidWall({
 }
 
 function SolidBox({
-  min,
-  max,
+  at,
   colour,
   edge,
   thick = false,
 }: {
-  min: number[];
-  max: number[];
+  at: Placement;
   colour: string;
   edge: string;
   thick?: boolean;
 }) {
-  const [sx, sy, sz] = [max[0] - min[0], max[1] - min[1], max[2] - min[2]];
+  const [sx, sy, sz] = at.size;
   const box = useMemo(() => new BoxGeometry(sx, sy, sz), [sx, sy, sz]);
   const edges = useMemo(() => new EdgesGeometry(box), [box]);
   return (
-    <group
-      position={[
-        min[0] + sx / 2,
-        min[1] + sy / 2,
-        min[2] + sz / 2,
-      ]}
-      scale={thick ? 1.25 : 1}
-    >
+    <group position={at.centre as [number, number, number]} rotation={[0, 0, at.yaw]} scale={thick ? 1.25 : 1}>
       <mesh geometry={box}>
         <meshLambertMaterial color={colour} />
       </mesh>

@@ -1,0 +1,12 @@
+type: object
+required: [said]
+properties:
+  said:
+    type: string
+    minLength: 1
+    maxLength: 300
+    description: What the person replied, as Muse Voice Transcribe heard it
+  thing:
+    type: string
+    maxLength: 80
+    description: What they were just guided to

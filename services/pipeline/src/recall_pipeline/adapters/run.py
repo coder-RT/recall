@@ -89,4 +89,11 @@ def process(episode_dir: str, scan_id: str, post: bool = True, out: str | None =
     target.write_text(json.dumps(result, indent=1))
     print(json.dumps(result["stats"]))
     print(f"{len(result['landmarks'])} landmarks, {len(result['objects'])} objects -> {target}")
+    try:  # the photo matcher's index: a failure here never fails the scan (ARKit's room map still works)
+        from recall_pipeline.adapters.place_index import build
+
+        index = build(episode_dir)
+        print(f"place index -> {index}" if index else "place index: no frames with depth")
+    except Exception as e:  # noqa: BLE001
+        print(f"place index failed: {e}", file=sys.stderr)
     return 0

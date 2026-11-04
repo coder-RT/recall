@@ -43,3 +43,21 @@ def test_room_json_from_a_synthetic_rectangular_room():
     (ax, ay), (bx, by) = room["walls"][0]["start"], room["walls"][0]["end"]
     assert abs(ay - 3.0) < 0.05 and abs(by - 3.0) < 0.05 and abs(abs(bx - ax) - 4.0) < 0.2
     assert abs(room["furniture"][0]["top_z"] - 0.76) < 0.03
+
+
+def test_a_wall_found_twice_becomes_one_wall_on_its_outer_face():
+    # the north wall's face at y = 3.0, and a parallel plane 15 cm in front of it (cabinet fronts), shorter
+    face = ((0.0, 3.0), (4.0, 3.02), 2.5)
+    front = ((0.5, 2.85), (3.0, 2.86), 2.1)
+    east = ((4.0, 0.0), (4.0, 3.0), 2.4)  # perpendicular: left alone
+    merged = room_model.merge_walls([front, face, east], centre=(2.0, 1.5))
+    assert len(merged) == 2
+    north = next(w for w in merged if abs(w[0][1] - w[1][1]) < 0.1)
+    assert min(north[0][1], north[1][1]) > 2.95 and north[2] == 2.5  # the outer line and the taller height
+    assert abs(abs(north[1][0] - north[0][0]) - 4.0) < 0.05  # spans both
+
+
+def test_two_walls_in_line_but_apart_are_not_merged():
+    left = ((0.0, 3.0), (1.5, 3.0), 2.5)
+    right = ((2.5, 3.1), (4.0, 3.1), 2.5)  # a doorway between them
+    assert len(room_model.merge_walls([left, right], centre=(2.0, 1.5))) == 2

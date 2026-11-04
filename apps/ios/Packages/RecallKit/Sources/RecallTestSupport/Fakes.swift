@@ -153,10 +153,41 @@ public final class FakeClock: Clock, @unchecked Sendable {
     public func showPath(_ path: [SIMD2<Double>], floorY: Double?) { paths.append(path) }
     /// The frame the arrival check gets (nil: the camera has none).
     public var frame: ArrivalFrame? = ArrivalFrame.sample
-    public func arrivalFrame() -> ArrivalFrame? { frame }
+    /// Each frame 1 cm further along x than the last (a live, tracking session), when set.
+    public var moves = false
+    private var step = 0.0
+    public func arrivalFrame() -> ArrivalFrame? {
+        guard moves, let f = frame else { return frame }
+        step += 0.01
+        var pose = f.pose
+        pose[12] += step
+        return ArrivalFrame(jpeg: f.jpeg, depthMM: f.depthMM, depthSize: f.depthSize, imageSize: f.imageSize,
+                            intrinsics: f.intrinsics, pose: pose)
+    }
+    /// The photo correction in use (nil: none), and every one applied.
+    public private(set) var correction: Pose?
+    public private(set) var corrections: [Pose?] = []
+    public func correct(mapFromSession: Pose?) { correction = mapFromSession; corrections.append(mapFromSession) }
+    /// Like ARLocator: with a correction, poses are in the map's world and tracking reads normal, until ARKit's own
+    /// match (a normal reading) drops it.
     public func reading() -> (pose: Pose, tracking: TrackingState)? {
         guard !readings.isEmpty else { return nil }
-        return readings.count > 1 ? readings.removeFirst() : readings[0]
+        let r = readings.count > 1 ? readings.removeFirst() : readings[0]
+        guard let c = correction else { return r }
+        if r.tracking == .normal { correction = nil; return r }
+        return (MapCorrection.apply(MapCorrection.matrix(c), to: r.pose), .normal)
+    }
+}
+
+/// The Mac's photo matcher, answering from a script (the last answer repeats); records what it was asked.
+public final class FakePlaces: PlaceLocating, @unchecked Sendable {
+    public var answers: [Result<PlaceFix, any Error>]
+    public private(set) var asked: [(scan: String, room: String?)] = []
+    public init(_ answers: [Result<PlaceFix, any Error>]) { self.answers = answers }
+    public func locate(home: String, scan: String, room: String?, frame: ArrivalFrame) async throws -> PlaceFix {
+        asked.append((scan, room))
+        guard !answers.isEmpty else { throw RecallError.server("no answer") }
+        return try (answers.count > 1 ? answers.removeFirst() : answers[0]).get()
     }
 }
 
@@ -169,14 +200,30 @@ public extension Pose {
     }
 }
 
+public struct FakeReplyReader: ReplyReading {
+    public var answer: FoundReply?
+    public var fails = false
+    public var hangs = false
+    public init(answer: FoundReply? = nil, fails: Bool = false, hangs: Bool = false) {
+        self.answer = answer; self.fails = fails; self.hangs = hangs
+    }
+    public func read(reply: String, about thing: String) async throws -> FoundReply? {
+        if hangs { try await Task.sleep(for: .seconds(30)) }
+        if fails { throw RecallError.status(503) }
+        return answer
+    }
+}
+
 @MainActor public final class FakeVoice: VoiceInput {
     public var allowed = true
     public var recording = Data("RIFF".utf8)
     public private(set) var isRecording = false
+    public private(set) var endedOnSilence = false
     private var finished: (@MainActor (Data?) -> Void)?
     public init() {}
-    public func start(maxSeconds: Double, finished: @escaping @MainActor (Data?) -> Void) async -> Bool {
+    public func start(maxSeconds: Double, endOnSilence: Bool, finished: @escaping @MainActor (Data?) -> Void) async -> Bool {
         guard allowed else { return false }
+        endedOnSilence = endOnSilence
         isRecording = true
         self.finished = finished
         return true
@@ -200,6 +247,8 @@ public final class FakeEpisodeFiles: EpisodeFiles, @unchecked Sendable {
     public func directory(scan: String) -> URL { URL(fileURLWithPath: "/tmp/scan-\(scan)") }
     public func manifest(scan: String) -> Manifest? { manifests[scan] }
     public func roomMap(scan: String) -> Data? { maps[scan] }
+    public private(set) var grown: [String: Data] = [:]
+    public func saveGrownRoomMap(scan: String, _ data: Data) { grown[scan] = data; maps[scan] = data }
     public func delete(scan: String) { deleted.append(scan) }
 }
 

@@ -10,7 +10,10 @@ import { extent, floorArea, perimeter } from "./scanStats";
 import { Sheets } from "./Sheets";
 import { RealScanStory } from "./RealScanStory";
 import type { FurnitureBox, RoomShape, Surface, Thing } from "./Layers";
+import { ArOnPhone } from "./ArOnPhone";
+import { HearRoom } from "./HearRoom";
 import { ViewerStats } from "./ViewerStats";
+import type { ViewerStrings } from "./ViewerCanvas";
 
 const s = getDictionary().app.viewer.scan;
 
@@ -41,6 +44,36 @@ export interface ScanMeta {
   voxel_m?: number;
   /** the drawing sheets (SVG) the export made */
   drawings?: { id: string; title: string; file: string; summary: string }[];
+}
+
+/** The viewer's labels, from the dictionary (shared with the demo page). */
+export function viewerStrings(): ViewerStrings {
+  return {
+    label: s.alt,
+    loading: s.loading,
+    view: s.view,
+    views: s.views,
+    viewNotes: s.viewNotes,
+    colour: s.colour,
+    modes: s.modes,
+    layers: s.layers,
+    grid: s.grid,
+    bands: s.bands,
+    surfaces: s.surfaces,
+    room: s.room,
+    things: s.things,
+    axes: s.axes,
+    axisLabels: s.axisLabels,
+    best: s.best,
+    more: s.more,
+    camera: s.camera,
+    presets: s.presets,
+    wallOpacity: s.wallOpacity,
+    showFurniture: s.showFurniture,
+    wireframe: s.wireframe,
+    flat: s.flat,
+    cut: s.cut,
+  };
 }
 
 function bandRange(i: number) {
@@ -74,32 +107,7 @@ export function LocalScan({ steps }: { steps: ReactNode }) {
     { value: String(meta.stats.sam_calls), label: s.stats.sam },
     { value: `${Math.round(meta.count / 1000)}k`, label: s.stats.points },
   ];
-  const viewer = {
-    label: s.alt,
-    loading: s.loading,
-    view: s.view,
-    views: s.views,
-    viewNotes: s.viewNotes,
-    colour: s.colour,
-    modes: s.modes,
-    layers: s.layers,
-    grid: s.grid,
-    bands: s.bands,
-    surfaces: s.surfaces,
-    room: s.room,
-    things: s.things,
-    axes: s.axes,
-    axisLabels: s.axisLabels,
-    best: s.best,
-    more: s.more,
-    camera: s.camera,
-    presets: s.presets,
-    wallOpacity: s.wallOpacity,
-    showFurniture: s.showFurniture,
-    wireframe: s.wireframe,
-    flat: s.flat,
-    cut: s.cut,
-  };
+  const viewer = viewerStrings();
   return (
     <>
       {PUBLIC_SCANS.has(homeId) && (
@@ -135,7 +143,18 @@ export function LocalScan({ steps }: { steps: ReactNode }) {
 
       <div className="mt-8">
         <ViewerStats label={s.stats.label} items={stats} />
+        <HearRoom area={floorArea(meta.room.floor).toFixed(0)} things={[...new Set(meta.objects.map((o) => o.label))].sort()} />
       </div>
+
+      {PUBLIC_SCANS.has(homeId) && (
+        <>
+          <div className="mt-8" data-field-stats>
+            <ViewerStats label={getDictionary().app.fieldStats.title} items={getDictionary().app.fieldStats.items} />
+            <p className="mt-3 max-w-3xl text-sm text-muted">{getDictionary().app.fieldStats.note}</p>
+          </div>
+          <ArOnPhone />
+        </>
+      )}
 
       {PUBLIC_SCANS.has(homeId) && <RealScanStory meta={meta} src={src} part="before" />}
 

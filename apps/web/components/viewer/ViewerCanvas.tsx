@@ -8,7 +8,7 @@ import { Color, Vector3 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { gsap, MOTION_OK } from "@/lib/gsap";
 import { useMotionPrefs } from "@/lib/motion-prefs";
-import { Axes, FloorGrid, Furniture, HeightBands, Room, Surfaces, Things, type Bounds, type FurnitureBox, type RoomShape, type Surface, type Thing, type Tokens } from "./Layers";
+import { Axes, FloorGrid, Furniture, HeightBands, Room, Route, Surfaces, Things, type Bounds, type FurnitureBox, type RoomShape, type Surface, type Thing, type Tokens, type Walk } from "./Layers";
 import { makeUniforms, MODES, RoomCloud, type CloudData, type CloudUniforms, type ColourMode } from "./RoomCloud";
 import { ArchitectRoom, CUT, kindColour, loadArchitect, loadMesh, loadPhoto, PhotoRoom, RoomModel, SurfaceMesh, type ArchitectData, type MeshData, type PhotoData } from "./RoomViews";
 
@@ -25,6 +25,9 @@ const PRESETS: Record<Preset, [number, number, number]> = {
   front: [0, -9.5, 2.4],
   side: [9.5, 0, 2.4],
 };
+/** A preset camera position moved `k` times as far from the room's centre. */
+const away = ([x, y, z]: [number, number, number], k: number): [number, number, number] => [x * k, y * k, z * k];
+
 /** The views that read best: every measured point, and the regenerated room. */
 export const BEST_VIEWS: View[] = ["dots", "architect"];
 
@@ -81,6 +84,13 @@ export interface ViewerProps {
   hasPhoto?: boolean;
   /** the export has the regenerated room (architect.json) */
   hasArchitect?: boolean;
+  /** a walk to draw on the floor (the demo page), or none */
+  walk?: Walk | null;
+  /** how the viewer opens (default: every point, from the side, turning slowly); `distance` scales the camera's
+   * distance so a whole room fits a smaller frame */
+  start?: { view: View; preset: Preset; distance?: number; spin?: boolean };
+  /** false hides the view switch and the other controls (two viewers side by side on the demo page) */
+  controls?: boolean;
   t: ViewerStrings;
 }
 
@@ -93,10 +103,10 @@ interface Layers {
   things: boolean;
 }
 
-type Model = Pick<ViewerProps, "room" | "furniture" | "things" | "selected">;
+type Model = Pick<ViewerProps, "room" | "furniture" | "things" | "selected" | "walk">;
 
 /** Drag to orbit (sideways on phones, so vertical swipes still scroll the page); a slow turn until the first drag. */
-function Controls({ spin, preset }: { spin: boolean; preset: Preset }) {
+function Controls({ spin, preset, distance }: { spin: boolean; preset: Preset; distance: number }) {
   const { camera, gl, invalidate } = useThree();
   const controls = useMemo(() => {
     camera.up.set(0, 0, 1);
@@ -135,11 +145,11 @@ function Controls({ spin, preset }: { spin: boolean; preset: Preset }) {
       first.current = false;
       return;
     }
-    camera.position.set(...PRESETS[preset]);
+    camera.position.set(...away(PRESETS[preset], distance));
     controls.autoRotate = false;
     controls.update();
     invalidate();
-  }, [preset, camera, controls, invalidate]);
+  }, [preset, distance, camera, controls, invalidate]);
 
   useEffect(() => () => controls.dispose(), [controls]);
   useFrame(() => controls.update());
@@ -169,11 +179,12 @@ function useTokens(): Tokens {
   return tokens;
 }
 
-function Scene({ view, mesh, photo, architect, data, uniforms, spin, layers, bounds, surfaces, model, tokens, options, axisLabels }: { view: View; mesh: MeshData | null; photo: PhotoData | null; architect: ArchitectData | null; data: CloudData; uniforms: CloudUniforms; spin: boolean; layers: Layers; bounds: Bounds; surfaces: Surface[]; model: Model; tokens: Tokens; options: Options; axisLabels: ViewerStrings["axisLabels"] }) {
+function Scene({ view, mesh, photo, architect, data, uniforms, spin, distance, layers, bounds, surfaces, model, tokens, options, axisLabels }: { view: View; distance: number; mesh: MeshData | null; photo: PhotoData | null; architect: ArchitectData | null; data: CloudData; uniforms: CloudUniforms; spin: boolean; layers: Layers; bounds: Bounds; surfaces: Surface[]; model: Model; tokens: Tokens; options: Options; axisLabels: ViewerStrings["axisLabels"] }) {
   const { invalidate } = useThree();
-  useEffect(() => invalidate(), [model.selected, layers, view, mesh, photo, architect, options, invalidate]);
+  useEffect(() => invalidate(), [model.selected, model.walk, layers, view, mesh, photo, architect, options, invalidate]);
   const axes = options.axes && <Axes floor={model.room.floor} height={model.room.height_m} northDeg={model.room.north_deg} tokens={tokens} labels={axisLabels} />;
-  const controls = <Controls spin={spin} preset={options.preset} />;
+  const controls = <Controls spin={spin} preset={options.preset} distance={distance} />;
+  const walk = model.walk && <Route walk={model.walk} tokens={tokens} />;
   useEffect(() => {
     uniforms.uLow.value = new Color(tokens.line);
     uniforms.uHigh.value = new Color(tokens.blue);
@@ -189,6 +200,7 @@ function Scene({ view, mesh, photo, architect, data, uniforms, spin, layers, bou
         <RoomModel room={model.room} furniture={model.furniture} things={model.things} selected={model.selected} tokens={tokens} wallOpacity={options.wallOpacity} showFurniture={options.showFurniture} />
         <Things items={model.things} selected={model.selected} tokens={tokens} bob={spin} />
         {axes}
+        {walk}
         {controls}
       </>
     );
@@ -199,6 +211,7 @@ function Scene({ view, mesh, photo, architect, data, uniforms, spin, layers, bou
         <PhotoRoom photo={photo} />
         <Things items={model.things} selected={model.selected} tokens={tokens} bob={spin} />
         {axes}
+        {walk}
         {controls}
       </>
     );
@@ -207,8 +220,9 @@ function Scene({ view, mesh, photo, architect, data, uniforms, spin, layers, bou
     return (
       <>
         {/* an architect's model shows north and scale, not x/y/z axes */}
-        <ArchitectRoom model={architect} selected={model.selected} tokens={tokens} cut={options.cut} north={{ deg: model.room.north_deg, label: axisLabels.north }} />
+        <ArchitectRoom model={architect} selected={model.selected} tokens={tokens} cut={options.cut} north={{ deg: model.walk ? null : model.room.north_deg, label: axisLabels.north }} />
         <Things items={model.things} selected={model.selected} tokens={tokens} bob={spin} />
+        {walk}
         {controls}
       </>
     );
@@ -219,6 +233,7 @@ function Scene({ view, mesh, photo, architect, data, uniforms, spin, layers, bou
         <SurfaceMesh mesh={mesh} wireframe={options.wireframe} flat={options.flat} />
         <Things items={model.things} selected={model.selected} tokens={tokens} bob={spin} />
         {axes}
+        {walk}
         {controls}
       </>
     );
@@ -233,6 +248,7 @@ function Scene({ view, mesh, photo, architect, data, uniforms, spin, layers, bou
       {layers.room && <Furniture items={model.furniture} tokens={tokens} />}
       {layers.things && <Things items={model.things} selected={model.selected} tokens={tokens} bob={spin} />}
       {axes}
+      {walk}
       {controls}
     </>
   );
@@ -250,14 +266,15 @@ async function load(src: string): Promise<CloudData> {
   return { positions: new Float32Array(positions!), colors: colors ? new Uint8Array(colors) : null, conf: new Uint8Array(conf!) };
 }
 
-export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, things, selected, hasMesh = false, hasPhoto = false, hasArchitect = false, t }: ViewerProps) {
+export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, things, selected, hasMesh = false, hasPhoto = false, hasArchitect = false, walk = null, start, controls = true, t }: ViewerProps) {
   const root = useRef<HTMLDivElement>(null);
   const id = useId();
   const { reduced } = useMotionPrefs();
   const [data, setData] = useState<CloudData | null>(null);
   const [layers, setLayers] = useState<Layers>({ mode: "height", grid: true, bands: false, surfaces: false, room: true, things: true });
-  const [view, setView] = useState<View>("dots");
-  const [options, setOptions] = useState<Options>({ preset: "iso", axes: true, wallOpacity: 0.45, showFurniture: true, wireframe: false, flat: false, cut: CUT });
+  const [view, setView] = useState<View>(start?.view ?? "dots");
+  const [options, setOptions] = useState<Options>({ preset: start?.preset ?? "iso", axes: true, wallOpacity: 0.45, showFurniture: true, wireframe: false, flat: false, cut: start?.view === "architect" ? 1.5 : CUT });
+  const distance = start?.distance ?? 1;
   const [moreOpen, setMoreOpen] = useState(false);
   const set = <K extends keyof Options>(key: K, value: Options[K]) => setOptions((o) => ({ ...o, [key]: value }));
   // each view opens with the settings it reads best in (each can be changed after):
@@ -368,15 +385,16 @@ export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, t
           <Canvas
             frameloop={still ? "demand" : "always"}
             dpr={[1, 2]}
-            camera={{ position: [4.6, -5.8, 5.6], fov: 34, near: 0.1, far: 60 }}
+            camera={{ position: away(PRESETS[options.preset], distance), fov: 34, near: 0.1, far: 60 }}
             gl={{ antialias: true, alpha: true, preserveDrawingBuffer: true }}
           >
-            <Scene view={view} mesh={mesh} photo={photo} architect={architect} data={data} uniforms={uniforms} spin={!still} layers={layers} bounds={bounds} surfaces={surfaces} model={{ room, furniture, things, selected }} tokens={tokens} options={options} axisLabels={t.axisLabels} />
+            <Scene view={view} mesh={mesh} photo={photo} architect={architect} data={data} uniforms={uniforms} spin={!still && (start?.spin ?? true)} distance={distance} layers={layers} bounds={bounds} surfaces={surfaces} model={{ room, furniture, things, selected, walk }} tokens={tokens} options={options} axisLabels={t.axisLabels} />
           </Canvas>
         ) : (
           <p className="grid size-full place-items-center text-sm text-muted">{t.loading}</p>
         )}
       </div>
+      {controls && (
       <div data-viewer-controls className="flex flex-wrap gap-x-6 gap-y-3 border-t border-fb-line px-4 py-3">
         <fieldset className="flex w-full flex-wrap items-center gap-2">
           <legend className="float-left mr-1 text-sm font-semibold text-muted">{t.view}</legend>
@@ -507,6 +525,7 @@ export default function ViewerCanvas({ src, bounds, surfaces, room, furniture, t
           </AnimatePresence>
         </div>
       </div>
+      )}
     </div>
   );
 }

@@ -11,6 +11,7 @@ export const SAM_PALETTE: Record<string, string> = {
   T: "#3a95c7", // tee shade
   j: "#2f4a7a", // jeans
   g: "#6b7a8f", // shoes
+  p: "#1c1e21", // phone (the poses below)
 };
 
 const HEAD = [
@@ -86,3 +87,72 @@ export const SAM_FRAMES = {
 } as const;
 
 export type SamFrame = keyof typeof SAM_FRAMES;
+
+// More poses for the film (docs/private/video): same head, body and legs, drawn here in the same 16 × 24 style.
+const HEAD_EYES_CLOSED = [
+  "....hhhhhhh.....",
+  "...hhhhhhhhh....",
+  "...hhsssssshh...",
+  "...hssssssssh...",
+  "...sseesseesh...",
+  "...ssssssssss...",
+  "....ssssssss....",
+  ".....ssssss.....",
+  "......ssss......",
+];
+
+const HEAD_CHEER = [
+  "....hhhhhhh.....",
+  "...hhhhhhhhh....",
+  "...hhsssssshh...",
+  "...hssssssssh...",
+  "...sssesssesh...",
+  ".s.ssssssssss.s.",
+  ".s..ssssssss..s.",
+  ".ss..ssssss..ss.",
+  "..s...ssss...s..",
+];
+
+const BODY_REACH = [
+  "s..tttttttttt..s",
+  ".ssttttttttttss.",
+  "...ttTTTTTTtt...",
+  "...tttttttttt...",
+  "...tttttttttt...",
+  "....tttttttt....",
+  "....tttttttt....",
+];
+
+const BODY_PHONE = [
+  "....tttttttt.pp.",
+  "...tttttttttspp.",
+  "..sttTTTTTTtts..",
+  "..sttttttttt....",
+  "..stttttttttt...",
+  "..s.tttttttt....",
+  "....tttttttt....",
+];
+
+const BODY_CHEER = [
+  "..stttttttttts..",
+  "...tttttttttt...",
+  "...ttTTTTTTtt...",
+  "...tttttttttt...",
+  "...tttttttttt...",
+  "....tttttttt....",
+  "....tttttttt....",
+];
+
+/** Sam searching by touch (arms out), holding a phone up, walking with eyes closed, and cheering. */
+export const SAM_MORE_FRAMES = {
+  reachA: [...HEAD, ...BODY_REACH, ...LEGS_WALK_A],
+  reachB: [...HEAD, ...BODY_REACH, ...LEGS_WALK_B],
+  reach: [...HEAD, ...BODY_REACH, ...LEGS_STAND],
+  phone: [...HEAD, ...BODY_PHONE, ...LEGS_STAND],
+  phoneA: [...HEAD, ...BODY_PHONE, ...LEGS_WALK_A],
+  phoneB: [...HEAD, ...BODY_PHONE, ...LEGS_WALK_B],
+  closedA: [...HEAD_EYES_CLOSED, ...BODY_ARMS_DOWN, ...LEGS_WALK_A],
+  closedB: [...HEAD_EYES_CLOSED, ...BODY_ARMS_DOWN, ...LEGS_WALK_B],
+  closed: [...HEAD_EYES_CLOSED, ...BODY_ARMS_DOWN, ...LEGS_STAND],
+  cheer: [...HEAD_CHEER, ...BODY_CHEER, ...LEGS_STAND],
+} as const;

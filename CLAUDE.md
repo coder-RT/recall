@@ -106,7 +106,8 @@ domain  ←  application  ←  adapters (inbound + outbound)
 - **API `domain/ports.py`** (one repository per aggregate): `HomeRepository`, `ScanRepository`, `TrackedObjectRepository`.
 - **API `application/ports.py`** (needs of use cases): `LlmProvider`, `VisionProvider` (Muse Spark 1.1, tie-break only), `Transcriber`, `BlobStore`,
   `PipelineTrigger`, `Clock`, `Segmenter` (SAM 3.1 over HTTP on the Meta API, for the Verifier), `ArrivalVerifier`,
-  `PromptScreener` (Muse Spark Open or Glimmer, after schema validation).
+  `PromptScreener` (Muse Spark Open or Glimmer, after schema validation), `PlaceMatcher` (classic ORB + PnP photo
+  matching against each scan's `place_index.npz`, no model; `POST /homes/{id}/locate`, ADR-039).
 - **Pipeline `application/ports.py`**: `Reconstructor`, `Segmenter`, `EpisodeSource` (reads from R2 or disk), `ResultSink` (posts to the API).
   **torch and local models live only in the pipeline**; the API reaches vision models over HTTP only.
 

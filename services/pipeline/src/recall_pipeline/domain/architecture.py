@@ -215,6 +215,28 @@ def fit_box(points_plan: np.ndarray, z_min: float, z_max: float) -> tuple[np.nda
     return lo, hi
 
 
+def furniture_box(
+    points_plan: np.ndarray, z_min: float, z_max: float, plan: Polygon, margin: float = 0.03
+) -> tuple[np.ndarray, np.ndarray] | None:
+    """`fit_box` for a piece of furniture that may stand against a wall: only points inside the room (the plan shrunk by
+    `margin`) count, so the wall behind it can't stretch the box, and the footprint is then clipped to the room."""
+    room = plan.buffer(-margin)
+    if room.is_empty:
+        return None
+    inside = contains_xy(room, points_plan[:, 0], points_plan[:, 1])
+    fit = fit_box(points_plan[inside], z_min, z_max)
+    if fit is None:
+        return None
+    lo, hi = fit
+    clipped = box(lo[0], lo[1], hi[0], hi[1]).intersection(room)
+    if clipped.is_empty:
+        return None
+    x0, y0, x1, y1 = clipped.bounds
+    if x1 - x0 < 0.05 or y1 - y0 < 0.05:
+        return None
+    return np.array([x0, y0, lo[2]]), np.array([x1, y1, hi[2]])
+
+
 def front_axis(lo: np.ndarray, hi: np.ndarray, toward: np.ndarray) -> tuple[int, int]:
     """(axis, sign) of the box side that faces `toward` (the room's centre): where a desk is used from, a TV seen."""
     d = toward - (lo[:2] + hi[:2]) / 2

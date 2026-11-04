@@ -13,6 +13,7 @@ from recall_api.adapters.outbound.agents.verifier_inprocess import InProcessVeri
 from recall_api.adapters.outbound.export import robot_files
 from recall_api.adapters.outbound.jobs.heartbeat import FileHeartbeat
 from recall_api.adapters.outbound.llm.openai_compatible import from_settings as llm_from_settings
+from recall_api.adapters.outbound.llm.reply_reader import LlmReplyReader
 from recall_api.adapters.outbound.persistence.sqlite import (
     SqliteAnswerLog,
     SqliteAuditLog,
@@ -40,10 +41,12 @@ from recall_api.application.get_room import GetRoom
 from recall_api.application.get_scan import GetScan
 from recall_api.application.ingest_scan import IngestScan
 from recall_api.application.list_things import ListThings
+from recall_api.application.locate_by_photo import LocateByPhoto
 from recall_api.application.mark_scan_failed import MarkScanFailed
 from recall_api.application.plan_compass_route import PlanCompassRoute
 from recall_api.application.plan_guidance import PlanGuidance
 from recall_api.application.ports import ArrivalVerifier
+from recall_api.application.read_reply import ReadReply
 from recall_api.application.robot_access import RobotAccess
 from recall_api.application.share_robot_export import ShareRobotExport
 from recall_api.application.tools import Tools
@@ -151,6 +154,12 @@ class Container:
         return PlanGuidance(self.homes, self.scans, self.objects, self.blobs, new_id, trust=self.trust)
 
     @cached_property
+    def locate_by_photo(self) -> LocateByPhoto:
+        from recall_api.adapters.outbound.vision.orb_place_matcher import OrbPlaceMatcher
+
+        return LocateByPhoto(self.homes, self.scans, OrbPlaceMatcher(self.blobs))
+
+    @cached_property
     def ar_labels(self) -> ArLabelsInRoom:
         return ArLabelsInRoom(self.list_things, self.scans)
 
@@ -184,6 +193,15 @@ class Container:
         key = s.baseten_api_key.get_secret_value() if s.baseten_api_key else None
         return MetaModelScreener(s.baseten_base_url or "https://inference.baseten.co/v1", key, s.baseten_model,
                                  "muse-spark-open", reasoning_effort=s.reasoning_effort)  # fmt: skip
+
+    @cached_property
+    def reply_reader(self) -> LlmReplyReader:
+        """Reads a spoken reply after a find, on the Guide's model: a recorded demo has none to ask."""
+        return LlmReplyReader(None if self.settings.llm_provider == "replay" else self.llm)
+
+    @cached_property
+    def read_reply(self) -> ReadReply:
+        return ReadReply(self.reply_reader, audit=self.auditor)
 
     @cached_property
     def answer_external_query(self) -> AnswerExternalQuery:

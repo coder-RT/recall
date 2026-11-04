@@ -38,7 +38,18 @@ public struct FileEpisodeFiles: EpisodeFiles {
     }
 
     public func roomMap(scan: String) -> Data? {
-        try? Data(contentsOf: directory(scan: scan).appending(path: "worldmap.arworldmap"))
+        let dir = directory(scan: scan)
+        return (try? Data(contentsOf: dir.appending(path: Self.grownMap)))
+            ?? (try? Data(contentsOf: dir.appending(path: "worldmap.arworldmap")))
+    }
+
+    /// ARKit's map grown on later visits sits beside the scan's own (which stays exactly as uploaded and checksummed).
+    static let grownMap = "worldmap.grown.arworldmap"
+
+    public func saveGrownRoomMap(scan: String, _ data: Data) {
+        let dir = directory(scan: scan)
+        guard FileManager.default.fileExists(atPath: dir.path) else { return }
+        try? data.write(to: dir.appending(path: Self.grownMap), options: [.atomic, .completeFileProtection])
     }
 
     /// The folder, its zip and the upload's part files.

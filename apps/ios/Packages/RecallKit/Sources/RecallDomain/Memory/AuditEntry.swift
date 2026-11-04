@@ -63,6 +63,8 @@ public struct AuditEntry: Sendable, Equatable, Identifiable {
             return "The camera checked you'd reached a thing"
         case "guide.answered":
             return refused ? "Your question couldn't reach the Guide's model" : "Your question went to the Guide's model"
+        case "reply.read":
+            return refused ? "Your reply couldn't reach the Guide's model" : "Your reply went to the Guide's model"
         case "voice.transcribed":
             return refused ? "Your voice couldn't reach Muse Voice Transcribe"
                            : "Your voice went to Muse Voice Transcribe (not kept)"

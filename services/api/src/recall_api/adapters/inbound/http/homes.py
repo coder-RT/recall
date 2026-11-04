@@ -2,17 +2,32 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+import json
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Response, UploadFile
+from fastapi.concurrency import run_in_threadpool
 
 from recall_api.application.ar_labels import NoRoomScan
 from recall_api.application.correct_object import CorrectionError, CorrectionInput
 from recall_api.application.export_for_robot import RobotExportError
 from recall_api.application.list_things import NoSuchHome, ThingView
+from recall_api.application.locate_by_photo import LocateError
 from recall_api.application.plan_compass_route import CompassRouteError
+from recall_api.application.ports import PlaceQuery
 from recall_api.domain.memory import Home, Trust
 
 from .deps import container, require_device_key
-from .models import ArLabels, CompassRoute, ObjectCorrection, ObjectLocation, RobotExport, RoomModel, TrustUpdate
+from .models import (
+    ArLabels,
+    CompassRoute,
+    ObjectCorrection,
+    ObjectLocation,
+    PlaceFix,
+    RobotExport,
+    RoomModel,
+    TrustUpdate,
+)
 from .models import Trust as TrustLevel
 
 router = APIRouter(tags=["homes"], dependencies=[Depends(require_device_key)])
@@ -137,3 +152,24 @@ def get_ar_labels(home_id: str, room: str, c=Depends(container)) -> ArLabels:
         raise HTTPException(404, {"error": "not_found", "detail": f"No processed scan of {room} yet."}) from e
     return ArLabels(scan_id=r.scan_id, room=r.room, floor_y_arkit=r.floor_y_arkit,
                     labels=[vars(x) | {"position_arkit": list(x.position_arkit)} for x in r.labels])  # fmt: skip
+
+
+@router.post("/homes/{home_id}/locate", response_model=PlaceFix)
+async def locate(
+    home_id: str,
+    image: UploadFile,
+    pose: Annotated[str, Form()],
+    scan_id: Annotated[str, Form(max_length=64)],
+    room: Annotated[str | None, Form(max_length=60)] = None,
+    c=Depends(container),
+) -> PlaceFix:
+    try:
+        k = json.loads(pose)["intrinsics"]
+        query = PlaceQuery(await image.read(), float(k["fx"]), float(k["fy"]), float(k["cx"]), float(k["cy"]))
+    except (KeyError, ValueError, TypeError) as e:
+        raise HTTPException(422, {"error": "invalid", "detail": "Bad photo: pose must carry the intrinsics."}) from e
+    try:
+        f = await run_in_threadpool(c.locate_by_photo, home_id, scan_id, query, room)  # CPU work off the event loop
+    except LocateError as e:
+        raise HTTPException(e.status, {"error": e.code, "detail": str(e)}) from e
+    return PlaceFix.model_validate(vars(f) | {"pose": list(f.pose) if f.pose else None})

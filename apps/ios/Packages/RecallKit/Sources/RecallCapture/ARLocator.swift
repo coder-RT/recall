@@ -13,13 +13,29 @@ public final class ARLocator: Locator {
     /// What the camera view draws over the feed: the arrow above the thing.
     public let scene = SCNScene()
     private var arrow: SCNNode?
+    /// Everything placed in the room map's world hangs here: the session's own world when ARKit matched the map,
+    /// or turned by a photo fix's correction until it does.
+    private let mapRoot = SCNNode()
     private let track = SCNNode()
     private let tags = SCNNode()
     private var shown: [ArLabel] = []
+    /// Each label's node, by label id: for finding the one under a finger and for hiding the others on a walk.
+    private var labelNodes: [String: SCNNode] = [:]
+
+    /// T(map ← session) from two agreeing photo fixes, until ARKit recognises the room itself.
+    private var correction: simd_double4x4?
+    private var watching: Task<Void, Never>?
+    /// ARKit itself matched the saved map in this run (not a photo fix): the map may grow from here.
+    public private(set) var recognisedByARKit = false
+    /// Handed a grown room map (ARKit's map of this run, which keeps the saved map's world) once ARKit has matched
+    /// and mapped what it sees; the caller saves it beside the scan's own so the next visit matches from here too.
+    public var onMapGrown: ((Data) -> Void)?
+    private var growing: Task<Void, Never>?
 
     public init() {
-        scene.rootNode.addChildNode(track)
-        scene.rootNode.addChildNode(tags)
+        scene.rootNode.addChildNode(mapRoot)
+        mapRoot.addChildNode(track)
+        mapRoot.addChildNode(tags)
     }
 
     public static var isSupported: Bool { ARWorldTrackingConfiguration.isSupported }
@@ -43,6 +59,7 @@ public final class ARLocator: Locator {
         }
         guard let roomMap else {
             if running, !runningWithMap { return true }
+            forgetRun()
             session.run(config, options: [.resetTracking, .removeExistingAnchors])
             running = true; runningWithMap = false
             return true
@@ -54,6 +71,7 @@ public final class ARLocator: Locator {
                 // TODO(verify) on the iPhone how quickly tracking returns to normal after a resume.
                 session.run(config, options: [])
             } else {
+                forgetRun()
                 config.initialWorldMap = current.map
                 session.run(config, options: [.resetTracking, .removeExistingAnchors])
             }
@@ -64,6 +82,7 @@ public final class ARLocator: Locator {
             return false
         }
         current = (roomMap, map)
+        forgetRun()
         config.initialWorldMap = map
         session.run(config, options: [.resetTracking, .removeExistingAnchors])
         running = true; runningWithMap = true
@@ -74,6 +93,79 @@ public final class ARLocator: Locator {
     public func stop() {
         session.pause()
         running = false
+        growing?.cancel()
+    }
+
+    /// A fresh ARKit run: no photo correction, nothing recognised yet.
+    private func forgetRun() {
+        correct(mapFromSession: nil)
+        recognisedByARKit = false
+        growing?.cancel()
+        growing = nil
+    }
+
+    // MARK: Photo fixes and ARKit's own match
+
+    public func correct(mapFromSession: Pose?) {
+        correction = mapFromSession.map(MapCorrection.matrix)
+        let inverse = correction.map { Self.float($0.inverse) } ?? matrix_identity_float4x4
+        mapRoot.simdTransform = inverse  // the scene renders in the session's world: map → session
+        watching?.cancel()
+        guard correction != nil else { return }
+        watching = Task { [weak self] in  // ARKit's own match replaces the photo fix the moment it comes
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(250))
+                guard let self, !Task.isCancelled else { return }
+                _ = self.reading()
+                if self.correction == nil { return }
+            }
+        }
+    }
+
+    /// The camera in the room map's world, and whether the room is recognised (by ARKit or a photo fix).
+    private func mapCamera() -> (transform: simd_float4x4, tracking: TrackingState)? {
+        guard let camera = session.currentFrame?.camera else { return nil }
+        let raw = CaptureSession.tracking(camera.trackingState).0
+        if raw == .normal, runningWithMap {
+            if correction != nil { correct(mapFromSession: nil) }  // the session's world is now the map's
+            if !recognisedByARKit { recognisedByARKit = true; growMapSoon() }
+        }
+        guard let correction else { return (camera.transform, raw) }
+        return (Self.float(correction * Self.double(camera.transform)), .normal)
+    }
+
+    /// A few seconds after ARKit matched, once it has mapped what the camera sees, the run's map (saved map plus what
+    /// this visit added, in the same world) goes to `onMapGrown`. At most once a run; never from a photo fix alone.
+    private func growMapSoon() {
+        guard onMapGrown != nil, growing == nil else { return }
+        growing = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(6))
+            guard let self, !Task.isCancelled, self.running, self.recognisedByARKit,
+                  self.session.currentFrame?.worldMappingStatus == .mapped else { return }
+            guard let data = await self.currentMapData(), data.count < 50_000_000 else { return }
+            guard !Task.isCancelled else { return }
+            self.onMapGrown?(data)
+        }
+    }
+
+    static func float(_ m: simd_double4x4) -> simd_float4x4 {
+        simd_float4x4(columns: (SIMD4<Float>(m.columns.0), SIMD4<Float>(m.columns.1), SIMD4<Float>(m.columns.2),
+                                SIMD4<Float>(m.columns.3)))
+    }
+
+    static func double(_ m: simd_float4x4) -> simd_double4x4 {
+        simd_double4x4(columns: (SIMD4<Double>(m.columns.0), SIMD4<Double>(m.columns.1), SIMD4<Double>(m.columns.2),
+                                 SIMD4<Double>(m.columns.3)))
+    }
+
+    private func currentMapData() async -> Data? {
+        await withCheckedContinuation { cont in
+            session.getCurrentWorldMap { map, _ in
+                cont.resume(returning: map.flatMap {
+                    try? NSKeyedArchiver.archivedData(withRootObject: $0, requiringSecureCoding: true)
+                })
+            }
+        }
     }
 
     private let encoder = FrameEncoder()
@@ -84,7 +176,9 @@ public final class ARLocator: Locator {
         // ARKit's intrinsics are for the full camera image; the JPEG is scaled to a 1024-pixel long edge
         let s = Double(size.width) / Double(frame.camera.imageResolution.width)
         let k = frame.camera.intrinsics
-        let pose = frame.camera.transform.columnMajor.map(Double.init)
+        // in the room map's world once a photo fix corrected it (the Mac lifts the arrival photo in that world)
+        let camera = correction.map { Self.float($0 * Self.double(frame.camera.transform)) } ?? frame.camera.transform
+        let pose = camera.columnMajor.map(Double.init)
         guard let (mm, w, h) = Self.millimetres(depth) else { return nil }
         return ArrivalFrame(jpeg: jpeg, depthMM: mm, depthSize: (w, h), imageSize: (Int(size.width), Int(size.height)),
                             intrinsics: (Double(k.columns.0.x) * s, Double(k.columns.1.y) * s,
@@ -123,7 +217,7 @@ public final class ARLocator: Locator {
             up.timingMode = .easeInEaseOut
             node.runAction(.repeatForever(.sequence([up, up.reversed()])))
         }
-        scene.rootNode.addChildNode(node)
+        mapRoot.addChildNode(node)
         arrow = node
     }
 
@@ -139,7 +233,7 @@ public final class ARLocator: Locator {
             let node = SCNNode()
             node.simdPosition = SIMD3(Float(p.x), Float(p.y), Float(p.z))
 
-            let height: Float = 0.35
+            let height = Self.tagHeight
             let width = Float(item.tag.size.width / item.tag.size.height) * 0.09
             let plane = SCNPlane(width: CGFloat(width), height: 0.09)
             let face = SCNMaterial()
@@ -176,17 +270,44 @@ public final class ARLocator: Locator {
                 node.runAction(.sequence([.wait(duration: 0.12 * Double(i)), .fadeIn(duration: 0.35)]))
             }
             tags.addChildNode(node)
+            labelNodes[item.label.id] = node
         }
     }
 
     public func clearLabels() {
         tags.childNodes.forEach { $0.removeFromParentNode() }
         shown = []
+        labelNodes = [:]
+    }
+
+    /// On a walk only the thing's label stays, so the route reads; nil brings them all back.
+    public func focus(label id: String?) {
+        for (key, node) in labelNodes { node.isHidden = id != nil && key != id }
+    }
+
+    /// The label under a finger: the nearest to `point` of the tag, its line and the thing itself, as drawn on screen
+    /// (a tag is small from across a room, so a generous reach). Nil when none is close.
+    public func label(at point: CGPoint, in view: SCNSceneRenderer, reach: CGFloat = 70) -> ArLabel? {
+        func distance(from a: SCNVector3, to b: SCNVector3) -> CGFloat? {
+            guard a.z < 1 || b.z < 1 else { return nil }  // behind the camera
+            let (ax, ay, bx, by) = (CGFloat(a.x), CGFloat(a.y), CGFloat(b.x), CGFloat(b.y))
+            let (dx, dy) = (bx - ax, by - ay)
+            let length = dx * dx + dy * dy
+            let t = length > 0 ? min(1, max(0, ((point.x - ax) * dx + (point.y - ay) * dy) / length)) : 0
+            return hypot(point.x - (ax + t * dx), point.y - (ay + t * dy))
+        }
+        let scored = shown.compactMap { label -> (ArLabel, CGFloat)? in
+            guard let node = labelNodes[label.id], !node.isHidden else { return nil }
+            let thing = view.projectPoint(node.worldPosition)
+            let tag = view.projectPoint(node.convertPosition(SCNVector3(0, Self.tagHeight, 0), to: nil))
+            return distance(from: tag, to: thing).map { (label, $0) }
+        }
+        return scored.filter { $0.1 <= reach }.min { $0.1 < $1.1 }?.0
     }
 
     /// The label the camera points at most directly (within 25°), for "what's this?".
     public func labelInView() -> ArLabel? {
-        guard let cam = session.currentFrame?.camera.transform else { return nil }
+        guard let cam = mapCamera()?.transform else { return nil }
         let eye = SIMD3<Double>(Double(cam.columns.3.x), Double(cam.columns.3.y), Double(cam.columns.3.z))
         let fwd = -SIMD3<Double>(Double(cam.columns.2.x), Double(cam.columns.2.y), Double(cam.columns.2.z))
         let scored = shown.map { label -> (ArLabel, Double) in
@@ -195,6 +316,9 @@ public final class ARLocator: Locator {
         }
         return scored.filter { $0.1 < 25 }.min { $0.1 < $1.1 }?.0
     }
+
+    /// How far above its thing a tag floats, metres.
+    private static let tagHeight: Float = 0.35
 
     public static func colour(_ mark: ArLabel.Mark) -> UIColor {
         switch mark {
@@ -216,7 +340,7 @@ public final class ARLocator: Locator {
         let chevrons = ChevronLayout.place(path: path)
         guard !chevrons.isEmpty else { return }
         // without the floor from the Mac, assume the phone is held about 1.4 m above it
-        let y = Float(floorY ?? Double((session.currentFrame?.camera.transform.columns.3.y ?? 1.4) - 1.4)) + 0.01
+        let y = Float(floorY ?? Double((mapCamera()?.transform.columns.3.y ?? 1.4) - 1.4)) + 0.01
         let still = UIAccessibility.isReduceMotionEnabled
         for (i, c) in chevrons.enumerated() {
             let node = Self.chevronNode()
@@ -296,10 +420,9 @@ public final class ARLocator: Locator {
     }
 
     public func reading() -> (pose: Pose, tracking: TrackingState)? {
-        guard let camera = session.currentFrame?.camera else { return nil }
-        let m = camera.transform
+        guard let (m, tracking) = mapCamera() else { return nil }
         let pose = Pose(columnMajor: [m.columns.0, m.columns.1, m.columns.2, m.columns.3]
             .flatMap { [Double($0.x), Double($0.y), Double($0.z), Double($0.w)] })
-        return (pose, CaptureSession.tracking(camera.trackingState).0)
+        return (pose, tracking)
     }
 }

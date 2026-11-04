@@ -846,6 +846,58 @@
         }
       }
     },
+    "/homes/{home_id}/locate": {
+      "post": {
+        "tags": [
+          "homes"
+        ],
+        "operationId": "locateByPhoto",
+        "summary": "Where am I? One camera photo matched against the room scans (classic features + PnP, no model)",
+        "description": "Asked by the phone while ARKit hasn't yet recognised the saved room map, alongside it (never instead of it). Answers the room the photo was taken in when one room clearly wins, the camera's pose in the requested map's world when that room matched well enough, and what to point the phone at. The photo is matched in memory and not stored.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/home_id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/LocateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What the photo matched",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceFix"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
     "/homes/{home_id}/robot-package": {
       "get": {
         "tags": [
@@ -1341,6 +1393,43 @@
           },
           "503": {
             "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/reply": {
+      "post": {
+        "tags": [
+          "voice"
+        ],
+        "operationId": "readReply",
+        "summary": "What a spoken reply means after a find, read by Muse Spark Open as a strict JSON verdict",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What the person wants next",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplyIntent"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
@@ -2505,6 +2594,7 @@
               "arrival.verified",
               "guide.answered",
               "voice.transcribed",
+              "reply.read",
               "audit.pruned",
               "rate.limited"
             ]
@@ -3120,6 +3210,118 @@
           }
         }
       },
+      "LocateRequest": {
+        "type": "object",
+        "required": [
+          "image",
+          "pose",
+          "scan_id"
+        ],
+        "properties": {
+          "image": {
+            "type": "string",
+            "format": "binary",
+            "description": "JPEG of the camera now (any size; intrinsics are for this image)"
+          },
+          "pose": {
+            "type": "string",
+            "description": "JSON: {\"pose\": [16 numbers, ARKit camera-to-world, column-major, in the phone's session (not yet the map's)], \"intrinsics\": {\"fx\", \"fy\", \"cx\", \"cy\"} for the JPEG, \"image_size\": [w, h]}. Only the intrinsics are used on the Mac; the phone keeps the session pose to turn the answer into its own correction.\n"
+          },
+          "scan_id": {
+            "type": "string",
+            "maxLength": 64,
+            "description": "The scan whose room map the phone runs: the pose is answered in its world"
+          },
+          "room": {
+            "type": "string",
+            "maxLength": 60,
+            "description": "The room the phone is trying to recognise (for the hint)"
+          }
+        }
+      },
+      "PlaceFix": {
+        "type": "object",
+        "required": [
+          "room",
+          "scan_id",
+          "score",
+          "runner_up_room",
+          "runner_up_score",
+          "pose",
+          "inliers",
+          "reproj_px",
+          "hint",
+          "ms"
+        ],
+        "properties": {
+          "room": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The room the photo was taken in, when one room clearly matched (it may not be the requested map's room)"
+          },
+          "scan_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The scan whose world `pose` is in"
+          },
+          "score": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "RANSAC inliers of the best room"
+          },
+          "runner_up_room": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "runner_up_score": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "pose": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            },
+            "minItems": 16,
+            "maxItems": 16,
+            "description": "The camera's pose (ARKit camera-to-world, column-major) in the requested map's world; null unless that room matched with at least 30 inliers and at most 4 px mean reprojection error. The phone applies it only when two fixes in a row agree.\n"
+          },
+          "inliers": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "RANSAC inliers in the requested map's world"
+          },
+          "reproj_px": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Mean reprojection error of those inliers, pixels"
+          },
+          "hint": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 3,
+            "description": "One-of-a-kind furniture in that room"
+          },
+          "ms": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Time the Mac took"
+          }
+        }
+      },
       "CompassRoute": {
         "type": "object",
         "description": "A walk to a thing from where its room's scan began, as compass legs (for a watch with no camera)",
@@ -3496,6 +3698,48 @@
           },
           "latency_ms": {
             "type": "integer"
+          }
+        }
+      },
+      "ReplyRequest": {
+        "type": "object",
+        "required": [
+          "said"
+        ],
+        "properties": {
+          "said": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300,
+            "description": "What the person replied, as Muse Voice Transcribe heard it"
+          },
+          "thing": {
+            "type": "string",
+            "maxLength": 80,
+            "description": "What they were just guided to"
+          }
+        }
+      },
+      "ReplyIntent": {
+        "type": "object",
+        "required": [
+          "intent",
+          "by"
+        ],
+        "properties": {
+          "intent": {
+            "type": "string",
+            "enum": [
+              "go_back",
+              "done",
+              "question",
+              "unknown"
+            ],
+            "description": "unknown when the model couldn't be reached or broke the format; the phone then decides by itself"
+          },
+          "by": {
+            "type": "string",
+            "description": "The model that read the reply"
           }
         }
       }

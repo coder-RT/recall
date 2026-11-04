@@ -7,7 +7,7 @@ BIND ?= 0.0.0.0
 WEB := apps/web
 REDOCLY := npx -y @redocly/cli@2.72.1
 
-.PHONY: help setup dev worker robot-export regression viewer public-scan live demo record probes diagrams pair rerun test test-all lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
+.PHONY: help setup dev worker robot-export place-index regression viewer public-scan live demo record probes diagrams pair rerun demo-walks demo-clips test test-all lint lint-imports migrate bundle-spec gen-models gen-swift-client eval
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -29,6 +29,10 @@ ROBOT_HOME = $(or $(HOME_ID),$(if $(filter command line,$(origin HOME)),$(HOME),
 
 robot-export: ## One room's memory for a robot (Nav2 map, things, furniture): make robot-export [HOME=flat] [ROOM=...] -> exports/robot/<home>/
 	cd $(API) && uv run python -m recall_api.infra.robot_export --home "$(ROBOT_HOME)" $(if $(ROOM),--room "$(ROOM)",) --out "$(CURDIR)/exports/robot/$(ROBOT_HOME)"
+
+place-index: ## Build the photo matcher's index (ORB + LiDAR depth, no model) for every processed scan on this Mac
+	cd $(PIPE) && for e in $(CURDIR)/data/blobs/scans/*/episode; do \
+		[ -f "$$e/result.json" ] && uv run python -m recall_pipeline.adapters.place_index "$$e"; done; true
 
 regression: ## Re-run every processed scan now (no posting; cached SAM answers) and compare with the last run
 	cd $(API) && uv run python -c "from recall_api.infra import jobs, regression; print('\n'.join(regression.run(jobs.settings, jobs.run_pipeline)))"
@@ -55,11 +59,18 @@ viewer: ## Export a home's newest processed scan for /homes/<home>/viewer: make 
 live: ## The API with real Meta model calls (keys from .env), and the scan worker
 	( cd $(API) && RECALL_BIND_HOST=$(BIND) uv run recall-api ) & $(MAKE) worker ; wait
 
-demo: ## No keys: the API on a memory built from a recorded real scan; the Guide's replies are replayed (labelled recorded)
-	cd $(API) && uv run python -m recall_api.infra.demo serve $(if $(PORT),--port $(PORT))
+demo: ## Judges, start here. No keys: Recall's API on a recorded real scan and the website's demo page (localhost:3000/demo), told step by step
+	@python3 scripts/demo.py $(if $(PORT),--port $(PORT)) $(if $(WEB_PORT),--web-port $(WEB_PORT))
+
+demo-clips: ## Cut the real iPhone recordings (docs/private) into clips for the demo page, on this computer only (gitignored)
+	@python3 scripts/demo_clips.py
+
+demo-walks: ## Rebuild the demo page's walks (public/real-scan/flat/walks.json) from samples/replay/ with Recall's own code; no keys
+	cd $(API) && uv run python -m recall_api.infra.demo walks --viewer "$(CURDIR)/$(WEB)/public/real-scan/flat/meta.json" --out "$(CURDIR)/$(WEB)/public/real-scan/flat/walks.json"
 
 record: ## Re-record samples/replay/ with real Muse Spark Open calls: make record RESULT=<result.json> ROOM="Living room" AT=<iso>
 	cd $(API) && uv run python -m recall_api.infra.demo record "$(abspath $(RESULT))" --room "$(ROOM)" --captured-at "$(AT)"
+	$(MAKE) demo-walks
 
 diagrams: ## Redraw docs/diagrams/*.svg from the Mermaid sources (mermaid-cli; set PUPPETEER_EXECUTABLE_PATH to use a local Chrome)
 	@for f in docs/diagrams/*.mmd; do \

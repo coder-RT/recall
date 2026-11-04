@@ -38,12 +38,16 @@ Built during the Meta Global AI Developer Hackathon, Oct 26 to Nov 4, 2026.
 Step by step, for a person or for an AI coding agent. Every step has the command, what you should see, and what to
 do if you don't. Do the steps in order, and stop at the first check that fails.
 
+**Judges: start with Path B, `make demo`.** It needs no keys, no GPU and no account, and opens a page where you ask
+"where are my keys?" in a real scanned living room and follow the walk to them. The same page is online, with
+nothing to install: [recall-ten-khaki.vercel.app/demo](https://recall-ten-khaki.vercel.app/demo).
+
 **Pick a path.** Each one builds on the one before.
 
 | Path | You get | Needs | Time |
 |---|---|---|---|
 | **A. Website** | The landing page and the real 3D scan at `/homes/flat/viewer` | macOS, Linux or Windows (WSL) with Node 22 | 5 min |
-| **B. Demo, no keys** | The API answering "where are my keys?" from a recorded real scan, with recorded Muse Spark Open replies | macOS (Apple silicon) or Linux | 10 min |
+| **B. Demo, no keys** (start here) | The demo page at `localhost:3000/demo`: ask, then walk, in a real scanned room. Behind it, the API answering from that scan with recorded Muse Spark Open replies | macOS (Apple silicon) or Linux, Node 22 | 10 min |
 | **C. Live** | Real Meta model calls, the scan pipeline, and the iPhone app scanning your own room | A Mac with Apple silicon (24 GB memory or more), your own keys, an iPhone with LiDAR on iOS 26 | 45 min |
 
 Nothing asks for a Recall account. Paths A and B need no keys. Path C needs your own Meta Model API key, and a
@@ -121,7 +125,7 @@ Path A is done. Stop the server with `Ctrl+C`.
 
 ---
 
-## Path B: the demo API, no keys
+## Path B: the demo, no keys
 
 ### B1. uv, the Python manager
 
@@ -156,10 +160,37 @@ This step:
 make demo
 ```
 
-**Check:** it prints "Recall demo: Recorded output of a real run…", a list of questions to try, and
-`Uvicorn running on http://127.0.0.1:8000`.
+This starts two things: Recall's API on a memory built from a recorded real scan, and the website. It says what
+each step is doing, and the servers' own output goes to `data/demo/api.log` and `data/demo/web.log`.
 
-### B4. Ask it something
+**Check:** four numbered steps, each ending in ✓ or `ready`, then:
+
+```
+Ready. Open  http://localhost:3000/demo   ← ask, then walk
+```
+
+While it runs, each question the API answers adds a line such as `→ asked “Where are my keys?” · answered from the
+recording`. `Ctrl+C` stops both servers.
+**If step 1 says website ✗:** `make setup` didn't install the web app (it needs Node 22 and pnpm). The API still
+runs; the same demo page is online at [recall-ten-khaki.vercel.app/demo](https://recall-ten-khaki.vercel.app/demo).
+**If a step ends in ✗:** the message shows the last lines of that server's log and where the whole log is.
+
+### B4. Open the demo page
+
+Open `http://localhost:3000/demo`.
+
+**Check:**
+- the badge says "Recorded demo · real scan, real answers";
+- Recall's answer to "Where are my keys?" is shown, with the walk to them as clock-face steps;
+- choosing "Where is my bag?" draws a green route on the floor of the 3D room, one step at a time, while "you" move
+  along it and the phone beside it shows the step being spoken (a simulated screen, labelled as such);
+- choosing "Where is my laptop?" offers the two laptops Recall found, each with its own walk;
+- on a wide screen, every measured point and the architect's room are side by side.
+
+The answers are Muse Spark Open's real replies, recorded once and replayed through Recall's own code. The routes come
+from the same planner the phone uses, on the scan's floor. Nothing on this page calls a model.
+
+### B5. Ask the API something
 
 In a second terminal:
 
@@ -169,12 +200,12 @@ curl -s -X POST http://127.0.0.1:8000/ask \
   -d '{"home_id": "flat", "question": "Where are my keys?"}'
 ```
 
-**Check:** a JSON answer like `"Your keys are in the Living room near the desk at waist height, seen yesterday at
-04:21."`, with `"model": "replay:muse-spark-open (recorded)"`. Every demo answer is labelled as recorded.
+**Check:** a JSON answer like `"Your brown keys are near the desk in the living room at knee height, seen on Sunday at
+19:11."`, with `"model": "replay:muse-spark-open (recorded)"`. Every demo answer is labelled as recorded.
 
 The API documentation (Swagger UI) is at `http://127.0.0.1:8000/docs`.
 
-### B5. Run the tests (optional)
+### B6. Run the tests (optional)
 
 ```bash
 make test lint lint-imports
@@ -340,6 +371,7 @@ Each run's logs go to `data/test-runs/<time>/`, which git ignores. To run only s
 | `make: uv: No such file or directory` | Open a new terminal after B1 |
 | `pnpm: command not found` | `corepack enable` (A1) |
 | Port 8000 in use | `lsof -i :8000` to find what's using it, or `make demo PORT=8001` |
+| Port 3000 in use, or "another next dev server is running" | Another copy of the website is running: stop it, open its `/demo` page, or `make demo WEB_PORT=3001` |
 | The phone can't reach the Mac | Same Wi-Fi (or both on Tailscale), the Mac's firewall allows incoming connections for Python, and the address uses the Mac's IP or Tailscale name, not `localhost` |
 | Xcode: "Validate plug-in OpenAPIGenerator" | Choose Trust & Enable (C4). From the command line, add `-skipPackagePluginValidation` |
 | The first scan is slow | MapAnything's weights download once (C2); later scans take about 2 minutes |

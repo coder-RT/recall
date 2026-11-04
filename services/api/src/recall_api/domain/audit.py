@@ -41,6 +41,7 @@ class Action(StrEnum):
     SCAN_ERASED = "scan.erased"
     ARRIVAL_VERIFIED = "arrival.verified"
     GUIDE_ANSWERED = "guide.answered"  # a question went to the Guide's model; the words stay in the answer log
+    REPLY_READ = "reply.read"  # a spoken reply went to a Meta model; never the words
     VOICE_TRANSCRIBED = "voice.transcribed"  # audio went to Muse Voice Transcribe; never the words
     AUDIT_PRUNED = "audit.pruned"  # events past the retention period were dropped: how many, up to when
 

@@ -67,7 +67,26 @@ final class AppContainer {
         idle?.cancel()
         let scans = scans
         return ARLabelsModel(room: room, home: settings.connection.homeId, source: arLabelsSource(), locator: locator,
-                             roomMap: { scans.roomMap(scan: $0) }, speech: speech)
+                             roomMap: { scans.roomMap(scan: $0) }, saveGrownMap: { scans.saveGrownMap(scan: $0, $1) },
+                             places: UITestSamples.enabled ? nil : server,
+                             asking: .init(ask: AskInAR(ask: AskWhereIs(guide: UITestSamples.enabled ? UITestSamples.Guide() : server)),
+                                           transcriber: server, replies: ReadFoundReply(reader: UITestSamples.enabled ? nil : server),
+                                           voice: WavRecorder(), things: things,
+                                           makeGuide: { thing, map in self.arGuideModel(for: thing, map: map) }),
+                             speech: speech, haptics: haptics, clock: clock)
+    }
+
+    /// A walk from the AR view: in the room map its labels are placed in, leaving its camera running at the end.
+    private func arGuideModel(for thing: Thing, map: (scan: String, data: Data)?) -> GuideModel {
+        guiding = true
+        var keepCamera = GuideToThing.Settings()
+        keepCamera.keepsSession = true
+        let use = GuideToThing(home: settings.connection.homeId, thing: thing, roomMap: map?.data, locator: locator,
+                               guide: UITestSamples.enabled ? UITestSamples.Guide() : server, speech: speech,
+                               haptics: haptics, clock: clock, compass: compass,
+                               photos: map.map { (places: server, scan: $0.scan) }, settings: keepCamera)
+        return GuideModel(guide: use, session: locator.session, scene: locator.scene, supported: ARLocator.isSupported,
+                          ended: { [weak self] in self?.guiding = false })
     }
 
     func arLabelsSource() -> any ArLabelsSource {
@@ -93,13 +112,14 @@ final class AppContainer {
     func findModel() -> FindModel {
         FindModel(ask: AskWhereIs(guide: UITestSamples.enabled ? UITestSamples.Guide() : server), transcriber: server, voice: WavRecorder(), things: things,
                   settings: settings, speech: speech, haptics: haptics,
-                  prepareGuide: { [weak self] in self?.prepareGuide() })
+                  prepareGuide: { [weak self] thing in self?.prepareGuide(room: thing.room) })
     }
 
-    /// Starts recognising the saved room in the background; paused again if no guide starts within a minute.
-    func prepareGuide() {
-        guard ARLocator.isSupported, !guiding, let map = scans.roomMap() else { return }
-        locator.prepare(roomMap: map)
+    /// Starts recognising the thing's room in the background; paused again if no guide starts within a minute.
+    func prepareGuide(room: String?) {
+        guard ARLocator.isSupported, !guiding, let map = scans.guideMap(room: room) else { return }
+        growMap(scan: map.scan)
+        locator.prepare(roomMap: map.data)
         idle?.cancel()
         idle = Task { [weak self] in
             try? await Task.sleep(for: .seconds(60))
@@ -111,10 +131,19 @@ final class AppContainer {
     func guideModel(for thing: Thing) -> GuideModel {
         idle?.cancel()
         guiding = true
-        let use = GuideToThing(home: settings.connection.homeId, thing: thing, roomMap: scans.roomMap(), locator: locator,
-                               guide: server, speech: speech, haptics: haptics, clock: clock, compass: compass)
+        let map = scans.guideMap(room: thing.room)
+        if let map { growMap(scan: map.scan) }
+        let use = GuideToThing(home: settings.connection.homeId, thing: thing, roomMap: map?.data, locator: locator,
+                               guide: server, speech: speech, haptics: haptics, clock: clock, compass: compass,
+                               photos: map.map { (places: server, scan: $0.scan) })
         return GuideModel(guide: use, session: locator.session, scene: locator.scene, supported: ARLocator.isSupported,
                           ended: { [weak self] in self?.guiding = false })
+    }
+
+    /// When ARKit recognises this scan's room, the map it grew is kept for next time.
+    private func growMap(scan: String) {
+        let scans = scans
+        locator.onMapGrown = { data in scans.saveGrownMap(scan: scan, data) }
     }
 
     /// `again`: a processed scan of this room to scan again in the same frame (its room map is recognised first).
@@ -135,7 +164,7 @@ struct SystemClock: Clock {
 
 /// The Mac, as every Mac-facing port, reached with the current connection settings. Changing Settings swaps the
 /// client underneath; a call made before setup throws the setup issue, in words.
-final class LiveServer: HomeMemory, GuideService, Transcriber, ScanProcessing, ConnectionCheck, ScanServer, RobotSharing,
+final class LiveServer: HomeMemory, GuideService, PlaceLocating, Transcriber, ReplyReading, ScanProcessing, ConnectionCheck, ScanServer, RobotSharing,
     RoomMaps, RobotPackages, CompassRoutes, ArLabelsSource, TrustSettings, PrivacySource, EvidenceSource, @unchecked Sendable {
     private let lock = NSLock()
     private var api: RecallAPI?
@@ -179,6 +208,9 @@ final class LiveServer: HomeMemory, GuideService, Transcriber, ScanProcessing, C
     func arLabels(home: String, room: String) async throws -> ArLabels {
         try await current().arLabels(home: home, room: room)
     }
+    func locate(home: String, scan: String, room: String?, frame: ArrivalFrame) async throws -> PlaceFix {
+        try await current().locate(home: home, scan: scan, room: room, frame: frame)
+    }
     func compassRoute(home: String, thing: String) async throws -> CompassRoute {
         try await current().compassRoute(home: home, thing: thing)
     }
@@ -192,6 +224,9 @@ final class LiveServer: HomeMemory, GuideService, Transcriber, ScanProcessing, C
     }
     func activity(limit: Int) async throws -> [AuditEntry] { try await current().activity(limit: limit) }
     func transcribe(wav: Data) async throws -> String { try await current().transcribe(wav: wav) }
+    func read(reply: String, about thing: String) async throws -> FoundReply? {
+        try await current().read(reply: reply, about: thing)
+    }
     func status(scan: String) async throws -> ScanReport { try await current().status(scan: scan) }
     func erase(scan: String) async throws { try await current().erase(scan: scan) }
     func privacy() async throws -> PrivacyStatus { try await current().privacy() }

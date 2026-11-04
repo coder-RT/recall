@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BackToTop } from "@/components/ui/BackToTop";
 import { Logo } from "@/components/ui/Logo";
 import { getDictionary } from "@/i18n";
 
@@ -24,6 +25,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
         </div>
       </nav>
       {children}
+      <BackToTop />
     </div>
   );
 }

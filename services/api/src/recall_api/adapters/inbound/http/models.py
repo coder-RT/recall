@@ -464,6 +464,7 @@ class Action(StrEnum):
     arrival_verified = "arrival.verified"
     guide_answered = "guide.answered"
     voice_transcribed = "voice.transcribed"
+    reply_read = "reply.read"
     audit_pruned = "audit.pruned"
     rate_limited = "rate.limited"
 
@@ -636,6 +637,48 @@ class ArLabels(BaseModel):
     labels: list[Label]
 
 
+class LocateRequest(BaseModel):
+    image: Annotated[bytes, Field(description="JPEG of the camera now (any size; intrinsics are for this image)")]
+    pose: Annotated[
+        str,
+        Field(
+            description='JSON: {"pose": [16 numbers, ARKit camera-to-world, column-major, in the phone\'s session (not yet the map\'s)], "intrinsics": {"fx", "fy", "cx", "cy"} for the JPEG, "image_size": [w, h]}. Only the intrinsics are used on the Mac; the phone keeps the session pose to turn the answer into its own correction.\n'
+        ),
+    ]
+    scan_id: Annotated[
+        str,
+        Field(description="The scan whose room map the phone runs: the pose is answered in its world", max_length=64),
+    ]
+    room: Annotated[
+        str | None, Field(description="The room the phone is trying to recognise (for the hint)", max_length=60)
+    ] = None
+
+
+class PlaceFix(BaseModel):
+    room: Annotated[
+        str | None,
+        Field(
+            description="The room the photo was taken in, when one room clearly matched (it may not be the requested map's room)"
+        ),
+    ]
+    scan_id: Annotated[str | None, Field(description="The scan whose world `pose` is in")]
+    score: Annotated[int, Field(description="RANSAC inliers of the best room", ge=0)]
+    runner_up_room: str | None
+    runner_up_score: Annotated[int, Field(ge=0)]
+    pose: Annotated[
+        list[float] | None,
+        Field(
+            description="The camera's pose (ARKit camera-to-world, column-major) in the requested map's world; null unless that room matched with at least 30 inliers and at most 4 px mean reprojection error. The phone applies it only when two fixes in a row agree.\n",
+            max_length=16,
+            min_length=16,
+        ),
+    ]
+    inliers: Annotated[int, Field(description="RANSAC inliers in the requested map's world", ge=0)]
+    reproj_px: Annotated[float | None, Field(description="Mean reprojection error of those inliers, pixels")]
+    hint: Annotated[list[str], Field(description="One-of-a-kind furniture in that room", max_length=3)]
+    ms: Annotated[int, Field(description="Time the Mac took", ge=0)]
+
+
 class Leg(BaseModel):
     bearing_deg: Annotated[float, Field(description="Magnetic bearing, clockwise from north", ge=0.0, le=360.0)]
     metres: Annotated[float, Field(ge=0.0)]
@@ -790,3 +833,28 @@ class Transcript(BaseModel):
     text: str
     model: str | None = None
     latency_ms: int | None = None
+
+
+class ReplyRequest(BaseModel):
+    said: Annotated[
+        str,
+        Field(description="What the person replied, as Muse Voice Transcribe heard it", max_length=300, min_length=1),
+    ]
+    thing: Annotated[str | None, Field(description="What they were just guided to", max_length=80)] = None
+
+
+class Intent(StrEnum):
+    go_back = "go_back"
+    done = "done"
+    question = "question"
+    unknown = "unknown"
+
+
+class ReplyIntent(BaseModel):
+    intent: Annotated[
+        Intent,
+        Field(
+            description="unknown when the model couldn't be reached or broke the format; the phone then decides by itself"
+        ),
+    ]
+    by: Annotated[str, Field(description="The model that read the reply")]

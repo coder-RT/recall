@@ -45,7 +45,7 @@ struct GuideToThingTests {
         #expect(phases.contains { if case .guiding(let c, _) = $0 { c.clock == 3 } else { false } })
         #expect(speech.lines.first == "Finding where you are. Hold the phone up at chest height and turn slowly.")
         #expect(speech.lines.contains("Straight ahead, then 2 metres."))
-        #expect(speech.lines.contains("Your keys should be in front of you, on the desk. Hold the phone towards it. "
+        #expect(speech.lines.contains("Your keys should be in front of you, on the desk. Hold the phone out in front of you. "
                                       + "I'm checking with the camera."))
         #expect(speech.lines.last == "Found it. Your keys are at 12 o'clock, 40 centimetres away.")  // the camera check has the last word
         #expect(service.verified.count == 1)
@@ -65,6 +65,32 @@ struct GuideToThingTests {
         #expect(speech.lines.first == "Straight ahead, then 2 metres.")
         #expect(service.routeRequests.first?.tracking == .normal)
         #expect(g.phase == .arrived("Found it. Your keys are at 12 o'clock, 40 centimetres away."))
+    }
+
+    @Test func afterAFindItWalksBackAlongTheSameRoute() async {
+        let locator = FakeLocator(readings: [(.at(x: 0, z: 0), .normal), (.at(x: 0, z: 0), .normal),
+                                             (.at(x: 0, z: -3.7), .normal), (.at(x: 0, z: -3.7), .normal),
+                                             (.at(x: 0, z: -2), .normal), (.at(x: 0, z: -0.2), .normal)])
+        locator.frame = .sample
+        let service = FakeGuide(routes: [route([[0, 0], [0, -4]])])
+        service.check = ArrivalCheck(outcome: .confirmed, say: "Found it.")
+        let (g, speech, _, _) = guide(locator: locator, service: service)
+        await g.run()
+        #expect(g.phase == .arrived("Found it.") && g.canWalkBack)
+        await g.walkBack()
+        #expect(g.phase == .arrived("You're back."))
+        #expect(speech.lines.contains("Going back.") && speech.lines.last == "You're back.")
+        #expect(service.routeRequests.count == 1)  // no new route from the Mac: the same path, reversed
+    }
+
+    @Test func thereIsNothingToGoBackAlongWithoutAWalkedRoute() async {
+        let locator = FakeLocator(readings: [(.at(x: 3, z: 3), .normal)])
+        let (g, speech, _, _) = guide(locator: locator, service: FakeGuide(routes: [route([], landmarks: true)]))
+        await g.run()
+        #expect(!g.canWalkBack)
+        let said = speech.lines.count
+        await g.walkBack()
+        #expect(speech.lines.count == said)
     }
 
     @Test func arrivingChecksWithTheCamera() async {
@@ -309,5 +335,84 @@ struct QuietOpenTests {
         #expect(speech.lines.isEmpty)
         _ = await track([scan], home: "flat")  // while the app is open, a finished scan is still said
         #expect(speech.lines.count == 1)
+    }
+}
+
+@Suite("Asking with the AR view open") @MainActor
+struct AskInARTests {
+    private let at = Date(timeIntervalSince1970: 0)
+    private func thing(_ id: String, _ colour: String, _ noun: String) -> Thing {
+        Thing(id: id, label: noun, color: colour, heightM: 0.8, heightBand: "waist", confidence: 0.9, seenAt: at)
+    }
+    private func label(_ t: Thing) -> ArLabel {
+        ArLabel(id: t.id, title: t.title, place: t.place, confidence: 0.9, photos: 3, trusted: true, needsReview: false,
+                position: .zero)
+    }
+
+    private func outcome(_ answer: Answer, question: String, known: [Thing], labels: [ArLabel]) async throws -> AskInAR.Outcome {
+        let use = AskInAR(ask: AskWhereIs(guide: FakeGuide(answer: answer)))
+        return try await use(question, home: "flat", known: known, labels: labels)
+    }
+
+    @Test func aThingInThisRoomIsWalkedTo() async throws {
+        let keys = thing("k", "brown", "keys")
+        let got = try await outcome(Answer(text: "Near the desk.", thingId: "k", grounded: true), question: "my keys",
+                                    known: [keys], labels: [label(keys)])
+        #expect(got == .walk(keys, say: "Near the desk."))
+    }
+
+    @Test func severalAlikeAskWhichOneInsteadOfWalking() async throws {
+        let (grey, black) = (thing("g", "grey", "laptop"), thing("b", "black", "laptop"))
+        let got = try await outcome(Answer(text: "I saw two laptops.", thingId: "g", grounded: true), question: "my laptop",
+                                    known: [grey, black], labels: [label(grey), label(black)])
+        #expect(got == .which(say: "I saw two laptops. Double tap the one you mean, or say which."))
+    }
+
+    @Test func aThingInAnotherRoomIsOnlyAnswered() async throws {
+        let (keys, passport) = (thing("k", "brown", "keys"), thing("p", "grey", "passport"))
+        let got = try await outcome(Answer(text: "In the bedroom.", thingId: "p", grounded: true), question: "my passport",
+                                    known: [keys, passport], labels: [label(keys)])
+        #expect(got == .answer("In the bedroom."))
+    }
+}
+
+@Suite("Guiding inside the AR view") @MainActor
+struct GuideKeepsTheCameraTests {
+    @Test func theSessionStaysOnWhenTheWalkEnds() async {
+        let locator = FakeLocator(readings: [(.at(x: 0, z: 0), .normal), (.at(x: 0, z: 0), .normal), (.at(x: 0, z: 0), .normal)])
+        var settings = GuideToThing.Settings()
+        settings.keepsSession = true
+        let thing = Thing(id: "k", label: "keys", heightM: 0.8, heightBand: "waist", confidence: 0.9, seenAt: Date(timeIntervalSince1970: 0))
+        let g = GuideToThing(home: "flat", thing: thing, roomMap: Data([1]), locator: locator,
+                             guide: FakeGuide(error: RecallError.status(500)), speech: FakeSpeech(), haptics: FakeHaptics(),
+                             clock: FakeClock(), settings: settings)
+        await g.run()  // the route fails: the walk ends
+        g.stop()
+        #expect(!locator.stopped)
+        #expect(locator.marks.last == .some(nil))  // its arrow is gone all the same
+    }
+}
+
+@Suite("Replies after a find") struct ReadFoundReplyTests {
+    @Test func theModelsReadingWins() async {
+        let read = ReadFoundReply(reader: FakeReplyReader(answer: .goBack))
+        #expect(await read("get me out of here", about: "keys") == .goBack)
+        // the rules would have called this a new question: the model understood it
+        let done = ReadFoundReply(reader: FakeReplyReader(answer: .done))
+        #expect(await done("nah I'm good", about: "keys") == .done)
+    }
+
+    @Test func thePhoneDecidesWhenTheMacCantTell() async {
+        #expect(await ReadFoundReply(reader: FakeReplyReader(answer: nil))("no thank you", about: "keys") == .done)
+    }
+
+    @Test func aSlowModelDoesntKeepAnyoneWaiting() async {
+        let read = ReadFoundReply(reader: FakeReplyReader(answer: .goBack, hangs: true), patience: 0.05)
+        #expect(await read("no thank you", about: "keys") == .done)
+    }
+
+    @Test func thePhoneDecidesWhenTheMacIsUnreachable() async {
+        #expect(await ReadFoundReply(reader: FakeReplyReader(fails: true))("take me back", about: "keys") == .goBack)
+        #expect(await ReadFoundReply(reader: nil)("where's my wallet", about: "keys") == .question)
     }
 }

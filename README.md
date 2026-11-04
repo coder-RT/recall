@@ -44,7 +44,14 @@ Indie track · Theme: <strong>Build for Your World</strong></p>
 </p>
 
 <p align="center">
-  <a href="#3-backend-pipeline-and-demo">Try it (no keys)</a> ·
+  <strong>Live site:</strong> <a href="https://recall-ten-khaki.vercel.app">recall-ten-khaki.vercel.app</a>
+  (also at <a href="https://recall.onica.ai">recall.onica.ai</a>) ·
+  <a href="https://recall-ten-khaki.vercel.app/demo"><strong>Try the demo: ask, then walk</strong></a> ·
+  <a href="https://recall-ten-khaki.vercel.app/homes/flat/viewer">Explore a real room</a>
+</p>
+
+<p align="center">
+  <a href="#for-judges-in-one-minute">Try it (no keys)</a> ·
   <a href="#architecture-in-brief">Architecture</a> ·
   <a href="#api">API</a> ·
   <a href="docs/privacy.md">Privacy</a> ·
@@ -71,11 +78,24 @@ Indie track · Theme: <strong>Build for Your World</strong></p>
 
 ### For judges, in one minute
 
+**Start with the demo.** Nothing to install: open
+**[recall-ten-khaki.vercel.app/demo](https://recall-ten-khaki.vercel.app/demo)**, pick "Where are my keys?", and
+follow the walk to them in the author's real scanned living room. To run the same thing from this repo, with no keys,
+no GPU and no account:
+
+```bash
+git clone https://github.com/coder-RT/recall.git && cd recall && make setup && make demo   # then open localhost:3000/demo
+```
+
+`make demo` starts Recall's API on a memory built from that real scan and the website beside it. The answers are Muse
+Spark Open's real replies, recorded once and replayed through Recall's own code, and labelled as recorded; the routes
+come from the planner the phone uses, on the scan's floor.
+
 | Criterion | Where to look |
 |---|---|
 | **Impact** (30 %) | [Why I built it](#why-i-built-it): a true story · [What it is](#what-it-is): built first for blind and low-vision people, for anyone who misplaces things, voice first · [Privacy](docs/privacy.md): the home stays on your own computer · the [tester session plan](evals/usability/) |
 | **Use of Meta AI tooling** (25 %) | [Only Meta models, each with one job](#how-it-works-the-meta-models): MapAnything, SAM 3.1, Muse Spark Open (Muse Glimmer on your own Mac), Muse Voice Transcribe, Muse Spark 1.1 · [Recall's three agents](#recalls-three-agents) · [Sharing with robots](#sharing-with-robots) over A2A |
-| **Demo** (25 %) | The screenshots below are real output · `make demo` replays a real run with no keys · [How to run it](#how-to-run-it) |
+| **Demo** (25 %) | [The demo page](https://recall-ten-khaki.vercel.app/demo) and `make demo`: a real run, no keys · the screenshots below are real output · [How to run it](#how-to-run-it) |
 | **Technical depth** (20 %) | [Architecture](docs/architecture.md) · [28 decisions](docs/decisions.md) · [Guardrails](#guardrails): geometry decides the facts, the model only phrases them · [Algorithms](#algorithms) · tests on every part ([Results so far](#results-so-far)) |
 
 ---
@@ -167,7 +187,7 @@ floor, furniture and walls as cells, and the things as dots: no photos of the ho
 | iPhone app (Swift 6, SwiftUI, ARKit; VoiceOver first) | `apps/ios` (build with XcodeGen) | Works on an iPhone with LiDAR, iOS 26 |
 | The API on your computer: the Guide, the arrival check, memory, privacy, robots | `services/api` | Works (`make live`) |
 | The pipeline: 3D reconstruction, furniture and things, the room model | `services/pipeline` | Works (`make worker`) |
-| A recorded real run you can try with no keys | `make demo` | Works; the recording is added after a privacy review |
+| A recorded real run you can try with no keys: ask, then walk | `make demo`, [`/demo`](https://recall-ten-khaki.vercel.app/demo) | Works |
 | Website and 3D viewer of your own scan | `apps/web` | Works (`pnpm dev`) |
 | API spec (OpenAPI 3.1, Swagger UI) and the A2A Agent Card | `services/api/resources/` | See [API](#api) |
 | Architecture, decisions, privacy note, measurements | [`docs/`](docs) | [architecture](docs/architecture.md) · [decisions](docs/decisions.md) · [privacy](docs/privacy.md) · [verification](docs/verification.md) |
@@ -186,7 +206,7 @@ services/
   api/        FastAPI: domain/ → application/ → adapters/ + infra/ ; resources/ = the OpenAPI spec (source of truth)
   pipeline/   the scan pipeline, same layers: MapAnything, SAM 3.1, planes, merging, the room model
 docs/         architecture, privacy, verification, Meta Muse (docs/muse.md)
-evals/        questions, usability plan
+evals/        questions, usability plan, results and the replay scripts
 ```
 
 - **Hexagonal (ports and adapters) in every service**: domain ← application ← adapters and infra.
@@ -356,7 +376,7 @@ runs its software or its models; every model Recall itself calls is a Meta model
 | Muse Glimmer | Guide agent alternative; local privacy mode | Modal / Fireworks; LM Studio on the Mac | same adapter |
 | Muse Spark (hosted) | Guide fallback | Meta Model API | same adapter |
 | Muse Spark 1.1 (multimodal) | Verifier tie-break; may only downgrade a result, never confirm | Meta Model API | `services/api/.../adapters/outbound/vision/spark_vision_meta_api.py` |
-| SAM 3.1 | Objects and furniture in every frame, by text prompt; the arrival check | Meta Model API (optional self-hosted on Modal) | `services/pipeline/.../sam31_meta_api.py`, `services/api/.../sam31_meta_api.py` |
+| SAM 3.1 | Objects and furniture by text prompt, on a sample of each scan (40 photos × 24 prompts on a large scan); the arrival check | Meta Model API (optional self-hosted on Modal) | `services/pipeline/.../sam31_meta_api.py`, `services/api/.../sam31_meta_api.py` |
 | MapAnything (`facebook/map-anything-apache`) | Metric 3D reconstruction from the frames, depth and poses | Mac (Apple GPU); Modal if too slow | `services/pipeline/.../mapanything_local.py` |
 | Muse Voice Transcribe | Speech to text with turn detection | Meta Model API | `services/api/.../voice/muse_transcribe.py`, `apps/web/app/api/voice/transcribe/` |
 | Muse Spark Open (or Muse Glimmer) as a screen | Checks the object name a robot or outside app sends the home memory, after the schema; strict JSON verdict, fails closed | Baseten (LM Studio for Glimmer) | `services/api/.../safety/meta_model_screen.py` |
@@ -372,14 +392,18 @@ runs its software or its models; every model Recall itself calls is a Meta model
 1. The phone sends a spoken question to the Mac, and Muse Voice Transcribe turns it into text (typed questions skip this).
 2. The phone says what it is looking for at once ("Looking for your keys.").
 3. The Guide calls `find_object`, which returns each match with its room, landmark, relation ("on the desk"), shelf level, height band and when it was seen; one call usually answers. The answer is logged with the sightings behind it, and **Why?** reads them out.
-4. **Take me there**: `localize` from the phone's ARKit pose, `plan_route` over an occupancy grid, clock-face steps spoken as you walk.
+4. **Take me there**: the phone recognises the room (ARKit's match of the saved room map, helped by a photo match on
+   the Mac about once a second, trusted only when two fixes agree, and spoken hints such as "point the phone at the
+   TV"; landmark directions if neither matches), then `localize` from the phone's pose, `plan_route` over an
+   occupancy grid, clock-face steps spoken as you walk.
 5. On arrival the Verifier checks the camera frame; if the thing is nearby, memory moves it.
 
 **OS and browser features (not model calls)**
 
 | Feature | Used for | Where |
 |---|---|---|
-| LiDAR depth, ARKit tracking, ARWorldMap | Capture in metres; relocalisation for live guidance | iPhone |
+| LiDAR depth, ARKit tracking, ARWorldMap | Capture in metres; relocalisation for live guidance; the map grows on each visit | iPhone |
+| OpenCV ORB features + PnP (classic geometry, not a model) | Recognising the room from one camera photo, beside ARKit | Mac (`services/api/.../vision/orb_place_matcher.py`) |
 | ARKit poses, compass (magnetic north, no location) | Speed and turn rate for scan coaching come from the ARKit poses; the scan learns where north lies in the room, so directions can say "north-east" | iPhone |
 | Haptics | Turn and arrival cues | iPhone (Apple Watch planned) |
 | VoiceOver, Dynamic Type | The app is usable without looking | iPhone |
@@ -423,6 +447,7 @@ routes match it. While `make demo` or `make live` runs, **Swagger UI** is at `ht
 | `DELETE /scans/{scan_id}` | Erase a scan from your computer, with what only it found |
 | `GET /homes/{home_id}/objects`, `GET /homes/{home_id}/room`, `GET /homes/{home_id}/room-map` | What Recall found, the room model, and each room's map for Find |
 | `POST /guidance/sessions`, `POST /guidance/sessions/{session_id}/verify` | Directions, and the arrival check |
+| `POST /homes/{home_id}/locate` | Where am I? One camera photo matched against the room scans: the room, the pose, what to point at |
 | `GET /privacy`, `GET /audit` | What is sent where right now; who did what |
 | `GET /homes/{home_id}/robot-export`, `/a2a/home-memory` | For robots: the Nav2 map, and the Home Memory agent ([Agent Card](services/api/resources/agents/home-memory.card.json)) |
 
@@ -445,6 +470,15 @@ Every route except `/health` needs a key: the owner's device key, or a robot's o
   4. *Not found is a fixed sentence,* never the model's: "I haven't seen that yet."
   5. *Tested:* `tests/unit/test_grounding.py` (an invented place or number is caught) and `tests/unit/test_ask_where_is.py` (an invented place is corrected, then replaced by the tool facts; a place with no sighting behind it is never said).
 - **Every answer is traceable.** Sightings are append-only. Every answer is logged with its model and tool steps and the sightings it rests on, and **Why?** on the phone (or `GET /answers/{answer_id}/evidence`, or asking the Guide "why?") leads back to the camera's view, the scan and the models that made it. An answer that names a place with no sighting behind it is never said.
+- **Recognising the room from anywhere, never on one photo's word.** ARKit's own match of the saved room map is
+  the main signal. While it hasn't matched, the phone sends about one photo a second to the Mac, which matches it
+  against every room's scan photos with classic ORB features, the scan's own LiDAR depth and PnP (OpenCV, no model;
+  `adapters/outbound/vision/orb_place_matcher.py`). The phone uses a photo pose only when **two fixes in a row agree**
+  within 25 cm and 10°, and ARKit's own match replaces it the moment it comes. The Mac also says which room the photo
+  shows ("You seem to be in Bedroom, not Living room") and what to point at ("the TV"). Each time ARKit recognises
+  the room, the map it grew is kept on the phone, so the next visit matches from there too. Measured on the real
+  living-room scans: held-out photos 1.2 cm median error; photos from other sessions fix 59% of the time, 89% of
+  them right; 22 to 35 ms per match ([evals/results.md](evals/results.md)).
 - **The Verifier can only downgrade.** The vision model may turn a result into "uncertain"; only SAM plus geometry can confirm.
 - **Two checks on the door.** A robot or outside app can send only one object name (letters, digits, spaces and hyphens, at most 40 characters, `services/api/resources/agents/find-object.input.schema.json`); free text is refused and never reaches a model or a tool. Then Muse Spark Open (or Glimmer) must answer `{"verdict": "safe", ...}` in strict JSON; anything else, a timeout or "injection" refuses. Measured: 21 ordinary names allowed, 18 instruction-like names refused, none wrong.
 - **Privacy and security.** See [Security and privacy](#security-and-privacy): what stays on the Mac, what is sent where, and how the home's memory is protected.
@@ -463,9 +497,9 @@ Every route except `/health` needs a key: the owner's device key, or a robot's o
   | What | Sent to | When |
   |---|---|---|
   | Scan photos, about 50 per room (no depth, no sound) | Meta Model API: SAM 3.1 | While the Mac processes a scan |
-  | A spoken question (a few seconds of audio; only the words are kept) | Meta Model API: Muse Voice Transcribe | When you ask by voice |
-  | The question as text and what memory says (no photos) | Baseten: Muse Spark Open, or Muse Glimmer on your Mac in private mode | Each time you ask |
-  | One camera photo | Meta Model API: SAM 3.1, and Muse Spark 1.1 only when SAM is unsure | On arrival |
+  | A spoken question (a few seconds of audio; only the words are kept) | Meta Model API: Muse Voice Transcribe | When you ask by voice. In the AR view the microphone opens by itself after Recall asks a question, with a tap on the phone, and closes when you stop talking |
+  | The question, or your reply after a find, as text and what memory says (no photos) | Baseten: Muse Spark Open, or Muse Glimmer on your Mac in private mode | Each time you ask |
+  | One camera photo | Meta Model API: SAM 3.1, and Muse Spark 1.1 when SAM is unsure or the thing seems to have moved | On arrival |
   | The room map, things and furniture (no photos, names, notes or anyone's position) | Robots and apps you gave the robot key | Only while Robot Access is on (off by default) |
 
 - **Your controls:** delete a scan and it is erased from the iPhone and the Mac; forget a thing; Robot Access off by
@@ -476,6 +510,9 @@ Every route except `/health` needs a key: the owner's device key, or a robot's o
   approved by the author:
   - points and surfaces tinted by height, the room model, the drawings, labels and robot files;
   - no photos, video, depth images, keys or paths; guard tests fail if a photo file or photo colours ever appear.
+  - the no-keys demo (`samples/replay/flat/`) holds the same scan's room model and labels, its point cloud thinned to
+    one point per 5 cm (positions only, no colours) and the path the phone walked (camera poses only, no times or
+    compass readings), with the recorded answers; a test checks there is nothing else.
 
 **Security: how the home's memory is protected**
 
@@ -547,7 +584,9 @@ erDiagram
 - **Indexes:** scans, landmarks, objects and rejections by home; observations and set-asides by object; audit events
   by time and by action; the answer log by home and time.
 - **The job queue** is a separate SQLite file (`data/jobs.db`, Huey) that holds only queued scan jobs.
-- **Not in SQL:** the scan files (`data/blobs` on the Mac, or Cloudflare R2). On the iPhone there is no database:
+- **Not in SQL:** the scan files (`data/blobs` on the Mac, or Cloudflare R2), and each scan's `place_index.npz` beside
+  them (ORB descriptors of the keyframes and their 3D points, for the photo matcher; built by the pipeline, or
+  `make place-index`). On the iPhone there is no database:
   scans are folders in Application Support, the device key is in the Keychain, and the Mac's address is in
   UserDefaults.
 
@@ -560,8 +599,12 @@ erDiagram
 - **Room model:** RANSAC plane fitting for the floor and the walls, deterministic and seeded; furniture from SAM 3.1 text prompts, lifted into 3D boxes.
 - **Flat surfaces:** a height histogram of the point cloud, peaks grouped into connected patches on a 5 cm grid, thin lines rejected by fill ratio. This is what finds desk tops, seats and shelf levels.
 - **Spatial relations:** "on" (within 5 cm of a surface and inside its footprint), left or right of a landmark's front, nearest landmark within 1.5 m, and five height bands (floor, knee, waist, chest, head).
-- **What changed:** a rescan matches each kind of thing with the room's last scan by optimal assignment on 3D distance; moved more than 30 cm, new, or gone is decided by geometry, and things outside the rescan's view are left alone.
+- **What changed:** a rescan matches each kind of thing with the room's last scan by optimal assignment on 3D distance; moved more than 30 cm, new, or gone is decided by geometry, and things outside the rescan's view are left alone. Unit-tested; no real rescan has lined up with its earlier scan yet, so each real scan so far made a fresh map of the room.
 - **Navigation:** an occupancy grid at 10 cm from the point cloud, obstacles widened by a 0.3 m body radius and paths kept to the middle of free space, A* to a reachable cell near the object, simplified to turns and spoken as clock-face steps. A gap too narrow gives "no safe path" and landmark directions instead.
+- **Recognising the room:** after processing, each scan's keyframes become ORB features lifted to 3D with the phone's
+  LiDAR depth and ARKit pose (`place_index.npz`). One camera photo is matched against them (ratio test, PnP with
+  RANSAC; at least 30 inliers within 4 px), giving the room and the camera's pose in the room map's world. The phone
+  trusts two fixes in a row that agree within 25 cm and 10°, and ARKit's own match replaces them.
 - **Arrival check:** SAM 3.1's box in one camera frame, lifted to 3D with the LiDAR depth; within 30 cm of the remembered place is confirmed.
 - **Viewer:** voxel downsampling to about 150k points; a vertex shader that gathers every point from a scattered shell to its real position, floor first.
 
@@ -575,14 +618,18 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
 - **Without a model:** LiDAR depth back-projected with the ARKit poses put all 10 objects of the living room within **2 to 7 cm** of the MapAnything run, in **0.2 s**.
 - **Answer time:** the Guide on Muse Spark Open answers in **2.3 s** median, **2.7 s** p90 (10 real questions, one tool call each); the phone speaks an acknowledgement at once.
 - **Arrival check:** on the real keys, SAM 3.1 plus the LiDAR depth put them **3 cm** from the remembered place, in **4.9 s**.
+- **Recognising the room from a photo** ([evals/results.md](evals/results.md)): held-out photos of the living room
+  came out **1.2 cm** (median) and **0.55°** from ARKit's own poses; photos from other sessions gave a fix **59 %** of
+  the time and **89 %** of those fixes were right, so the phone waits for two that agree; **22 to 35 ms** per match on
+  the M5 Pro. On the way: none of five rescans of that room was recognised by ARKit alone, the problem this fixes.
 - **Robot screening:** **21** ordinary object names allowed and **18** instruction-like names refused, none wrong.
 - **Cost, measured:** a room scan is **456** SAM 3.1 calls and **48 MB** on disk; a question is **2** Muse Spark Open calls, about **2,460 + 261 tokens**.
 - **Flat surfaces:** the geometry-only detector found **12 level patches** in the room; the two largest sit at the heights of the two measured desks.
 - **Viewer:** about 150k points, the gather animation, photo and confidence colouring, and the floor grid, height bands and surfaces as layers, on a phone and a laptop.
-- **Tests (2 November):** API 202 (including Schemathesis against the spec), pipeline 59 (including a synthetic room run through the whole pipeline), website 190 (accessibility with axe, WCAG 2.2 AA, reduced motion, no-JavaScript, keyboard-only and 200 % text usability, security headers); on the iPhone, 182 unit tests and 31 UI tests: accessibility audits and usability tasks done with VoiceOver labels at default and largest text; the Watch app builds.
+- **Tests (3 November):** API 218 (including Schemathesis against the spec), pipeline 64 (including a synthetic room run through the whole pipeline), website 203 (accessibility with axe, WCAG 2.2 AA, reduced motion, no-JavaScript, keyboard-only and 200 % text usability, security headers); on the iPhone, 197 unit tests and 34 UI tests (2 skipped): accessibility audits and usability tasks done with VoiceOver labels at default and largest text; the Watch app builds.
 - **Usability, honestly:** the checks above are automated. In person, the author's screen-off run (VoiceOver Screen Curtain: the screen stays black) is planned, and a session with blind and low-vision testers is planned; its plan is ready in `evals/usability/`.
 
-**Planned evaluation:** median position error against hand-measured positions, questions answered correctly, Verifier precision, and time to find an object by touch versus with Recall, scored without AI; the dated table will live in `evals/results.md`. The session plan for a blind or low-vision tester is in `evals/usability/`.
+**Planned evaluation:** median position error against hand-measured positions, questions answered correctly, Verifier precision, and time to find an object by touch versus with Recall, scored without AI. The dated table is [`evals/results.md`](evals/results.md); recognising the room from a photo is its first entry. The session plan for a blind or low-vision tester is in `evals/usability/`.
 
 ## Installation
 
@@ -593,7 +640,7 @@ offers the same guide as a download (`/INSTALL.md`).
 | Path | You get | Needs | Time |
 |---|---|---|---|
 | **A. Website** | The landing page and the real 3D scan at `/homes/flat/viewer` | Node 22 | 5 min |
-| **B. Demo, no keys** | `make demo`: Recall answering "where are my keys?" from a recorded real scan, labelled as recorded | uv (Python 3.12 comes with it) | 10 min |
+| **B. Demo, no keys** (judges: start here) | `make demo`: the demo page at `localhost:3000/demo` (ask, then walk, in a real scanned room) and the API answering from that scan, labelled as recorded | uv (Python 3.12 comes with it), Node 22 | 10 min |
 | **C. Live** | Your own room: `make live`, the iPhone app (Xcode + XcodeGen), pairing by QR, the Watch | A Mac with Apple silicon, your own Meta Model API and Baseten keys, an iPhone with LiDAR on iOS 26 | 45 min |
 
 The short version:
@@ -601,7 +648,7 @@ The short version:
 ```bash
 git clone https://github.com/coder-RT/recall.git && cd recall
 make setup                       # Python services (uv), the web app (pnpm), generated models, the database
-make demo                        # B: no keys; then: curl -s -X POST localhost:8000/ask -H "Authorization: Bearer demo" ...
+make demo                        # B: no keys; open localhost:3000/demo, or curl -s -X POST localhost:8000/ask -H "Authorization: Bearer demo" ...
 cd apps/web && pnpm dev          # A: http://localhost:3000 and /homes/flat/viewer
 ```
 
@@ -654,7 +701,18 @@ Watch app all run.
 ### 3. Backend, pipeline and demo
 
 - `make setup`: Python 3.12 with uv, both services, the web app.
-- `make demo`: no keys, no GPU. Builds a memory from a recorded real scan (`samples/replay/`, geometry and labels only, no photos) through the real ingest code, then serves the API on `localhost:8000` with Muse Spark Open's recorded replies; every answer is labelled `replay:muse-spark-open (recorded)`, and the command prints questions to try. `make record` re-records it with real calls.
+- `make demo` (**judges: start here**): no keys, no GPU. It says each step as it goes (tools, the recorded scan, the API, the website), then prints **Ready** with the page to open; the servers' own output goes to `data/demo/`, and `Ctrl+C` stops both.
+  - It builds a memory from a recorded real scan through the real ingest code. The scan is `samples/replay/`: the room model, labels, a thinned point cloud and the path walked, with no photos.
+  - It serves the API on `localhost:8000` with Muse Spark Open's recorded replies. Every answer is labelled `replay:muse-spark-open (recorded)`, and the command prints questions to try.
+  - It starts the website, with the demo page at `localhost:3000/demo`. Pick one of 13 questions, read or hear the answer, and GSAP plays the walk:
+    - the route draws on the floor of the 3D room, every point and the architect's room side by side on a wide screen;
+    - "you" move along it, and each clock-face step comes in as the route reaches it;
+    - a phone beside it shows the step being spoken. It is a simulated screen in the app's layout, labelled as such;
+    - when Recall answers "which one?", each match it found is offered with its own walk;
+    - the same page is online at [recall-ten-khaki.vercel.app/demo](https://recall-ten-khaki.vercel.app/demo).
+  - On the author's own Mac, `make demo-clips` cuts the real iPhone screen recordings into clips: finding the watch, and the scan. The page plays them on the phone, and the route follows the video. They show the home, so they stay on that computer (gitignored) and are not on the hosted site.
+  - `make demo-walks` rebuilds that page's walks (`apps/web/public/real-scan/flat/walks.json`): the replayed Guide's answer, then the phone's own route planner from where the scan began.
+  - `make record` re-records the answers with real calls, and then the walks.
 - `make live`: the API and the scan worker (`make worker` alone starts the worker: the warm pipeline server plus the job queue), with real Meta model calls using the keys from `.env`. The minimum is one Meta Model API key from [dev.meta.ai](https://dev.meta.ai) with `LLM_PROVIDER=meta`; the demo video uses Muse Spark Open on Baseten (`LLM_PROVIDER=baseten_spark_open`); the local privacy mode uses Muse Glimmer in LM Studio (`LLM_PROVIDER=lmstudio`).
 - **Where the API listens:** `make live` and `make dev` listen on your network (`BIND=0.0.0.0`) so the phone can reach the Mac; behind a Cloudflare Tunnel use `make live BIND=127.0.0.1`. Run on its own (`uv run recall-api`), it listens on 127.0.0.1 only. Every route except `/health` and the API docs needs the device key, the calls that reach a model are rate-limited, and bodies are size-checked.
 - **Home Memory agent (A2A) with `make live`:** its check runs on Muse Spark Open with the Baseten key (`SCREEN_PROVIDER=baseten_spark_open`, the default) or on Glimmer in LM Studio (`SCREEN_PROVIDER=lmstudio`); no other key is needed.
@@ -706,8 +764,11 @@ Planned next, not built or not working yet (updated before submission; removed i
 
 - The Apple Watch app on a real Ultra 4 (built and unit-tested, in preview) and Meta AI glasses (planned).
 - A physical robot running the ROS 2 example (the example and the robot package are in the repo).
+- A real rescan that lines up with the room's last scan and reports what moved (built and unit-tested; the author's six scans each started fresh).
 - The tape-measured 20 cm accuracy check with the phone's depth and poses.
 - Quantitative evaluations and the Verifier precision figure.
+- Timing room recognition on the iPhone from five start spots, and whether a grown room map matches from a spot that
+  failed before (the photo matcher is measured on the Mac only so far).
 - The usability session with blind and low-vision testers (plan ready in `evals/usability/`), and the author's screen-off run.
 - Daily spend caps on model calls (the API and the website's voice route are rate-limited per key or visitor; there is no daily cap yet).
 - The 3-minute demo video.

@@ -76,3 +76,11 @@ def test_steps_are_spoken_as_turns_and_metres():
     steps = to_clock_steps([(0, 0), (2, 0), (2, -1.5)], heading_xy=(1, 0))
     assert [s["clock"] for s in steps] == [12, 3]
     assert steps[0]["say"] == "Straight ahead, then about 2 metres." and steps[1]["metres"] == 1.5
+
+
+def test_distances_are_said_the_way_a_person_says_them():
+    say = lambda metres: to_clock_steps([(0, 0), (metres, 0)], heading_xy=(1, 0))[0]["say"]  # noqa: E731
+    assert say(0.7) == "Straight ahead, then about 70 centimetres."
+    assert say(0.96) == "Straight ahead, then about 1 metre."  # not "100 centimetres"
+    assert say(1.02) == "Straight ahead, then about 1 metre."  # not "1 metres"
+    assert say(1.5) == "Straight ahead, then about 1.5 metres."

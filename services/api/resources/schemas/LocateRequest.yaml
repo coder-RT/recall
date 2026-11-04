@@ -1,0 +1,12 @@
+type: object
+required: [image, pose, scan_id]
+properties:
+  image: {type: string, format: binary, description: "JPEG of the camera now (any size; intrinsics are for this image)"}
+  pose:
+    type: string
+    description: >
+      JSON: {"pose": [16 numbers, ARKit camera-to-world, column-major, in the phone's session (not yet the map's)],
+      "intrinsics": {"fx", "fy", "cx", "cy"} for the JPEG, "image_size": [w, h]}. Only the intrinsics are used on
+      the Mac; the phone keeps the session pose to turn the answer into its own correction.
+  scan_id: {type: string, maxLength: 64, description: "The scan whose room map the phone runs: the pose is answered in its world"}
+  room: {type: string, maxLength: 60, description: "The room the phone is trying to recognise (for the hint)"}

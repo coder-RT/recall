@@ -8,12 +8,14 @@ public final class WavRecorder: NSObject, VoiceInput {
     private var recorder: AVAudioRecorder?
     private var finished: (@MainActor (Data?) -> Void)?
     private let file = URL.temporaryDirectory.appending(path: "question.wav")
+    private var watching: Task<Void, Never>?
+    private var nothingSaid = false
 
     public override init() { super.init() }
 
     public var isRecording: Bool { recorder?.isRecording == true }
 
-    public func start(maxSeconds: Double, finished: @escaping @MainActor (Data?) -> Void) async -> Bool {
+    public func start(maxSeconds: Double, endOnSilence: Bool, finished: @escaping @MainActor (Data?) -> Void) async -> Bool {
         guard await AVAudioApplication.requestRecordPermission() else { return false }
         let session = AVAudioSession.sharedInstance()
         try? session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .duckOthers])
@@ -26,18 +28,43 @@ public final class WavRecorder: NSObject, VoiceInput {
         r.delegate = self
         recorder = r
         self.finished = finished
-        return r.record(forDuration: maxSeconds)
+        nothingSaid = false
+        r.isMeteringEnabled = endOnSilence
+        guard r.record(forDuration: maxSeconds) else { return false }
+        if endOnSilence { watch(r) }
+        return true
+    }
+
+    /// Reads the microphone's level ten times a second and ends the turn when the talking has stopped.
+    private func watch(_ r: AVAudioRecorder) {
+        watching = Task { [weak self] in
+            var gate = SilenceGate()
+            while !Task.isCancelled, r.isRecording {
+                try? await Task.sleep(for: .milliseconds(100))
+                r.updateMeters()
+                switch gate.hear(level: Double(r.averagePower(forChannel: 0)), at: r.currentTime) {
+                case .listen: continue
+                case .finished: r.stop()
+                case .nothingSaid:
+                    self?.nothingSaid = true
+                    r.stop()
+                }
+                return
+            }
+        }
     }
 
     /// Stops early; the delegate then hands over the recording (the same path as running out of time).
     public func stop() { recorder?.stop() }
 
     private func done(_ ok: Bool) {
+        watching?.cancel()
+        watching = nil
         recorder = nil
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
         let handler = finished
         finished = nil
-        let audio = ok ? try? Data(contentsOf: file) : nil
+        let audio = ok && !nothingSaid ? try? Data(contentsOf: file) : nil
         try? FileManager.default.removeItem(at: file)  // the question is in memory now; no copy is left on the phone
         handler?(audio)
     }

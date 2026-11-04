@@ -8,10 +8,13 @@ the model's calls carry only names. Every answer says it is recorded (`model`).
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
 from recall_api.application.ports import ChatReply, LlmProvider, ModelUnavailable, ToolCall
+
+log = logging.getLogger("recall_api.replay")
 
 
 class NotRecorded(ModelUnavailable):
@@ -35,9 +38,14 @@ class RecordedLlm:
         self.questions = sorted({q for q, _ in self.replies})
 
     def chat(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]) -> ChatReply:
-        reply = self.replies.get(_key(messages))
+        question, step = _key(messages)
+        reply = self.replies.get((question, step))
         if reply is None:
+            # what someone typed is never logged: only that it isn't one of the recorded questions
+            log.info("demo: a question that isn't recorded")
             raise NotRecorded("This question isn't in the recorded demo. Try: " + "; ".join(self.questions))
+        if step == 0:
+            log.info("demo: replayed %r", question)  # one of the recorded questions, from samples/replay/
         return reply
 
 

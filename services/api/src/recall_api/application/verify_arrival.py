@@ -1,7 +1,8 @@
 """The Verifier: on arrival, one camera frame says whether the thing is really there.
 
 SAM 3.1 finds it in the photo, the LiDAR depth puts it in the home, and geometry decides with the 30 cm rule. Muse
-Spark 1.1 is asked only when SAM was unsure, and may only downgrade a confirmation to "uncertain", never confirm.
+Spark 1.1 is asked when SAM was unsure, and always before a move, because one wrong frame would send the person to the
+wrong place next time; it may only downgrade to "uncertain", never confirm.
 What the camera saw updates memory (this is an API use case, so the one-writer rule holds): seen where remembered
 refreshes the sighting; seen nearby moves it.
 """
@@ -111,6 +112,9 @@ class VerifyArrival:
             return Verification(
                 "confirmed", f"Found it. Your {name} {verb} {where}.", round(d * 100), round(score, 2), position
             )
+        if self.vision is not None and self.vision.is_visible(obj.label, jpeg) == "no":
+            return Verification("uncertain", f"I might see your {name} {where}, but I'm not sure, so I've kept where I "
+                                "last saw it.", round(d * 100), round(score, 2), position)  # fmt: skip
         self._remember(obj, last, home, score, moved=True)
         return Verification("found_nearby", f"Your {name} {verb} here, but moved: {where}. I've updated my memory.",
                             round(d * 100), round(score, 2), position)  # fmt: skip

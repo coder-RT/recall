@@ -41,7 +41,7 @@ before.
 
 ## Real use, from the app's own logs (Oct 31 to Nov 4, 2026)
 
-Counted from `data/recall.db` (`audit_events`, `answer_log`): one person, one flat, the author's iPhone. Real use, not a
+Counted from `data/recall.db` (`audit_events`, `answer_log`): one flat, the author's iPhone, which a tester also used; the logs don't separate people. Real use, not a
 study, and the walks were not all blindfolded.
 
 | Measure | Result |

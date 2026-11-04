@@ -128,7 +128,8 @@ come from the planner the phone uses, on the scan's floor.
 ## Screenshots
 
 **Real output, from the author's own living room:** one walk with an iPhone, rebuilt on a Mac. The room map shows
-floor, furniture and walls as cells, and the things as dots: no photos of the home are in this repo.
+floor, furniture and walls as cells, and the things as dots. The scan holds no photos of the home; the only footage in this repo is one short screen
+recording and one frame of it, which the author reviewed and chose to publish (`apps/web/public/demo-video/`).
 
 <table>
   <tr>
@@ -509,7 +510,8 @@ Every route except `/health` needs a key: the owner's device key, or a robot's o
 - **The published demo scan:** the author's own living room is published for `/homes/flat/viewer`, reviewed and
   approved by the author:
   - points and surfaces tinted by height, the room model, the drawings, labels and robot files;
-  - no photos, video, depth images, keys or paths; guard tests fail if a photo file or photo colours ever appear.
+  - no photos, video, depth images, keys or paths in the scan files; guard tests fail if a photo file or photo colours ever appear;
+  - separately, one reviewed screen recording of the AR view and one frame of it in `apps/web/public/demo-video/`, chosen by the author.
   - the no-keys demo (`samples/replay/flat/`) holds the same scan's room model and labels, its point cloud thinned to
     one point per 5 cm (positions only, no colours) and the path the phone walked (camera poses only, no times or
     compass readings), with the recorded answers; a test checks there is nothing else.

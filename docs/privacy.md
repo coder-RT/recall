@@ -57,4 +57,4 @@ note). Vercel Speed Insights measures page speed without cookies or anything per
 recording through our server to Muse Voice Transcribe and doesn't store it. The contact form sends your name, email
 and message through our server to Rachit's inbox, using the email service Resend, and Vercel BotID checks invisibly
 that a browser sent it; the site keeps none of it. The demo shows **recorded output of a real
-run**, not your data.
+run**, not your data, and one screen recording of the author's own room that the author chose to publish.

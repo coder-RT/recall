@@ -95,6 +95,7 @@ Remove any row for a tool or library that isn't actually in the repo at submissi
 | What | Licence |
 |---|---|
 | Atkinson Hyperlegible Next (via `next/font/google`, self-hosted at build) | SIL Open Font License 1.1 |
+| Inter Tight, Space Mono (demo video graphics only, from `@fontsource`) | SIL Open Font License 1.1 |
 
 ## Audio
 

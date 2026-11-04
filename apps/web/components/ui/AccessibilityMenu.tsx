@@ -103,7 +103,7 @@ export function AccessibilityMenu() {
         aria-controls={open ? `${titleId}-panel` : undefined}
         aria-keyshortcuts="Alt+A"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-sm font-bold hover:bg-white/15"
+        className="group relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-sm font-bold hover:bg-white/15"
       >
         {/* universal access figure */}
         <svg viewBox="0 0 24 24" className="size-6" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -111,8 +111,14 @@ export function AccessibilityMenu() {
           <circle cx="12" cy="7" r="1.4" fill="currentColor" stroke="none" />
           <path d="M7 10.2l5 1 5-1M12 11.2v3.3l-2.6 4.2M12 14.5l2.6 4.2" />
         </svg>
-        <span className="hidden sm:inline">{t.button}</span>
-        <span className="sr-only sm:hidden">{t.button}</span>
+        <span className="sr-only">{t.button}</span>
+        {/* the word for anyone unsure of the icon, on hover and on keyboard focus; screen readers have the line above */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-sm font-bold text-white group-hover:block group-focus-visible:block"
+        >
+          {t.button}
+        </span>
       </button>
 
       <AnimatePresence>

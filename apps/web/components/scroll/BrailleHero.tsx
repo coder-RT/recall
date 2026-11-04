@@ -246,6 +246,10 @@ export function BrailleHero() {
               <span data-actual-badge className="rounded-full bg-ink px-2 py-0.5 text-xs font-bold text-white">{t.hero.actualScan}</span>
               {t.hero.seeScan}
             </Link>
+            <Link href="/demo" className="btn btn-demo gap-2" data-recorded-run data-demo-button>
+              <span data-actual-badge className="rounded-full bg-ink px-2 py-0.5 text-xs font-bold text-white">{t.hero.recordedRun}</span>
+              {t.hero.runDemo}
+            </Link>
           </div>
         </div>
 

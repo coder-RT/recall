@@ -17,8 +17,10 @@ export const en = {
     skip: "Skip to content",
     home: "Recall, back to top",
     sections: "Sections",
-    tryDemo: "Explore a real room",
+    tryDemo: "Real room",
     actualScan: "Actual scan",
+    runDemo: "Try the demo",
+    recordedRun: "Recorded run",
     privacy: "Privacy",
     links: [
       { href: "#how", label: "How it works" },
@@ -49,6 +51,8 @@ export const en = {
     seeHow: "See how it works",
     seeScan: "See a real room, scanned",
     actualScan: "Actual scan",
+    runDemo: "Try a working demo",
+    recordedRun: "Recorded run",
     browse: "Browse sample memories",
     // the connected-home band under the hero copy (decorative)
     rooms: ["Living room", "Kitchen", "Bedroom"],

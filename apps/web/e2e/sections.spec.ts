@@ -306,13 +306,38 @@ test("the browser tab shows Recall's mark, not the framework's", async ({ page, 
 test("Try the demo and the hero both open the actual scan of the author's room", async ({ page }) => {
   await open(page, "/");
   await expect(page.locator("[data-try-demo]")).toHaveAttribute("href", "/homes/flat/viewer");
-  await expect(page.locator("[data-try-demo]")).toContainText(en.nav.actualScan);
+  await expect(page.locator("[data-try-demo]")).toHaveAccessibleName(`${en.nav.tryDemo}: ${en.nav.actualScan}`);
   // warm yellow, so it stands out on the blue nav (the old green sat at 1.05:1 against it)
   expect(await page.locator("[data-try-demo]").evaluate((e) => getComputedStyle(e).backgroundColor)).toBe("rgb(254, 218, 117)");
   const hero = page.locator("[data-actual-scan]");
   await expect(hero).toHaveAttribute("href", "/homes/flat/viewer");
   await expect(hero).toContainText(en.hero.actualScan);
 });
+
+test("the nav and the hero both open the demo, labelled as recorded", async ({ page }) => {
+  await open(page, "/");
+  await expect(page.locator("[data-run-demo]")).toHaveAttribute("href", "/demo");
+  await expect(page.locator("[data-run-demo]")).toContainText(en.nav.runDemo);
+  await expect(page.locator("[data-run-demo]")).toHaveAccessibleName(`${en.nav.runDemo}: ${en.nav.recordedRun}`);
+  const hero = page.locator("[data-recorded-run]");
+  await expect(hero).toHaveAttribute("href", "/demo");
+  await expect(hero).toContainText(en.hero.recordedRun);
+});
+
+for (const width of [640, 800, 1024, 1280, 1406, 1536, 1920]) {
+  test(`the nav fits both buttons at ${width} px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await open(page, "/");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    const room = await page.locator("[data-try-demo]").boundingBox();
+    const demo = await page.locator("[data-run-demo]").boundingBox();
+    expect(room && demo && room.x + room.width <= demo.x && demo.x + demo.width <= width).toBe(true);
+    expect(room && demo && room.height <= 60 && demo.height <= 60).toBe(true);  // neither wraps to two lines
+    const links = page.locator("header nav a");
+    const heights = await links.evaluateAll((all) => all.map((a) => a.getBoundingClientRect().height));
+    expect(heights.every((h) => h <= 48)).toBe(true);  // nor do the section links
+  });
+}
 
 
 test.describe("questions that point at real things", () => {

@@ -45,13 +45,13 @@ export function Nav() {
           <ul className="flex gap-1 font-classic text-sm font-bold">
             {t.nav.links.map((item) => (
               <li key={item.href}>
-                <a href={`${home}${item.href}`} className="block rounded-md px-3 py-2 hover:bg-white/15">
+                <a href={`${home}${item.href}`} className="block whitespace-nowrap rounded-md px-3 py-2 hover:bg-white/15">
                   {item.label}
                 </a>
               </li>
             ))}
             <li>
-              <a href="/privacy" className="block rounded-md px-3 py-2 hover:bg-white/15">
+              <a href="/privacy" className="block whitespace-nowrap rounded-md px-3 py-2 hover:bg-white/15">
                 {t.nav.privacy}
               </a>
             </li>
@@ -59,9 +59,24 @@ export function Nav() {
         </nav>
         <div className="flex items-center gap-2">
           <AccessibilityMenu />
-          <Link href="/homes/flat/viewer" className="btn btn-demo hidden gap-2 sm:inline-flex" data-try-demo data-demo-button>
+          {/* short here, so the bar stays one line; the hero carries the badges and screen readers hear them */}
+          <Link
+            href="/homes/flat/viewer"
+            aria-label={`${t.nav.tryDemo}: ${t.nav.actualScan}`}
+            className="btn btn-demo hidden whitespace-nowrap sm:inline-flex"
+            data-try-demo
+            data-demo-button
+          >
             {t.nav.tryDemo}
-            <span data-actual-badge className="rounded-full bg-ink px-2 py-0.5 text-xs font-bold text-white">{t.nav.actualScan}</span>
+          </Link>
+          <Link
+            href="/demo"
+            aria-label={`${t.nav.runDemo}: ${t.nav.recordedRun}`}
+            className="btn btn-demo hidden whitespace-nowrap sm:inline-flex"
+            data-run-demo
+            data-demo-button
+          >
+            {t.nav.runDemo}
           </Link>
         </div>
       </div>

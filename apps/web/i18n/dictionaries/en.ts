@@ -810,7 +810,7 @@ export const en = {
         title: "On the phone",
         simulated: "Simulated phone screen: the steps the app speaks, laid out as the app shows them. Not a recording.",
         recorded: "Real screen recording · iPhone 16 Pro · {date}",
-        recordedNote: "Recorded with the scan of this room made on {date}, so places can differ a little from this page's scan. The route on the map is planned from where this page's scan began.",
+        recordedNote: "Recorded on {date} with a newer scan of this room, so places can differ a little from this page's scan. The route on the map is planned from where this page's scan began.",
         localOnly: "On this computer only (make demo-clips): not on the hosted site.",
         recordingBadge: "Real recording",
         recordingHint: "A real recording of a walk is on this computer:",
@@ -824,6 +824,11 @@ export const en = {
         takeMeThere: "Take me there",
         startHere: "Stand where the scan began.",
         arrived: "You're there",
+      },
+      arPhoto: {
+        title: "What you see on the phone",
+        body: "A real frame from the iPhone on {date}: Recall recognises the room, then floats a label over everything it found. Double tap a label, or tap Speak and ask, and it walks you there.",
+        key: "Green: Recall tells you. Amber: check it. Red: seen once. The rings mark the floor under each thing.",
       },
       scanClip: {
         title: "How this room was scanned",

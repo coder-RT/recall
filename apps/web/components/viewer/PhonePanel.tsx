@@ -10,7 +10,7 @@ const t = getDictionary().app.demo.phone;
 /** One cut of a real iPhone screen recording (make demo-clips → public/local-video/clips.json; gitignored). */
 export interface Clip {
   id: string;
-  kind: "find" | "scan";
+  kind: "find" | "scan" | "image";
   /** the thing a find clip walks to, by label */
   thing?: string;
   title: string;

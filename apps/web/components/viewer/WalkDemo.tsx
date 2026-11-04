@@ -116,6 +116,7 @@ export function WalkDemo({ walks, src }: { walks: Walks; src: string }) {
   const option = optionOf(item, pick);
   const clip = clips?.clips.find((c) => c.kind === "find" && option && c.thing === option.label) ?? null;
   const scanClip = clips?.clips.find((c) => c.kind === "scan") ?? null;
+  const arPhoto = clips?.clips.find((c) => c.kind === "image") ?? null;
   // the questions that walk to a thing this computer has a real recording of (by label, as the phone panel matches)
   const recorded = (w: WalkItem) => Boolean(clips?.clips.some((c) => c.kind === "find" && (w.choices ?? [w]).some((o) => o.label === c.thing)));
   const firstRecorded = walks.walks.findIndex(recorded);
@@ -396,6 +397,21 @@ export function WalkDemo({ walks, src }: { walks: Walks; src: string }) {
           ) : null}
         </aside>
       </div>
+
+      {arPhoto && clips && (
+        <section aria-labelledby={`${id}-ar`} className="card grid items-center gap-6 p-5 md:grid-cols-[1fr_300px]" data-ar-photo>
+          <div>
+            <h2 id={`${id}-ar`} className="text-2xl font-bold text-ink">
+              {t.arPhoto.title}
+            </h2>
+            <p className="mt-2 text-base text-muted">{format(t.arPhoto.body, { date: arPhoto.recorded })}</p>
+            <p className="mt-3 text-sm text-ink">{t.arPhoto.key}</p>
+            {clips.source === "local" && <p className="mt-3 text-xs text-muted">{t.phone.localOnly}</p>}
+          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element -- a frame on this computer only, not in the build */}
+          <img src={`${clips.base}/${arPhoto.file}`} alt={arPhoto.title} className="w-full rounded-2xl border border-fb-line" />
+        </section>
+      )}
 
       {scanClip && clips && (
         <section aria-labelledby={`${id}-scan`} className="card grid gap-6 p-5 md:grid-cols-[1fr_300px]" data-scan-clip>

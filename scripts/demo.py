@@ -173,7 +173,7 @@ def main() -> int:
         f"{len(meta['answers'])} recorded questions")  # fmt: skip
     clips = WEB / "public" / "local-video" / "clips.json"
     try:
-        n = len(json.loads(clips.read_text())["clips"])
+        n = sum(c["kind"] != "image" for c in json.loads(clips.read_text())["clips"])
     except (OSError, ValueError, KeyError):
         n = 0
     found = f"{n} real screen recording{'s' if n != 1 else ''} on this computer (make demo-clips), beside the walk"

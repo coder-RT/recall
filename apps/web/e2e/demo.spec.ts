@@ -50,8 +50,8 @@ test("says it is recorded, and shows the first answer and its walk", async ({ pa
   await expect(page.locator("[data-walk-arrive]")).toContainText(keys.arrive!);
   await expect(page.locator("[data-simulated-phone]")).toBeVisible();
   await expect(page.getByText(t.phone.simulated)).toBeVisible();
-  // no recordings, as on the hosted site: no badge and no shortcut
-  await expect(page.locator("[data-recorded-chip], [data-show-recording]")).toHaveCount(0);
+  // no recordings, as on the hosted site: no badge, no shortcut, no photo of the room
+  await expect(page.locator("[data-recorded-chip], [data-show-recording], [data-ar-photo]")).toHaveCount(0);
 });
 
 test("every question: a walk, a choice of walks, or an honest 'not seen'", async ({ page }) => {
@@ -150,6 +150,19 @@ test("a real recording plays on the phone for its thing, with captions, when thi
   // the simulated screen is one switch away
   await page.getByLabel(t.phone.showSimulated).check();
   await expect(page.locator("[data-simulated-phone]")).toBeVisible();
+});
+
+test("the labelled room shows when this computer has that frame, and not on the hosted site", async ({ page }) => {
+  await page.unrouteAll();
+  const clips = { source: "local", clips: [{ id: "ar-labels", kind: "image", title: "The room with its labels", recorded: "2026-11-04", file: "ar-labels.jpg", seconds: 0, captions: [] }] };
+  await page.route("**/local-video/clips.json", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(clips) }));
+  await page.route("**/local-video/ar-labels.jpg", (route) => route.fulfill({ status: 200, contentType: "image/svg+xml", body: "<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8'/>" }));
+  await page.route("**/demo-video/**", (route) => route.fulfill({ status: 404, body: "" }));
+  await open(page, PAGE);
+  const section = page.locator("[data-ar-photo]");
+  await expect(section).toContainText(t.arPhoto.title);
+  await expect(section.locator("img")).toHaveAttribute("alt", "The room with its labels");
+  await expect(section).toContainText(t.phone.localOnly);
 });
 
 test("has no WCAG 2.2 AA violations", async ({ page }) => {

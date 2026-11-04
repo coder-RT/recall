@@ -31,6 +31,12 @@ def cut(src: Path, start: float, end: float, dst: Path) -> None:
     )  # fmt: skip
 
 
+def still(src: Path, at: float, crop: str, dst: Path) -> None:
+    """One frame of a recording as a photo for the page."""
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", str(at), "-i", str(src), "-frames:v", "1",
+                    "-vf", f"crop={crop},scale=800:-2", "-q:v", "3", str(dst)], check=True)  # fmt: skip
+
+
 def main() -> int:
     if not SEGMENTS.exists():
         print(f"No {SEGMENTS.relative_to(ROOT)}: nothing to cut. The demo page shows its simulated phone screen.")
@@ -41,9 +47,16 @@ def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     clips = []
     for clip in json.loads(SEGMENTS.read_text())["clips"]:
-        src = RECORDINGS / clip["source"]
+        src = (PRIVATE if "/" in clip["source"] else RECORDINGS) / clip["source"]
         if not src.exists():
             print(f"  skipped {clip['id']}: {src.name} is not in {RECORDINGS.relative_to(ROOT)}")
+            continue
+        if clip["kind"] == "image":
+            dst = OUT / f"{clip['id']}.jpg"
+            still(src, clip["at"], clip["crop"], dst)
+            kept = {k: clip[k] for k in ("id", "kind", "title", "recorded")}
+            clips.append(kept | {"file": dst.name, "captions": [], "seconds": 0})
+            print(f"  {dst.relative_to(ROOT)}  {dst.stat().st_size / 1e6:.1f} MB")
             continue
         dst = OUT / f"{clip['id']}.mp4"
         cut(src, clip["start"], clip["end"], dst)

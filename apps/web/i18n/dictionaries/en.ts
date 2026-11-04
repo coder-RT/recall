@@ -427,7 +427,7 @@ export const en = {
       },
       {
         q: "Is there a real scan I can see?",
-        a: "Yes. The author's own living room, scanned with an iPhone and rebuilt by Meta's models, is on this site in 3D: geometry only, no photos. The memory feed higher up this page shows the kind of answers Recall gives, and is labelled as an illustration.",
+        a: "Yes. The author's own living room, scanned with an iPhone and rebuilt by Meta's models, is on this site in 3D: the scan is geometry only, with no photos, and the demo page adds one short screen recording the author chose to publish. The memory feed higher up this page shows the kind of answers Recall gives, and is labelled as an illustration.",
         links: [
           { text: "See the actual scan", href: "/homes/flat/viewer" },
           { text: "The code on GitHub", href: "https://github.com/coder-RT/recall" },
@@ -533,7 +533,7 @@ export const en = {
       { title: "People in view", body: "Scan when nobody else is in the room. Anyone the camera sees is in the scan photos that go to SAM 3.1 with the rest; Recall never looks for people or faces, and robots never get photos." },
     ],
     siteTitle: "This website",
-    site: "No cookies and no analytics. It keeps two small settings in your browser: Reduce motion, and that you saw the storage note. Vercel Speed Insights measures page speed without cookies or anything personal. “Ask by voice” sends your recording through our server to Muse Voice Transcribe and doesn't store it. The contact form sends your name, email and message through our server to Rachit's inbox, using the email service Resend, and Vercel BotID checks invisibly that a browser sent it; the site keeps none of it. The demo shows recorded output of a real run, not your data.",
+    site: "No cookies and no analytics. It keeps two small settings in your browser: Reduce motion, and that you saw the storage note. Vercel Speed Insights measures page speed without cookies or anything personal. “Ask by voice” sends your recording through our server to Muse Voice Transcribe and doesn't store it. The contact form sends your name, email and message through our server to Rachit's inbox, using the email service Resend, and Vercel BotID checks invisibly that a browser sent it; the site keeps none of it. The demo shows recorded output of a real run, not your data, and one screen recording of the author's own room that the author chose to publish.",
     source: "The same note is in the iPhone app, under Settings → Privacy, where your Mac also shows what it sends right now.",
   },
 
@@ -672,7 +672,7 @@ export const en = {
         badge: "Real scan · not a simulation",
         tryIt: "Actual scan · try it",
         tryHint: "Drag to turn the room, pick a view, or choose a thing in the list. Dots and Architect read best.",
-        body: "The author's own living room, walked once with an iPhone 16 Pro on {date}, then rebuilt and searched by Meta models on a Mac. Geometry and labels only: no photo of the room is published, and every colour you see comes from height.",
+        body: "The author's own living room, walked once with an iPhone 16 Pro on {date}, then rebuilt and searched by Meta models on a Mac. This scan is geometry and labels only, with every colour coming from height. The demo page adds one real screen recording, which the author chose to publish.",
       },
       story: {
         models: {
@@ -784,10 +784,10 @@ export const en = {
           lead: "One guide, step by step, for you or for your AI coding agent: the website in 5 minutes, the no-keys demo in 10, your own room with your own keys in about 45.",
           download: "Download INSTALL.md",
         },
-        privacy: "Published from {src}: points, surfaces, drawings, labels and robot files. No photos, no video, nothing anyone said.",
+        privacy: "Published from {src}: points, surfaces, drawings, labels and robot files. No scan photos, no video, nothing anyone said.",
         privacyTitle: "Public data only",
         privacyItems: ["3D points (colour from height)", "Surfaces and the room model", "Drawings", "Labels of furniture and things", "Robot files"],
-        privacyNever: "Never published: photos, video, depth images, anything anyone said, keys or paths.",
+        privacyNever: "Never in these files: scan photos, video, depth images, anything anyone said, keys or paths. The demo page's one screen recording is separate, and the author chose to publish it.",
       },
     },
     arMode: {
@@ -848,7 +848,7 @@ export const en = {
         recordedNote: "Recorded on {date} with a newer scan of this room, so places can differ a little from this page's scan. The route on the map is planned from where this page's scan began.",
         localOnly: "On this computer only (make demo-clips): not on the hosted site.",
         recordingBadge: "Real recording",
-        recordingHint: "A real recording of a walk is on this computer:",
+        recordingHint: "Watch a real recording of a walk:",
         recordingAsk: "play “{q}”",
         showRecording: "Real recording",
         showSimulated: "Simulated screen",

@@ -1,0 +1,53 @@
+{
+  "source": "published",
+  "clips": [
+    {
+      "id": "watch",
+      "kind": "find",
+      "thing": "watch",
+      "title": "Finding the watch by voice, in AR",
+      "recorded": "2026-11-04",
+      "walk": [
+        18,
+        25
+      ],
+      "captions": [
+        [
+          0,
+          "The labels float over the room. Tap Speak and ask out loud."
+        ],
+        [
+          2,
+          "You ask: “Hey Recall, where's my watch?”"
+        ],
+        [
+          11,
+          "Recall: it's on the cabinet in the living room, on shelf 1, at waist height, seen 37 minutes ago."
+        ],
+        [
+          18,
+          "Straight ahead, 1 metre; at 1 o'clock, 90 centimetres…"
+        ],
+        [
+          25,
+          "Your watch should be in front of you. The camera checks it's really there."
+        ],
+        [
+          30,
+          "Found it: at 12 o'clock, 40 centimetres away."
+        ]
+      ],
+      "file": "watch.mp4",
+      "seconds": 35
+    },
+    {
+      "id": "ar-labels",
+      "kind": "image",
+      "title": "The room through the iPhone, with a label on everything Recall found",
+      "recorded": "2026-11-04",
+      "file": "ar-labels.jpg",
+      "captions": [],
+      "seconds": 0
+    }
+  ]
+}

@@ -204,3 +204,16 @@ test("the viewer shows what was measured in real use, says what it isn't, and re
   await expect(page.locator("[data-ar-mode]")).toBeVisible();
   await expect(page.locator("[data-hear-room]")).toHaveText(en.app.hearRoom.hear);
 });
+
+test("the published recording plays on the hosted page, and the scan recording is never published", async ({ page }) => {
+  await page.unrouteAll();
+  await page.route("**/local-video/**", (route) => route.fulfill({ status: 404, body: "" })); // as on the hosted site
+  await open(page, PAGE);
+  await expect(page.locator("[data-recorded-phone='watch']")).toBeVisible();
+  await expect(page.locator("[data-recorded-chip]")).toHaveCount(1);
+  await expect(page.getByText(t.phone.localOnly)).toHaveCount(0);
+  const published = JSON.parse(fs.readFileSync(path.join(__dirname, "../public/demo-video/clips.json"), "utf8"));
+  expect(published.source).toBe("published");
+  expect(published.clips.map((c: { id: string }) => c.id).sort()).toEqual(["ar-labels", "watch"]);
+  expect(fs.readdirSync(path.join(__dirname, "../public/demo-video")).sort()).toEqual(["ar-labels.jpg", "clips.json", "watch.mp4"]);
+});

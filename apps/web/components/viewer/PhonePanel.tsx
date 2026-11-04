@@ -63,54 +63,52 @@ function Frame({ children, label }: { children: ReactNode; label: string }) {
 }
 
 /**
- * The AR camera view, drawn: no photo of the home goes on the public page, so the room is a floor grid. The chevrons
- * lean the way the clock-face step says; the thing's tag grows as the walk nears it, as the labels do in the camera.
+ * The AR camera view, drawn as a plain room: no photo of the home is needed for it. The floor chevrons lean the way the
+ * clock-face step says; the thing's tag grows as the walk nears it; on arrival the app's blue arrow points down at it.
  */
 function ArScene({ thing, hour, progress, before, there }: { thing: string; hour: number; progress: number; before: boolean; there: boolean }) {
   const lean = ((hour % 12 > 6 ? hour % 12 - 12 : hour % 12) * 18).toFixed(0);
   const name = thing.toUpperCase();
-  const scale = there ? 1.2 : 0.65 + progress * 0.4;
+  const scale = there ? 1.15 : 0.65 + progress * 0.35;
   const width = name.length * 8.6 + 26;
   return (
-    <svg viewBox="0 0 270 320" preserveAspectRatio="xMidYMid slice" aria-hidden className="absolute inset-0 size-full">
+    <svg viewBox="0 0 270 340" preserveAspectRatio="xMidYMid slice" aria-hidden className="absolute inset-0 size-full">
       <defs>
         <linearGradient id="ar-wall" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#3b4f78" />
-          <stop offset="1" stopColor="#2a3a5c" />
+          <stop offset="0" stopColor="#f3ecdd" />
+          <stop offset="1" stopColor="#ddd3bf" />
         </linearGradient>
         <linearGradient id="ar-floor" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#1f2c47" />
-          <stop offset="1" stopColor="#141d31" />
+          <stop offset="0" stopColor="#c4924f" />
+          <stop offset="1" stopColor="#9c6c33" />
         </linearGradient>
       </defs>
-      <rect width="270" height="150" fill="url(#ar-wall)" />
-      <rect y="150" width="270" height="170" fill="url(#ar-floor)" />
-      <g stroke="white" strokeOpacity="0.12">
-        {[-200, -110, -40, 40, 110, 200, 320, -320].map((x) => (
-          <line key={x} x1="135" y1="150" x2={135 + x * 1.6} y2="320" />
-        ))}
-        {[166, 190, 226, 276].map((y) => (
-          <line key={y} x1="0" y1={y} x2="270" y2={y} />
+      <rect width="270" height="176" fill="url(#ar-wall)" />
+      <rect y="176" width="270" height="164" fill="url(#ar-floor)" />
+      <rect y="170" width="270" height="7" fill="#fbf7ee" />
+      <g stroke="#7a4f1f" strokeOpacity="0.28">
+        {[-260, -170, -90, -30, 30, 90, 170, 260].map((x) => (
+          <line key={x} x1={135 + x * 0.35} y1="177" x2={135 + x * 1.9} y2="340" />
         ))}
       </g>
       {!before && !there && (
-        <g transform={`rotate(${lean} 135 320)`} fill="none" stroke="#7ea6ff" strokeLinecap="round" strokeLinejoin="round">
+        <g transform={`rotate(${lean} 135 340)`} fill="none" stroke="#4a78e0" strokeLinecap="round" strokeLinejoin="round">
           {[
-            { y: 286, s: 1, o: 1 },
-            { y: 244, s: 0.74, o: 0.8 },
-            { y: 212, s: 0.54, o: 0.6 },
-            { y: 190, s: 0.38, o: 0.4 },
+            { y: 310, s: 1, o: 0.95 },
+            { y: 268, s: 0.74, o: 0.8 },
+            { y: 236, s: 0.54, o: 0.65 },
+            { y: 212, s: 0.38, o: 0.5 },
           ].map((c) => (
-            <path key={c.y} d="M-34 14 L0 -14 L34 14" strokeWidth="10" strokeOpacity={c.o} transform={`translate(135 ${c.y}) scale(${c.s})`} />
+            <path key={c.y} d="M-34 14 L0 -14 L34 14" strokeWidth="11" strokeOpacity={c.o} transform={`translate(135 ${c.y}) scale(${c.s})`} />
           ))}
         </g>
       )}
-      <g transform={`translate(135 ${there ? 176 : 150}) scale(${scale.toFixed(2)})`}>
-        <ellipse cy="46" rx="42" ry="12" fill="none" stroke={there ? "#6fe08a" : "#42b72a"} strokeWidth="3" />
-        {there && <path d="M-14 -4 L-4 8 L16 -16" transform="translate(0 24)" fill="none" stroke="#6fe08a" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />}
-        <g transform={`translate(${-width / 2} -44)`}>
-          <rect width={width} height="28" rx="4" fill="#0d1424" fillOpacity="0.92" stroke="#42b72a" strokeWidth="2" />
-          <rect width="4" height="28" fill="#42b72a" />
+      <g transform={`translate(135 ${there ? 190 : 176}) scale(${scale.toFixed(2)})`}>
+        <ellipse cy="54" rx="40" ry="12" fill="none" stroke="#2fa84a" strokeWidth="3.5" />
+        {there && <path d="M-15 -12 H15 V14 H29 L0 44 L-29 14 H-15 Z" fill="#3b5998" stroke="white" strokeWidth="3" strokeLinejoin="round" />}
+        <g transform={`translate(${-width / 2} ${there ? -48 : -14})`}>
+          <rect width={width} height="28" rx="4" fill="#0d1424" fillOpacity="0.92" stroke="#2fa84a" strokeWidth="2" />
+          <rect width="4" height="28" fill="#2fa84a" />
           <text x="13" y="19" fill="white" fontFamily="ui-monospace, monospace" fontSize="14" fontWeight="700">
             {name}
           </text>
@@ -120,16 +118,25 @@ function ArScene({ thing, hour, progress, before, there }: { thing: string; hour
   );
 }
 
+/** The app's direction dial: a white face with 12, 3, 6, 9, and a blue hand on the hour, or a green tick on arrival. */
 function ClockFace({ hour, done }: { hour: number; done?: boolean }) {
   return (
-    <svg viewBox="0 0 40 40" aria-hidden className="size-14 shrink-0">
-      <circle cx="20" cy="20" r="18" fill="white" />
+    <svg viewBox="0 0 48 48" aria-hidden className="size-[3.75rem] shrink-0">
+      <circle cx="24" cy="24" r="23" fill="white" />
+      {[12, 3, 6, 9].map((h) => {
+        const a = (h % 12) * (Math.PI / 6);
+        return (
+          <text key={h} x={24 + 16.5 * Math.sin(a)} y={24 - 16.5 * Math.cos(a) + 2.4} textAnchor="middle" fontSize="6.5" fontWeight="800" fill="var(--color-fb-blue-dark)">
+            {h}
+          </text>
+        );
+      })}
       {done ? (
-        <path d="M11 21 L17.5 27 L29 14" fill="none" stroke="var(--color-cta-dark)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M14 25 L21 32 L34 16" fill="none" stroke="var(--color-cta-dark)" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
       ) : (
         <>
-          <line x1="20" y1="20" x2="20" y2="7" stroke="var(--color-fb-blue-dark)" strokeWidth="3.5" strokeLinecap="round" transform={`rotate(${(hour % 12) * 30} 20 20)`} />
-          <circle cx="20" cy="20" r="2.5" fill="var(--color-fb-blue-dark)" />
+          <path d="M24 9 L29 19 H26 V25 H22 V19 H19 Z" fill="#3b5998" stroke="white" strokeWidth="1" strokeLinejoin="round" transform={`rotate(${(hour % 12) * 30} 24 24)`} />
+          <circle cx="24" cy="24" r="2" fill="var(--color-fb-blue-dark)" />
         </>
       )}
     </svg>
@@ -137,9 +144,9 @@ function ClockFace({ hour, done }: { hour: number; done?: boolean }) {
 }
 
 /**
- * The guidance screen as the app lays it out (the arrow, then a card with the clock face, the thing and the step),
- * drawn in HTML for the walks no one recorded. `step` is the step being spoken: -1 before the walk, steps.length
- * once there.
+ * The guidance screen as the app lays it out (the camera with its labels, the card with the dial and the step, then
+ * Repeat and Stop or Done), drawn in HTML for the walks no one recorded. `step` is the step being spoken: -1 before the
+ * walk, steps.length once there.
  */
 export function SimulatedPhone({ thing, heard, steps, arrive, step }: { thing: string; heard?: string; steps: { clock: number; say: string }[]; arrive: string; step: number }) {
   const before = step < 0;
@@ -148,35 +155,60 @@ export function SimulatedPhone({ thing, heard, steps, arrive, step }: { thing: s
   const progress = there ? 1 : Math.max(step + 1, 0) / Math.max(steps.length, 1);
   return (
     <Frame label={t.simulated}>
-      <div aria-hidden data-simulated-phone data-step={step} className="flex h-full flex-col">
+      <div aria-hidden data-simulated-phone data-step={step} className="flex h-full flex-col bg-fb-grey">
         <div className="relative min-h-0 flex-1 overflow-hidden">
           <ArScene thing={thing} hour={now?.clock ?? 12} progress={progress} before={before} there={there} />
-          <div className="absolute inset-x-2.5 top-3 flex items-center justify-between gap-2 text-[0.6rem] font-bold text-white">
-            <span className="truncate rounded-full bg-black/60 px-2.5 py-1">{format(t.walkingTo, { thing })}</span>
-            <span className="rounded-full bg-white/90 px-2.5 py-1 text-ink">{t.done}</span>
+          <div className="absolute inset-x-5 top-2.5 flex items-center justify-between text-[0.62rem] font-bold text-ink">
+            <span>9:41</span>
+            <span className="h-[1.1rem] w-[4.6rem] rounded-full bg-black" />
+            <span className="flex items-end gap-0.5">
+              {[3, 5, 7, 9].map((h) => (
+                <span key={h} className="w-[0.15rem] rounded-sm bg-ink" style={{ height: h }} />
+              ))}
+            </span>
           </div>
-          <div className="absolute inset-x-0 top-11 flex justify-center gap-1.5 text-[0.55rem] font-bold">
+          <div className="absolute inset-x-3 top-10 flex items-center justify-between gap-2 text-[0.62rem] font-semibold">
+            <span className="truncate rounded-full bg-black/65 px-2.5 py-1.5 text-white">{format(t.walkingTo, { thing })}</span>
+            <span className="rounded-full bg-white/85 px-2.5 py-1.5 text-fb-blue-dark">{t.done}</span>
+          </div>
+          <div className="absolute inset-x-0 top-[4.75rem] flex justify-center gap-1.5 text-[0.58rem] font-semibold">
             <span className="rounded-full bg-white px-2.5 py-1 text-ink">{t.camera}</span>
             <span className="rounded-full bg-black/60 px-2.5 py-1 text-white">{t.edges}</span>
           </div>
-          {before && <p className="absolute inset-x-6 bottom-16 text-center text-xs font-semibold text-white">{t.startHere}</p>}
+          {before && <p className="absolute inset-x-6 bottom-12 rounded-xl bg-black/55 px-2 py-1 text-center text-xs font-semibold text-white">{t.startHere}</p>}
           {heard && (
-            <p className="absolute inset-x-3 bottom-2 truncate rounded-xl bg-black/55 px-2.5 py-1 text-center text-[0.6rem] italic text-white">“{heard}”</p>
+            <p className="absolute inset-x-4 bottom-2 truncate rounded-xl bg-black/55 px-2.5 py-1 text-center text-[0.62rem] italic text-white">“{heard}”</p>
           )}
         </div>
-        <div className="mx-2 mt-2 rounded-2xl bg-fb-blue-dark p-2.5 text-white">
-          <div className="flex items-center gap-2.5">
+        <div className="mx-3 mt-3 rounded-[1.25rem] bg-[#2b436f] p-3 text-white">
+          <div className="flex items-center gap-3">
             <ClockFace hour={before ? 12 : now.clock} done={there} />
             <div className="min-w-0">
-              <p className="text-[0.65rem] opacity-90">{thing.charAt(0).toUpperCase() + thing.slice(1)}</p>
-              <p className="text-[0.82rem] font-bold leading-snug">{before ? t.takeMeThere : there ? arrive : now.say}</p>
+              <p className="text-[0.68rem] font-semibold">{thing.charAt(0).toUpperCase() + thing.slice(1)}</p>
+              <p className="text-[0.85rem] font-bold leading-snug">{before ? t.takeMeThere : there ? arrive : now.say}</p>
             </div>
           </div>
         </div>
-        <div className="mx-2 mb-2.5 mt-2 grid grid-cols-2 gap-2 text-center text-xs font-bold">
-          <span className="rounded-full bg-[#f3e3c3] py-2 text-ink">{t.repeat}</span>
-          <span className={`rounded-full py-2 text-white ${there ? "bg-cta-dark" : "bg-ink"}`}>{there ? t.done : t.stop}</span>
+        <div className="mx-3 mb-3 mt-2.5 grid grid-cols-2 gap-2.5 text-xs font-bold">
+          <span className="flex items-center justify-center gap-1.5 rounded-full bg-white py-2.5 text-fb-blue-dark shadow-sm ring-1 ring-black/5">
+            <svg viewBox="0 0 16 16" className="size-3.5" fill="currentColor">
+              <path d="M2 6v4h3l4 3V3L5 6H2Z" />
+              <path d="M11 5.5a3.5 3.5 0 0 1 0 5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            {t.repeat}
+          </span>
+          <span className={`flex items-center justify-center gap-1.5 rounded-full py-2.5 text-white shadow-sm ${there ? "bg-[#2f6b1f]" : "bg-[#8f1d1d]"}`}>
+            {there ? (
+              <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 8.5 6.5 12 13 4.5" />
+              </svg>
+            ) : (
+              <span className="size-2.5 rounded-[2px] bg-white" />
+            )}
+            {there ? t.done : t.stop}
+          </span>
         </div>
+        <span className="mx-auto mb-1.5 h-1 w-20 rounded-full bg-ink/70" />
       </div>
     </Frame>
   );

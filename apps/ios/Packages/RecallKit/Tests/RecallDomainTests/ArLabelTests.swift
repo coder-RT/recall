@@ -37,3 +37,42 @@ struct ArLabelTests {
         #expect(ScanSpeed.text(0.42) == "0.4 m/s")
     }
 }
+
+@Suite("What a spoken question settles on in AR")
+struct ARPickTests {
+    private func label(_ id: String, _ title: String) -> ArLabel {
+        ArLabel(id: id, title: title, place: "near the desk", confidence: 0.9, photos: 3, trusted: true, needsReview: false,
+                position: .zero)
+    }
+    private var room: [ArLabel] { [label("a", "grey laptop"), label("b", "black laptop"), label("c", "brown keys")] }
+
+    @Test func oneOfAKindWalks() {
+        #expect(ARPick.settle(thingId: "c", noun: "keys", question: "where are my keys?", labels: room) == .walk(room[2]))
+    }
+
+    @Test func severalAlikeAskWhichEvenThoughTheAnswerNamedOne() {
+        let pick = ARPick.settle(thingId: "a", noun: "laptop", question: "where is my laptop", labels: room)
+        #expect(pick == .which([room[0], room[1]]))
+    }
+
+    @Test func theWordsSaidChooseAmongThem() {
+        // the answer was about the grey one, but the person said black
+        #expect(ARPick.settle(thingId: "a", noun: "laptop", question: "the black laptop", labels: room) == .walk(room[1]))
+        #expect(ARPick.settle(thingId: "a", noun: "laptop", question: "take me to the black one", labels: room) == .walk(room[1]))
+    }
+
+    @Test func twoTheSameStillAsk() {
+        let bottles = [label("a", "grey bottle"), label("b", "grey bottle")]
+        #expect(ARPick.settle(thingId: "a", noun: "bottle", question: "the grey bottle", labels: bottles) == .which(bottles))
+    }
+
+    @Test func aThingElsewhereIsNotWalkedTo() {
+        #expect(ARPick.settle(thingId: "z", noun: "passport", question: "my passport", labels: room) == .elsewhere)
+        #expect(ARPick.settle(thingId: nil, noun: nil, question: "my umbrella", labels: room) == .elsewhere)
+    }
+
+    @Test func aThingWithItsOwnNameWalks() {
+        let named = [label("a", "Dad's mug"), label("b", "blue mug")]
+        #expect(ARPick.settle(thingId: "a", noun: nil, question: "dad's mug", labels: named) == .walk(named[0]))
+    }
+}

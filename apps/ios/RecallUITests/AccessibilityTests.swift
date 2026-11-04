@@ -402,6 +402,29 @@ final class AccessibilityTests: XCTestCase {
         XCTAssertTrue(button.waitForExistence(timeout: 3))
     }
 
+    /// In AR, double tapping a thing starts directions in the same view; Stop brings the labels back.
+    /// (The simulator has no world tracking, so the panel says so; the flow around it is the same.)
+    func testDoubleTapALabelGivesDirectionsWithoutLeavingAR() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-UITestSampleThings"]
+        app.launch()
+        let any = app.descendants(matching: .any)
+        let button = any["see-in-ar-Living room"]
+        XCTAssertTrue(button.waitForExistence(timeout: 5))
+        button.tap()
+        let keys = any["ar-label-s1"]
+        XCTAssertTrue(keys.waitForExistence(timeout: 5))
+        XCTAssertTrue(any["ar-speak"].exists, "Speak is there with the labels")
+        keys.doubleTap()
+        let panelDone = app.buttons.matching(NSPredicate(format: "label == 'Done' AND identifier != 'ar-done'")).firstMatch
+        XCTAssertTrue(panelDone.waitForExistence(timeout: 15))
+        XCTAssertFalse(keys.exists, "The directions take the list's place")
+        XCTAssertTrue(any["ar-done"].exists, "The AR view stays open")
+        panelDone.tap()
+        XCTAssertTrue(keys.waitForExistence(timeout: 15), "The labels come back for the next thing")
+        any["ar-done"].tap()
+    }
+
     /// Before every scan: the plan, each step with what to do, why, when it's done and how high to hold the phone.
     func testEveryScanStartsWithThePlan() throws {
         let app = XCUIApplication()

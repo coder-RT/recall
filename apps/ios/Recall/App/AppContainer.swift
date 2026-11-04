@@ -68,7 +68,24 @@ final class AppContainer {
         let scans = scans
         return ARLabelsModel(room: room, home: settings.connection.homeId, source: arLabelsSource(), locator: locator,
                              roomMap: { scans.roomMap(scan: $0) }, saveGrownMap: { scans.saveGrownMap(scan: $0, $1) },
-                             places: UITestSamples.enabled ? nil : server, speech: speech, haptics: haptics, clock: clock)
+                             places: UITestSamples.enabled ? nil : server,
+                             asking: .init(ask: AskInAR(ask: AskWhereIs(guide: UITestSamples.enabled ? UITestSamples.Guide() : server)),
+                                           transcriber: server, voice: WavRecorder(), things: things,
+                                           makeGuide: { thing, map in self.arGuideModel(for: thing, map: map) }),
+                             speech: speech, haptics: haptics, clock: clock)
+    }
+
+    /// A walk from the AR view: in the room map its labels are placed in, leaving its camera running at the end.
+    private func arGuideModel(for thing: Thing, map: (scan: String, data: Data)?) -> GuideModel {
+        guiding = true
+        var keepCamera = GuideToThing.Settings()
+        keepCamera.keepsSession = true
+        let use = GuideToThing(home: settings.connection.homeId, thing: thing, roomMap: map?.data, locator: locator,
+                               guide: UITestSamples.enabled ? UITestSamples.Guide() : server, speech: speech,
+                               haptics: haptics, clock: clock, compass: compass,
+                               photos: map.map { (places: server, scan: $0.scan) }, settings: keepCamera)
+        return GuideModel(guide: use, session: locator.session, scene: locator.scene, supported: ARLocator.isSupported,
+                          ended: { [weak self] in self?.guiding = false })
     }
 
     func arLabelsSource() -> any ArLabelsSource {

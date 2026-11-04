@@ -30,6 +30,7 @@ public final class GuideToThing {
         public var replanAfterMetres: Double = 1.5  // off the route by more than this → a new route
         public var maxReplans = 3
         public var faceTimeout: Double = 30  // seconds to turn towards a compass bearing
+        public var keepsSession = false  // guiding inside the AR view: the camera stays on when the guide ends
         public init() {}
     }
 
@@ -107,9 +108,14 @@ public final class GuideToThing {
         cancelled = true
         locator.mark(nil)
         locator.showPath([], floorY: nil)
-        locator.stop()
+        release()
         compass?.stop()
         speech.stop()
+    }
+
+    /// Lets the camera go, unless the AR view that started this guide still needs it.
+    private func release() {
+        if !settings.keepsSession { locator.stop() }
     }
 
     /// Says the current instruction again (the Repeat button and the magic tap).
@@ -240,7 +246,7 @@ public final class GuideToThing {
                 facedSince = nil
             }
         }
-        locator.stop()
+        release()
     }
 
     private func finish(_ end: Phase) {
@@ -249,6 +255,6 @@ public final class GuideToThing {
         case .landmarks(let t), .arrived(let t), .failed(let t): speech.say(t, interrupt: true)
         default: break
         }
-        locator.stop()
+        release()
     }
 }

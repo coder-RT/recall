@@ -31,6 +31,11 @@ final class ThingsModel {
     var unsureCount: Int { things.filter(\.needsReview).count }
 
     /// Find and Found both ask on appearing; they share one request, and leaving a screen doesn't cancel it.
+    /// Fetches the list if it doesn't have this thing yet (a label can be newer than the list).
+    func refreshIfNeeded(for id: String) async {
+        if !things.contains(where: { $0.id == id }) { await refresh() }
+    }
+
     func refresh() async {
         guard !fixed else { return }
         loading = true

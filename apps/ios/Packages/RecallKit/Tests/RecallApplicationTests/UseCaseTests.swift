@@ -311,3 +311,58 @@ struct QuietOpenTests {
         #expect(speech.lines.count == 1)
     }
 }
+
+@Suite("Asking with the AR view open") @MainActor
+struct AskInARTests {
+    private let at = Date(timeIntervalSince1970: 0)
+    private func thing(_ id: String, _ colour: String, _ noun: String) -> Thing {
+        Thing(id: id, label: noun, color: colour, heightM: 0.8, heightBand: "waist", confidence: 0.9, seenAt: at)
+    }
+    private func label(_ t: Thing) -> ArLabel {
+        ArLabel(id: t.id, title: t.title, place: t.place, confidence: 0.9, photos: 3, trusted: true, needsReview: false,
+                position: .zero)
+    }
+
+    private func outcome(_ answer: Answer, question: String, known: [Thing], labels: [ArLabel]) async throws -> AskInAR.Outcome {
+        let use = AskInAR(ask: AskWhereIs(guide: FakeGuide(answer: answer)))
+        return try await use(question, home: "flat", known: known, labels: labels)
+    }
+
+    @Test func aThingInThisRoomIsWalkedTo() async throws {
+        let keys = thing("k", "brown", "keys")
+        let got = try await outcome(Answer(text: "Near the desk.", thingId: "k", grounded: true), question: "my keys",
+                                    known: [keys], labels: [label(keys)])
+        #expect(got == .walk(keys, say: "Near the desk."))
+    }
+
+    @Test func severalAlikeAskWhichOneInsteadOfWalking() async throws {
+        let (grey, black) = (thing("g", "grey", "laptop"), thing("b", "black", "laptop"))
+        let got = try await outcome(Answer(text: "I saw two laptops.", thingId: "g", grounded: true), question: "my laptop",
+                                    known: [grey, black], labels: [label(grey), label(black)])
+        #expect(got == .which(say: "I saw two laptops. Double tap the one you mean, or say which."))
+    }
+
+    @Test func aThingInAnotherRoomIsOnlyAnswered() async throws {
+        let (keys, passport) = (thing("k", "brown", "keys"), thing("p", "grey", "passport"))
+        let got = try await outcome(Answer(text: "In the bedroom.", thingId: "p", grounded: true), question: "my passport",
+                                    known: [keys, passport], labels: [label(keys)])
+        #expect(got == .answer("In the bedroom."))
+    }
+}
+
+@Suite("Guiding inside the AR view") @MainActor
+struct GuideKeepsTheCameraTests {
+    @Test func theSessionStaysOnWhenTheWalkEnds() async {
+        let locator = FakeLocator(readings: [(.at(x: 0, z: 0), .normal), (.at(x: 0, z: 0), .normal), (.at(x: 0, z: 0), .normal)])
+        var settings = GuideToThing.Settings()
+        settings.keepsSession = true
+        let thing = Thing(id: "k", label: "keys", heightM: 0.8, heightBand: "waist", confidence: 0.9, seenAt: Date(timeIntervalSince1970: 0))
+        let g = GuideToThing(home: "flat", thing: thing, roomMap: Data([1]), locator: locator,
+                             guide: FakeGuide(error: RecallError.status(500)), speech: FakeSpeech(), haptics: FakeHaptics(),
+                             clock: FakeClock(), settings: settings)
+        await g.run()  // the route fails: the walk ends
+        g.stop()
+        #expect(!locator.stopped)
+        #expect(locator.marks.last == .some(nil))  // its arrow is gone all the same
+    }
+}

@@ -4,16 +4,33 @@ import Observation
 import RecallApplication
 import RecallCapture
 import RecallDomain
+import SceneKit
 import SwiftUI
 
 /// "See it in AR": recognise the room in its saved map, then float a label over everything Recall found there. The
 /// labels are SAM 3.1's results from the Mac, placed by MapAnything's geometry; nothing is recognised on the phone.
+/// The view stays open: double tap a label, or say what you're looking for, and the walk there runs in this same camera
+/// (the same ARKit session, so nothing has to be recognised again), then the labels come back.
 @MainActor @Observable
 final class ARLabelsModel {
     enum Phase: Equatable { case loading, locating, showing, listOnly(String), failed(String) }
+    enum Hearing: Equatable { case idle, listening, thinking }
+
+    /// What a question or a double tap needs: `things` to name what a label is, `makeGuide` to walk there in the map
+    /// the labels are placed in. Nil in a preview of the list alone.
+    struct Asking {
+        let ask: AskInAR
+        let transcriber: any Transcriber
+        let voice: any VoiceInput
+        let things: ThingsModel
+        let makeGuide: @MainActor (Thing, (scan: String, data: Data)?) -> GuideModel
+    }
 
     private(set) var phase = Phase.loading
     private(set) var labels: [ArLabel] = []
+    private(set) var hearing = Hearing.idle
+    /// The walk under way: its directions replace the list; the camera stays.
+    private(set) var guide: GuideModel?
     var look = CameraLook.camera
     let room: String
     let locator: ARLocator
@@ -28,6 +45,12 @@ final class ARLabelsModel {
     private let clock: any Clock
     private var task: Task<Void, Never>?
     private var assist: PhotoAssist?
+    private let asking: Asking?
+    /// The room map the labels are placed in: a walk from this view must use the same one.
+    private var mapInUse: (scan: String, data: Data)?
+    /// The thing the last answer was about, so "the black one" means something.
+    private var lastAbout: String?
+    private var starting = false
 
     /// Seconds before the list is shown instead, and how long the room is still looked for after that.
     static let listAfter = 25.0
@@ -37,10 +60,11 @@ final class ARLabelsModel {
     /// grew on this visit, so the next one recognises the room from here too.
     init(room: String, home: String, source: any ArLabelsSource, locator: ARLocator, roomMap: @escaping (String) -> Data?,
          saveGrownMap: @escaping (String, Data) -> Void = { _, _ in }, places: (any PlaceLocating)? = nil,
-         speech: any SpeechOutput, haptics: (any HapticsOutput)? = nil, clock: any Clock = SystemClock()) {
+         asking: Asking? = nil, speech: any SpeechOutput, haptics: (any HapticsOutput)? = nil,
+         clock: any Clock = SystemClock()) {
         self.room = room; self.home = home; self.source = source; self.locator = locator; self.roomMap = roomMap
         self.saveGrownMap = saveGrownMap; self.places = places; self.speech = speech; self.haptics = haptics
-        self.clock = clock
+        self.clock = clock; self.asking = asking
     }
 
     func start() {
@@ -50,18 +74,117 @@ final class ARLabelsModel {
     func stop() {
         task?.cancel()
         assist?.cancel()
+        guide?.stop()
+        guide = nil
+        if asking?.voice.isRecording == true { asking?.voice.stop() }
         locator.onMapGrown = nil
         locator.clearLabels()
         locator.stop()
     }
 
-    /// What the camera points at, said aloud (Magic Tap).
-    func sayInView() {
+    /// Whether a label can be walked to right now (not while the room data loads, nor during a walk).
+    var canGo: Bool { asking != nil && guide == nil && !labels.isEmpty }
+
+    /// VoiceOver's two-finger double tap: directions to what the camera points at.
+    func goToLabelInView() {
+        guard canGo else { return }
         guard let label = locator.labelInView() else {
             speech.say("Point the phone at a label.", interrupt: true)
             return
         }
-        speech.say(label.spoken, interrupt: true)
+        go(to: label)
+    }
+
+    /// A double tap on the camera: directions to the label under the finger.
+    func doubleTapped(at point: CGPoint, in view: SCNSceneRenderer) {
+        guard canGo, phase == .showing else { return }
+        guard let label = locator.label(at: point, in: view) else {
+            speech.say("Double tap on a label.", interrupt: true)
+            return
+        }
+        go(to: label)
+    }
+
+    /// Directions to a label, from the camera or the list.
+    func go(to label: ArLabel) {
+        guard canGo else { return }
+        haptics?.tap()
+        Task {
+            await asking?.things.refreshIfNeeded(for: label.id)
+            guard let thing = asking?.things.things.first(where: { $0.id == label.id }) else {
+                speech.say("I can't reach the Mac for \(label.title) right now. It's \(label.place).", interrupt: true)
+                return
+            }
+            await walk(to: thing, saying: "Directions to your \(label.title).")
+        }
+    }
+
+    /// Tap to talk, tap to stop; the recording also ends by itself after 15 s, like Find.
+    func toggleListening() async {
+        guard let asking, guide == nil else { return }
+        if asking.voice.isRecording {
+            asking.voice.stop()
+            return
+        }
+        haptics?.tap()
+        let started = await asking.voice.start(maxSeconds: 15) { [weak self] wav in
+            Task { await self?.heard(wav) }
+        }
+        hearing = started ? .listening : .idle
+        if !started { speech.say(UserMessage.explain(RecallError.noMicrophone), interrupt: true) }
+    }
+
+    private func heard(_ wav: Data?) async {
+        guard let asking, let wav, !wav.isEmpty else {
+            hearing = .idle
+            return
+        }
+        hearing = .thinking
+        do {
+            let question = try await asking.transcriber.transcribe(wav: wav)
+            speech.say(Acknowledgement.line(for: question, known: asking.things.things), interrupt: true)
+            if !asking.things.loaded { await asking.things.refresh() }
+            let outcome = try await asking.ask(question, home: home, known: asking.things.things, labels: labels,
+                                               about: lastAbout)
+            hearing = .idle
+            switch outcome {
+            case .walk(let thing, let say):
+                lastAbout = thing.id
+                await walk(to: thing, saying: say)
+            case .which(let say), .answer(let say):
+                speech.say(say, interrupt: true)
+            }
+        } catch {
+            hearing = .idle
+            speech.say(UserMessage.explain(error), interrupt: true)
+        }
+    }
+
+    /// Says the line to the end, then walks: the first direction would cut it off otherwise.
+    private func walk(to thing: Thing, saying line: String) async {
+        guard let asking, guide == nil, !starting else { return }
+        starting = true
+        defer { starting = false }
+        task?.cancel()  // still looking for the room: the guide does that itself now
+        assist?.cancel()
+        speech.say(line, interrupt: true)
+        try? await clock.sleep(seconds: 0.2)
+        let started = clock.now()
+        while speech.isSpeaking, clock.now().timeIntervalSince(started) < 12 {
+            try? await clock.sleep(seconds: 0.1)
+        }
+        locator.focus(label: thing.id)
+        let walk = asking.makeGuide(thing, mapInUse)
+        guide = walk
+        walk.start()
+    }
+
+    /// The walk ended (Stop or Done; GuidePanel has stopped it): the labels are back for the next thing.
+    func walkEnded() {
+        guide = nil
+        locator.focus(label: nil)
+        guard phase == .showing else { return start() }  // it was still looking for the room: carry on
+        speech.say("Double tap another label, or tap Speak.", interrupt: true)
     }
 
     private func run() async {
@@ -74,6 +197,7 @@ final class ARLabelsModel {
             phase = .locating
             speech.say("Point the phone around \(room) so I can recognise it.", interrupt: true)
             let scan = found.scanId
+            mapInUse = (scan, map)
             locator.onMapGrown = { [saveGrownMap] data in saveGrownMap(scan, data) }
             locator.start(roomMap: map)
             // the Mac's photo matcher helps alongside ARKit (named furniture to point at, a fix from a photo)
@@ -105,7 +229,7 @@ final class ARLabelsModel {
             phase = .showing
             let n = labels.count == 1 ? "1 thing" : "\(labels.count) things"
             let lead = late ? "Recognised \(room). " : ""
-            speech.say("\(lead)\(n) in \(room). Point at a label and double tap with two fingers to hear it.",
+            speech.say("\(lead)\(n) in \(room). Double tap a label for directions, or tap Speak and say what you're looking for.",
                        interrupt: late)
         } catch is CancellationError {
         } catch {

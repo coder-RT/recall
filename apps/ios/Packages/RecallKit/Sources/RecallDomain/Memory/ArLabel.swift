@@ -55,3 +55,28 @@ public struct ArLabels: Sendable, Equatable {
         self.scanId = scanId; self.room = room; self.floorY = floorY; self.labels = labels
     }
 }
+
+/// What a spoken question settles on among the labels of the room the phone is in. Decided from the labels and the
+/// words said, never from how the model phrased its answer: "where's my laptop?" with two laptops here asks which one,
+/// "the black laptop" walks to it.
+public enum ARPick: Sendable, Equatable {
+    case walk(ArLabel)
+    /// Several alike and the question doesn't say which.
+    case which([ArLabel])
+    /// Not one of the things labelled here.
+    case elsewhere
+
+    /// `thingId`: the thing the answer is about; `noun`: what it is ("laptop"), so alike things can be found.
+    public static func settle(thingId: String?, noun: String?, question: String, labels: [ArLabel]) -> ARPick {
+        guard let label = labels.first(where: { $0.id == thingId }) else { return .elsewhere }
+        guard let noun = noun?.lowercased(), !noun.isEmpty else { return .walk(label) }
+        let alike = labels.filter { $0.title.lowercased().hasSuffix(noun) }
+        guard alike.count > 1 else { return .walk(label) }
+        let said = Set(question.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(String.init))
+        let named = alike.filter { other in
+            let words = other.title.lowercased().split(separator: " ").map(String.init).filter { !noun.contains($0) }
+            return !words.isEmpty && words.allSatisfy(said.contains)
+        }
+        return named.count == 1 ? .walk(named[0]) : .which(named.isEmpty ? alike : named)
+    }
+}

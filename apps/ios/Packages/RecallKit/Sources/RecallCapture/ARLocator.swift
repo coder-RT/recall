@@ -19,6 +19,8 @@ public final class ARLocator: Locator {
     private let track = SCNNode()
     private let tags = SCNNode()
     private var shown: [ArLabel] = []
+    /// Each label's node, by label id: for finding the one under a finger and for hiding the others on a walk.
+    private var labelNodes: [String: SCNNode] = [:]
 
     /// T(map ← session) from two agreeing photo fixes, until ARKit recognises the room itself.
     private var correction: simd_double4x4?
@@ -231,7 +233,7 @@ public final class ARLocator: Locator {
             let node = SCNNode()
             node.simdPosition = SIMD3(Float(p.x), Float(p.y), Float(p.z))
 
-            let height: Float = 0.35
+            let height = Self.tagHeight
             let width = Float(item.tag.size.width / item.tag.size.height) * 0.09
             let plane = SCNPlane(width: CGFloat(width), height: 0.09)
             let face = SCNMaterial()
@@ -268,12 +270,39 @@ public final class ARLocator: Locator {
                 node.runAction(.sequence([.wait(duration: 0.12 * Double(i)), .fadeIn(duration: 0.35)]))
             }
             tags.addChildNode(node)
+            labelNodes[item.label.id] = node
         }
     }
 
     public func clearLabels() {
         tags.childNodes.forEach { $0.removeFromParentNode() }
         shown = []
+        labelNodes = [:]
+    }
+
+    /// On a walk only the thing's label stays, so the route reads; nil brings them all back.
+    public func focus(label id: String?) {
+        for (key, node) in labelNodes { node.isHidden = id != nil && key != id }
+    }
+
+    /// The label under a finger: the nearest to `point` of the tag, its line and the thing itself, as drawn on screen
+    /// (a tag is small from across a room, so a generous reach). Nil when none is close.
+    public func label(at point: CGPoint, in view: SCNSceneRenderer, reach: CGFloat = 70) -> ArLabel? {
+        func distance(from a: SCNVector3, to b: SCNVector3) -> CGFloat? {
+            guard a.z < 1 || b.z < 1 else { return nil }  // behind the camera
+            let (ax, ay, bx, by) = (CGFloat(a.x), CGFloat(a.y), CGFloat(b.x), CGFloat(b.y))
+            let (dx, dy) = (bx - ax, by - ay)
+            let length = dx * dx + dy * dy
+            let t = length > 0 ? min(1, max(0, ((point.x - ax) * dx + (point.y - ay) * dy) / length)) : 0
+            return hypot(point.x - (ax + t * dx), point.y - (ay + t * dy))
+        }
+        let scored = shown.compactMap { label -> (ArLabel, CGFloat)? in
+            guard let node = labelNodes[label.id], !node.isHidden else { return nil }
+            let thing = view.projectPoint(node.worldPosition)
+            let tag = view.projectPoint(node.convertPosition(SCNVector3(0, Self.tagHeight, 0), to: nil))
+            return distance(from: tag, to: thing).map { (label, $0) }
+        }
+        return scored.filter { $0.1 <= reach }.min { $0.1 < $1.1 }?.0
     }
 
     /// The label the camera points at most directly (within 25°), for "what's this?".
@@ -287,6 +316,9 @@ public final class ARLocator: Locator {
         }
         return scored.filter { $0.1 < 25 }.min { $0.1 < $1.1 }?.0
     }
+
+    /// How far above its thing a tag floats, metres.
+    private static let tagHeight: Float = 0.35
 
     public static func colour(_ mark: ArLabel.Mark) -> UIColor {
         switch mark {

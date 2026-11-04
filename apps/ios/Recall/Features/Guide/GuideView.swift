@@ -21,26 +21,38 @@ struct GuideView: View {
             VStack(spacing: 12) {
                 if case .guiding(_, weakTracking: true) = model.phase { CueBanner("Slow down, tracking is weak") }
                 Spacer()
-                // the panel keeps its own solid fill (glass in the container was drawn over its words); only the
-                // buttons are glass
-                panel
-                GlassEffectContainer(spacing: 12) {
-                    HStack(spacing: 12) {
-                        BigButton("Repeat", systemImage: "speaker.wave.2.fill", hint: "Says the direction again.",
-                                  style: .secondary) { model.repeatLast() }
-                        BigButton(finished ? "Done" : "Stop", systemImage: finished ? "checkmark" : "stop.fill",
-                                  hint: "Ends the directions.", style: finished ? .primary : .stop) {
-                            model.stop()
-                            close()
-                        }
-                    }
-                }
+                GuidePanel(model: model, close: close)
             }
             .padding(16)
         }
         .onAppear { model.start() }
         .onDisappear { model.stop() }
         .accessibilityAction(.magicTap) { model.repeatLast() }
+    }
+}
+
+/// The directions: the clock dial, the words and Repeat / Stop. On the guide screen, and under the camera in AR.
+struct GuidePanel: View {
+    let model: GuideModel
+    let close: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            // the panel keeps its own solid fill (glass in the container was drawn over its words); only the buttons
+            // are glass
+            panel
+            GlassEffectContainer(spacing: 12) {
+                HStack(spacing: 12) {
+                    BigButton("Repeat", systemImage: "speaker.wave.2.fill", hint: "Says the direction again.",
+                              style: .secondary) { model.repeatLast() }
+                    BigButton(finished ? "Done" : "Stop", systemImage: finished ? "checkmark" : "stop.fill",
+                              hint: "Ends the directions.", style: finished ? .primary : .stop) {
+                        model.stop()
+                        close()
+                    }
+                }
+            }
+        }
     }
 
     private var finished: Bool {

@@ -292,7 +292,7 @@ final class ARLabelsModel {
         heard = nil
         locator.focus(label: nil)
         guard phase == .showing else { return start() }  // it was still looking for the room: carry on
-        speech.say("Double tap another label, or tap Speak.", interrupt: true)
+        followUp = Task { [weak self] in await self?.ask("What else are you looking for?") }
     }
 
     private func run() async {

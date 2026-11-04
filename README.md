@@ -376,7 +376,7 @@ runs its software or its models; every model Recall itself calls is a Meta model
 | Muse Glimmer | Guide agent alternative; local privacy mode | Modal / Fireworks; LM Studio on the Mac | same adapter |
 | Muse Spark (hosted) | Guide fallback | Meta Model API | same adapter |
 | Muse Spark 1.1 (multimodal) | Verifier tie-break; may only downgrade a result, never confirm | Meta Model API | `services/api/.../adapters/outbound/vision/spark_vision_meta_api.py` |
-| SAM 3.1 | Objects and furniture in every frame, by text prompt; the arrival check | Meta Model API (optional self-hosted on Modal) | `services/pipeline/.../sam31_meta_api.py`, `services/api/.../sam31_meta_api.py` |
+| SAM 3.1 | Objects and furniture by text prompt, on a sample of each scan (40 photos × 24 prompts on a large scan); the arrival check | Meta Model API (optional self-hosted on Modal) | `services/pipeline/.../sam31_meta_api.py`, `services/api/.../sam31_meta_api.py` |
 | MapAnything (`facebook/map-anything-apache`) | Metric 3D reconstruction from the frames, depth and poses | Mac (Apple GPU); Modal if too slow | `services/pipeline/.../mapanything_local.py` |
 | Muse Voice Transcribe | Speech to text with turn detection | Meta Model API | `services/api/.../voice/muse_transcribe.py`, `apps/web/app/api/voice/transcribe/` |
 | Muse Spark Open (or Muse Glimmer) as a screen | Checks the object name a robot or outside app sends the home memory, after the schema; strict JSON verdict, fails closed | Baseten (LM Studio for Glimmer) | `services/api/.../safety/meta_model_screen.py` |
@@ -599,7 +599,7 @@ erDiagram
 - **Room model:** RANSAC plane fitting for the floor and the walls, deterministic and seeded; furniture from SAM 3.1 text prompts, lifted into 3D boxes.
 - **Flat surfaces:** a height histogram of the point cloud, peaks grouped into connected patches on a 5 cm grid, thin lines rejected by fill ratio. This is what finds desk tops, seats and shelf levels.
 - **Spatial relations:** "on" (within 5 cm of a surface and inside its footprint), left or right of a landmark's front, nearest landmark within 1.5 m, and five height bands (floor, knee, waist, chest, head).
-- **What changed:** a rescan matches each kind of thing with the room's last scan by optimal assignment on 3D distance; moved more than 30 cm, new, or gone is decided by geometry, and things outside the rescan's view are left alone.
+- **What changed:** a rescan matches each kind of thing with the room's last scan by optimal assignment on 3D distance; moved more than 30 cm, new, or gone is decided by geometry, and things outside the rescan's view are left alone. Unit-tested; no real rescan has lined up with its earlier scan yet, so each real scan so far made a fresh map of the room.
 - **Navigation:** an occupancy grid at 10 cm from the point cloud, obstacles widened by a 0.3 m body radius and paths kept to the middle of free space, A* to a reachable cell near the object, simplified to turns and spoken as clock-face steps. A gap too narrow gives "no safe path" and landmark directions instead.
 - **Recognising the room:** after processing, each scan's keyframes become ORB features lifted to 3D with the phone's
   LiDAR depth and ARKit pose (`place_index.npz`). One camera photo is matched against them (ratio test, PnP with
@@ -764,6 +764,7 @@ Planned next, not built or not working yet (updated before submission; removed i
 
 - The Apple Watch app on a real Ultra 4 (built and unit-tested, in preview) and Meta AI glasses (planned).
 - A physical robot running the ROS 2 example (the example and the robot package are in the repo).
+- A real rescan that lines up with the room's last scan and reports what moved (built and unit-tested; the author's six scans each started fresh).
 - The tape-measured 20 cm accuracy check with the phone's depth and poses.
 - Quantitative evaluations and the Verifier precision figure.
 - Timing room recognition on the iPhone from five start spots, and whether a grown room map matches from a spot that

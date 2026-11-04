@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ArOnPhone } from "@/components/viewer/ArOnPhone";
 import { WalkDemo, type Walks } from "@/components/viewer/WalkDemo";
 import { getDictionary } from "@/i18n";
 // made by Recall's own code from the recorded run (make demo-walks): the replayed answers and the planner's routes
@@ -24,6 +25,8 @@ export default function DemoPage() {
       <p className="mt-4 max-w-3xl text-lg text-muted">{t.lead}</p>
 
       <WalkDemo walks={walks as Walks} src="/real-scan/flat" />
+
+      <ArOnPhone />
 
       <section aria-labelledby="run-it" className="mt-12 max-w-3xl">
         <h2 id="run-it" className="text-2xl font-bold text-ink">

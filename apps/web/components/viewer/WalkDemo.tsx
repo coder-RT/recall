@@ -45,6 +45,9 @@ export interface Walks {
 
 const t = getDictionary().app.demo;
 
+/** The page opens on the watch: the walk with the real recordings behind it. */
+const firstQuestion = (walks: Walks) => Math.max(walks.walks.findIndex((w) => /watch/i.test(w.question)), 0);
+
 function optionOf(item: WalkItem, pick: number): WalkOption | null {
   if (item.choices) return item.choices[Math.min(pick, item.choices.length - 1)];
   return item.steps && item.label ? (item as WalkOption) : null;
@@ -100,14 +103,14 @@ export function WalkDemo({ walks, src }: { walks: Walks; src: string }) {
   const { reduced } = useMotionPrefs();
   const motionOk = useSyncExternalStore(watchMotion, () => window.matchMedia(MOTION_OK).matches, () => true);
   const still = reduced || !motionOk;
-  const [chosen, setChosen] = useState(0);
+  const [chosen, setChosen] = useState(() => firstQuestion(walks));
   const [pick, setPick] = useState(0);
   const [replays, setReplays] = useState(0);
   const [meta, setMeta] = useState<ScanMeta | null>(null);
   const [speaking, setSpeaking] = useState(false);
   const [phone, setPhone] = useState<"recording" | "simulated">("recording");
   // the step the phone is speaking: -1 before the walk, steps.length once there (and from the start without motion)
-  const [step, setStep] = useState(() => optionOf(walks.walks[0], 0)?.steps.length ?? 0);
+  const [step, setStep] = useState(() => optionOf(walks.walks[firstQuestion(walks)], 0)?.steps.length ?? 0);
   const [asked, setAsked] = useState(false);
   // speech synthesis exists only in the browser: the server (and the first render) draws no Hear button
   const speech = useSyncExternalStore(noSubscribe, canSpeak, () => false);
@@ -393,7 +396,7 @@ export function WalkDemo({ walks, src }: { walks: Walks; src: string }) {
               </p>
             </>
           ) : option ? (
-            <SimulatedPhone thing={[option.color, option.label].filter(Boolean).join(" ")} steps={option.steps} arrive={option.arrive} step={still ? option.steps.length : step} />
+            <SimulatedPhone heard={item.question} thing={[option.color, option.label].filter(Boolean).join(" ")} steps={option.steps} arrive={option.arrive} step={still ? option.steps.length : step} />
           ) : null}
         </aside>
       </div>

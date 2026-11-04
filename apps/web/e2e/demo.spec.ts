@@ -41,13 +41,15 @@ test("the walks are the recorded run's answers, labelled as replayed", () => {
   }
 });
 
-test("says it is recorded, and shows the first answer and its walk", async ({ page }) => {
+test("says it is recorded, and opens on the watch and its walk", async ({ page }) => {
   await open(page, PAGE);
+  const watch = byQuestion("Where is my watch?");
   await expect(page.locator("[data-recorded-badge]")).toHaveText(t.badge);
   await expect(page.locator("[data-recorded]")).toContainText("Recorded output, not live");
-  await expect(page.locator("[data-answer-text]")).toHaveText(keys.answer);
-  await expect(page.locator("[data-walk-step]")).toHaveCount(keys.steps!.length);
-  await expect(page.locator("[data-walk-arrive]")).toContainText(keys.arrive!);
+  await expect(page.locator("[data-question]:checked").locator("..")).toContainText("Where is my watch?");
+  await expect(page.locator("[data-answer-text]")).toHaveText(watch.answer);
+  await expect(page.locator("[data-walk-step]")).toHaveCount(watch.steps!.length);
+  await expect(page.locator("[data-walk-arrive]")).toContainText(watch.arrive!);
   await expect(page.locator("[data-simulated-phone]")).toBeVisible();
   await expect(page.getByText(t.phone.simulated)).toBeVisible();
   // no recordings, as on the hosted site: no badge, no shortcut, no photo of the room
@@ -118,8 +120,9 @@ test("reads without JavaScript: the answer and the steps are in the page", async
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
   await page.goto(PAGE);
-  await expect(page.locator("[data-answer-text]")).toHaveText(keys.answer);
-  await expect(page.locator("[data-walk-step]")).toHaveCount(keys.steps!.length);
+  const watch = byQuestion("Where is my watch?");
+  await expect(page.locator("[data-answer-text]")).toHaveText(watch.answer);
+  await expect(page.locator("[data-walk-step]")).toHaveCount(watch.steps!.length);
   await context.close();
 });
 
@@ -134,18 +137,16 @@ test("a real recording plays on the phone for its thing, with captions, when thi
   await page.route("**/local-video/watch.mp4", (route) => route.fulfill({ status: 200, contentType: "video/mp4", body: clip }));
   await page.route("**/demo-video/**", (route) => route.fulfill({ status: 404, body: "" }));
   await open(page, PAGE);
-  // the watch question says it has a real recording, and the shortcut beside the phone plays it
+  // the watch question says it has a real recording, and the page opens on it, so it needs no shortcut
   await expect(page.locator("[data-recorded-chip]")).toHaveCount(1);
   await expect(page.locator("label", { has: page.locator("[data-recorded-chip]") })).toContainText("Where is my watch?");
-  await page.locator("[data-show-recording]").click();
   await expect(page.locator("[data-answer-text]")).toHaveText(byQuestion("Where is my watch?").answer);
   await expect(page.locator("[data-show-recording]")).toHaveCount(0);
   const phone = page.locator("[data-recorded-phone='watch']");
   await expect(phone).toBeVisible();
   await expect(page.getByText(t.phone.localOnly).first()).toBeVisible();
-  await phone.locator("video").evaluate((v: HTMLVideoElement) => {
-    v.currentTime = 1.5;
-  });
+  // played, not seeked: the test's stand-in clip is served without range requests
+  await phone.locator("video").evaluate((v: HTMLVideoElement) => v.play());
   await expect(phone.locator("[data-clip-caption]")).toHaveText("Second line");
   // the simulated screen is one switch away
   await page.getByLabel(t.phone.showSimulated).check();
@@ -171,4 +172,35 @@ test("has no WCAG 2.2 AA violations", async ({ page }) => {
   await played(page);
   const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
   expect(results.violations).toEqual([]);
+});
+
+test("says how the iPhone works in AR, and that it listens only on your turn", async ({ page }) => {
+  await open(page, PAGE);
+  const ar = page.locator("[data-ar-mode]");
+  await expect(ar.getByRole("heading", { name: en.app.arMode.title })).toBeVisible();
+  await expect(ar.getByRole("listitem")).toHaveCount(en.app.arMode.steps.length);
+  await expect(page.locator("[data-when-it-listens]")).toContainText("never in the background");
+  await expect(page.locator("[data-when-it-listens]")).toContainText("isn't a live stream");
+});
+
+for (const path of ["/", PAGE, "/homes/flat/viewer"]) {
+  test(`${path}: Back to top appears after scrolling, and returns view and focus`, async ({ page }) => {
+    await open(page, path);
+    const button = page.locator("[data-back-to-top]");
+    await expect(button).toHaveCount(0);
+    await page.evaluate(() => window.scrollTo(0, 2000));
+    await expect(button).toBeVisible();
+    await button.evaluate((b: HTMLElement) => b.click());
+    await expect.poll(() => page.evaluate(() => window.scrollY), { timeout: 8_000 }).toBeLessThan(5);
+    expect(await page.evaluate(() => document.activeElement?.tagName)).toBe("H1");
+  });
+}
+
+test("the viewer shows what was measured in real use, says what it isn't, and reads the room aloud", async ({ page }) => {
+  await open(page, "/homes/flat/viewer");
+  const stats = page.locator("[data-field-stats]");
+  for (const item of en.app.fieldStats.items) await expect(stats).toContainText(item.value);
+  await expect(stats).toContainText("not a study");
+  await expect(page.locator("[data-ar-mode]")).toBeVisible();
+  await expect(page.locator("[data-hear-room]")).toHaveText(en.app.hearRoom.hear);
 });

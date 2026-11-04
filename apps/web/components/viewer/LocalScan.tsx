@@ -10,6 +10,8 @@ import { extent, floorArea, perimeter } from "./scanStats";
 import { Sheets } from "./Sheets";
 import { RealScanStory } from "./RealScanStory";
 import type { FurnitureBox, RoomShape, Surface, Thing } from "./Layers";
+import { ArOnPhone } from "./ArOnPhone";
+import { HearRoom } from "./HearRoom";
 import { ViewerStats } from "./ViewerStats";
 import type { ViewerStrings } from "./ViewerCanvas";
 
@@ -141,7 +143,18 @@ export function LocalScan({ steps }: { steps: ReactNode }) {
 
       <div className="mt-8">
         <ViewerStats label={s.stats.label} items={stats} />
+        <HearRoom area={floorArea(meta.room.floor).toFixed(0)} things={[...new Set(meta.objects.map((o) => o.label))].sort()} />
       </div>
+
+      {PUBLIC_SCANS.has(homeId) && (
+        <>
+          <div className="mt-8" data-field-stats>
+            <ViewerStats label={getDictionary().app.fieldStats.title} items={getDictionary().app.fieldStats.items} />
+            <p className="mt-3 max-w-3xl text-sm text-muted">{getDictionary().app.fieldStats.note}</p>
+          </div>
+          <ArOnPhone />
+        </>
+      )}
 
       {PUBLIC_SCANS.has(homeId) && <RealScanStory meta={meta} src={src} part="before" />}
 

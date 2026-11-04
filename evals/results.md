@@ -38,3 +38,19 @@ To run it again: `make place-index`, then
 **Still to measure on the iPhone:** time from opening "See it in AR" to the labels, from five start spots (doorway,
 corner, sofa, facing a wall, hallway), before and after; and whether a grown room map matches from a spot that failed
 before.
+
+## Real use, from the app's own logs (Oct 31 to Nov 4, 2026)
+
+Counted from `data/recall.db` (`audit_events`, `answer_log`): one person, one flat, the author's iPhone. Real use, not a
+study, and the walks were not all blindfolded.
+
+| Measure | Result |
+|---|---|
+| Answers grounded | 49 of 49 |
+| Arrival checks | 31: 22 confirmed, 4 found nearby, 5 not seen from the phone |
+| Gap between camera and memory, confirmed arrivals | 2 cm median (n = 22) |
+| Guide, question to answer | 2.3 s median (n = 46) |
+| Speech to text, Muse Voice Transcribe | 2.3 s median (n = 61) |
+| Reply after a find, live test of 20 phrasings | 19 as expected, 950 ms median |
+
+The 4 "found nearby" include the 82 cm false move of 2 Nov that the arrival-check rule of Nov 4 now guards against.

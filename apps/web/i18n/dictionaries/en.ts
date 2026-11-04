@@ -16,6 +16,7 @@ export const en = {
   nav: {
     skip: "Skip to content",
     home: "Recall, back to top",
+    backToTop: "Back to top",
     sections: "Sections",
     tryDemo: "Real room",
     actualScan: "Actual scan",
@@ -789,6 +790,36 @@ export const en = {
         privacyNever: "Never published: photos, video, depth images, anything anyone said, keys or paths.",
       },
     },
+    arMode: {
+      title: "On the iPhone: AR, by voice",
+      lead: "This page shows a recording and a scan. On the iPhone the same memory works live, in the camera and hands-free.",
+      steps: [
+        { title: "It recognises the room", body: "“Scanning Living room.” Turn slowly at chest height. ARKit and a photo match on your Mac work out where you are." },
+        { title: "Labels float over the room", body: "Everything Recall remembers appears in the camera: found by SAM 3.1, placed by MapAnything's geometry." },
+        { title: "It asks, then listens", body: "“What are you looking for?” The phone taps, the microphone opens by itself, and Muse Voice Transcribe turns your words into text." },
+        { title: "It walks you there", body: "Muse Spark Open answers from memory. Arrows lie on the floor, and clock-face steps are spoken as you move." },
+        { title: "It checks, then asks what's next", body: "SAM 3.1 and LiDAR depth confirm the thing is there. “Do you want to go back, or are you done?” Muse Spark Open reads your reply." },
+      ],
+      listenTitle: "When it listens",
+      listen: "Only on your turn, never in the background. The phone taps, you speak, and the microphone closes when you stop talking. It isn't a live stream: your turn becomes text in about 2.3 seconds, and Recall keeps only the words.",
+    },
+    fieldStats: {
+      title: "From real use",
+      items: [
+        { value: "49 of 49", label: "answers grounded: every place came from a tool, none from the model" },
+        { value: "2 cm", label: "median gap between the camera and memory, over 22 confirmed arrivals" },
+        { value: "26 of 31", label: "arrival checks where the camera saw the thing" },
+        { value: "2.3 s", label: "median for the Guide to answer, over 46 questions" },
+        { value: "2.3 s", label: "median from speech to text, over 61 turns" },
+        { value: "19 of 20", label: "spoken replies understood, in a test of varied phrasing" },
+      ],
+      note: "From this app's own logs, 31 Oct to 4 Nov 2026: one person, one flat, the author's phone. Real use, not a study.",
+    },
+    hearRoom: {
+      hear: "Hear this room",
+      stop: "Stop",
+      line: "This is the author's living room, {area} square metres, scanned once with an iPhone. Recall remembers {things}. Ask it where one of them is on the demo page.",
+    },
     demo: {
       metaTitle: "Try Recall: ask, then walk",
       metaDescription: "Ask where something is in a real scanned living room, hear Recall's recorded answer, and follow the clock-face steps to it. No account, no keys.",
@@ -827,6 +858,9 @@ export const en = {
         done: "Done",
         takeMeThere: "Take me there",
         startHere: "Stand where the scan began.",
+        walkingTo: "Walking to {thing}",
+        camera: "Camera",
+        edges: "Edges",
         arrived: "You're there",
       },
       arPhoto: {

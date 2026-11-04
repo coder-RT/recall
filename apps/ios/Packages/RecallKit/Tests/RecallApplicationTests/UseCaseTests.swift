@@ -67,6 +67,32 @@ struct GuideToThingTests {
         #expect(g.phase == .arrived("Found it. Your keys are at 12 o'clock, 40 centimetres away."))
     }
 
+    @Test func afterAFindItWalksBackAlongTheSameRoute() async {
+        let locator = FakeLocator(readings: [(.at(x: 0, z: 0), .normal), (.at(x: 0, z: 0), .normal),
+                                             (.at(x: 0, z: -3.7), .normal), (.at(x: 0, z: -3.7), .normal),
+                                             (.at(x: 0, z: -2), .normal), (.at(x: 0, z: -0.2), .normal)])
+        locator.frame = .sample
+        let service = FakeGuide(routes: [route([[0, 0], [0, -4]])])
+        service.check = ArrivalCheck(outcome: .confirmed, say: "Found it.")
+        let (g, speech, _, _) = guide(locator: locator, service: service)
+        await g.run()
+        #expect(g.phase == .arrived("Found it.") && g.canWalkBack)
+        await g.walkBack()
+        #expect(g.phase == .arrived("You're back."))
+        #expect(speech.lines.contains("Going back.") && speech.lines.last == "You're back.")
+        #expect(service.routeRequests.count == 1)  // no new route from the Mac: the same path, reversed
+    }
+
+    @Test func thereIsNothingToGoBackAlongWithoutAWalkedRoute() async {
+        let locator = FakeLocator(readings: [(.at(x: 3, z: 3), .normal)])
+        let (g, speech, _, _) = guide(locator: locator, service: FakeGuide(routes: [route([], landmarks: true)]))
+        await g.run()
+        #expect(!g.canWalkBack)
+        let said = speech.lines.count
+        await g.walkBack()
+        #expect(speech.lines.count == said)
+    }
+
     @Test func arrivingChecksWithTheCamera() async {
         func arrive(check: ArrivalCheck?, frame: ArrivalFrame? = .sample) async -> (GuideToThing, FakeSpeech, FakeHaptics, FakeGuide) {
             let locator = FakeLocator(readings: [(.at(x: 0, z: 0), .normal), (.at(x: 0, z: 0), .normal), (.at(x: 0, z: -3.7), .normal)])

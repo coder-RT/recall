@@ -497,7 +497,7 @@ Every route except `/health` needs a key: the owner's device key, or a robot's o
   | What | Sent to | When |
   |---|---|---|
   | Scan photos, about 50 per room (no depth, no sound) | Meta Model API: SAM 3.1 | While the Mac processes a scan |
-  | A spoken question (a few seconds of audio; only the words are kept) | Meta Model API: Muse Voice Transcribe | When you ask by voice |
+  | A spoken question (a few seconds of audio; only the words are kept) | Meta Model API: Muse Voice Transcribe | When you ask by voice. In the AR view the microphone opens by itself after Recall asks a question, with a tap on the phone, and closes when you stop talking |
   | The question as text and what memory says (no photos) | Baseten: Muse Spark Open, or Muse Glimmer on your Mac in private mode | Each time you ask |
   | One camera photo | Meta Model API: SAM 3.1, and Muse Spark 1.1 when SAM is unsure or the thing seems to have moved | On arrival |
   | The room map, things and furniture (no photos, names, notes or anyone's position) | Robots and apps you gave the robot key | Only while Robot Access is on (off by default) |

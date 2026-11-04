@@ -64,7 +64,7 @@ struct ARLabelsView: View {
                 .padding(16)
             }
             if let guide = model.guide {
-                GuidePanel(model: guide) { model.walkEnded() }
+                GuidePanel(model: guide, goBack: model.isReturning ? nil : { model.goBack() }) { model.walkEnded() }
                     .padding(16)
                     .accessibilityIdentifier("ar-guide")
             } else {
@@ -117,11 +117,12 @@ struct ARLabelsView: View {
     }
 
     private var status: String {
-        if let guide = model.guide { return "Walking to \(guide.thing.title)" }
         if model.hearing == .listening { return "Listening…" }
+        if model.isReturning { return "Going back" }
+        if let guide = model.guide { return "Walking to \(guide.thing.title)" }
         return switch model.phase {
         case .loading: "Loading what Recall found…"
-        case .locating: "Point at the room…"
+        case .locating: "Scanning \(model.room)…"
         case .showing: "\(model.labels.count) things in \(model.room)"
         case .listOnly(let why), .failed(let why): why
         }

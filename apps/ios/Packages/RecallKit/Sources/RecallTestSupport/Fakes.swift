@@ -204,10 +204,12 @@ public extension Pose {
     public var allowed = true
     public var recording = Data("RIFF".utf8)
     public private(set) var isRecording = false
+    public private(set) var endedOnSilence = false
     private var finished: (@MainActor (Data?) -> Void)?
     public init() {}
-    public func start(maxSeconds: Double, finished: @escaping @MainActor (Data?) -> Void) async -> Bool {
+    public func start(maxSeconds: Double, endOnSilence: Bool, finished: @escaping @MainActor (Data?) -> Void) async -> Bool {
         guard allowed else { return false }
+        endedOnSilence = endOnSilence
         isRecording = true
         self.finished = finished
         return true

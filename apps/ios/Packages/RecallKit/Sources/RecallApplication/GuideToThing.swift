@@ -49,6 +49,8 @@ public final class GuideToThing {
     private let photos: (places: any PlaceLocating, scan: String)?
     private let settings: Settings
     private var cancelled = false
+    /// The route just walked, to retrace it; a walk that needed a new route goes back along the last one.
+    private var walked: (path: [SIMD2<Double>], floorY: Double?)?
 
     /// `photos`: the Mac's photo matcher and the scan whose room map this is, to recognise the room alongside ARKit.
     public init(home: String, thing: Thing, roomMap: Data?, locator: any Locator, guide: any GuideService,
@@ -91,8 +93,11 @@ public final class GuideToThing {
                 return
             }
             locator.showPath(route.waypoints, floorY: route.floorY)  // arrows on the floor, leading the way
+            walked = (route.waypoints, route.floorY)
             if let first = route.steps.first { speech.say(first.say, interrupt: true) }
-            switch await follow(route) {
+            let arrive = route.arriveSay ?? "You should be at your \(thing.title)."
+            let end = await follow(route.waypoints) { [self] in await check(session: route.sessionId, arrive: arrive) }
+            switch end {
             case .done: return
             case .offRoute where replans < settings.maxReplans:
                 replans += 1
@@ -102,6 +107,19 @@ public final class GuideToThing {
                 return
             }
         }
+    }
+
+    /// Whether there is a walked route to go back along.
+    public var canWalkBack: Bool { (walked?.path.count ?? 0) > 1 }
+
+    /// Back the way the person came, on the phone alone: that path was clear a moment ago, so it needs no new route.
+    public func walkBack() async {
+        guard canWalkBack, let walked else { return }
+        let path = Array(walked.path.reversed())
+        locator.mark(nil)
+        locator.showPath(path, floorY: walked.floorY)
+        speech.say("Going back.", interrupt: true)
+        _ = await follow(path, replanning: false) { [self] in finish(.arrived("You're back.")) }
     }
 
     public func stop() {
@@ -161,12 +179,13 @@ public final class GuideToThing {
 
     private enum FollowEnd { case done, offRoute }
 
-    private func follow(_ route: Route) async -> FollowEnd {
-        var follower = RouteFollower(waypoints: route.waypoints)
+    /// `replanning` false: off the path it keeps pointing at the next waypoint, because no new route is coming.
+    private func follow(_ waypoints: [SIMD2<Double>], replanning: Bool = true,
+                        arrived: () async -> Void) async -> FollowEnd {
+        var follower = RouteFollower(waypoints: waypoints)
         var throttle = CueThrottle()
         var lastTick = Date.distantPast
         var warnedWeak = false
-        let arrive = route.arriveSay ?? "You should be at your \(thing.title)."
         while !cancelled {
             try? await clock.sleep(seconds: settings.tick)
             guard !cancelled, let reading = locator.reading() else { continue }
@@ -186,10 +205,10 @@ public final class GuideToThing {
             if cue.arrived {
                 locator.showPath([], floorY: nil)
                 haptics.success()
-                await check(session: route.sessionId, arrive: arrive)
+                await arrived()
                 return .done
             }
-            if cue.offRouteMetres > settings.replanAfterMetres { return .offRoute }
+            if replanning, cue.offRouteMetres > settings.replanAfterMetres { return .offRoute }
             let now = clock.now()
             if cue.clock == 12, now.timeIntervalSince(lastTick) > 1.5 {  // a tick while facing the right way
                 haptics.tap()

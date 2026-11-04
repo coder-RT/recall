@@ -34,6 +34,8 @@ struct GuideView: View {
 /// The directions: the clock dial, the words and Repeat / Stop. On the guide screen, and under the camera in AR.
 struct GuidePanel: View {
     let model: GuideModel
+    /// In AR: back the way you came, once you've arrived (nil on the guide screen).
+    var goBack: (() -> Void)?
     let close: () -> Void
 
     var body: some View {
@@ -41,6 +43,11 @@ struct GuidePanel: View {
             // the panel keeps its own solid fill (glass in the container was drawn over its words); only the buttons
             // are glass
             panel
+            if let goBack, case .arrived = model.phase, model.canWalkBack {
+                BigButton("Go back", systemImage: "arrow.uturn.backward", hint: "Walks you back the way you came.",
+                          style: .secondary, action: goBack)
+                    .accessibilityIdentifier("ar-go-back")
+            }
             GlassEffectContainer(spacing: 12) {
                 HStack(spacing: 12) {
                     BigButton("Repeat", systemImage: "speaker.wave.2.fill", hint: "Says the direction again.",

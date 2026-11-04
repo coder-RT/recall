@@ -154,10 +154,17 @@ public protocol Clock: Sendable {
 }
 
 /// Records a spoken question. `finished` is called once, with the recording, when the user stops or time runs out.
+/// `endOnSilence`: it also ends by itself when the person stops talking, with nil if they never spoke.
 @MainActor public protocol VoiceInput: AnyObject {
     var isRecording: Bool { get }
-    func start(maxSeconds: Double, finished: @escaping @MainActor (Data?) -> Void) async -> Bool
+    func start(maxSeconds: Double, endOnSilence: Bool, finished: @escaping @MainActor (Data?) -> Void) async -> Bool
     func stop()
+}
+
+extension VoiceInput {
+    public func start(maxSeconds: Double, finished: @escaping @MainActor (Data?) -> Void) async -> Bool {
+        await start(maxSeconds: maxSeconds, endOnSilence: false, finished: finished)
+    }
 }
 
 /// The phone's place in the room for guidance: relocalises in a saved room map, then reports the camera's pose.

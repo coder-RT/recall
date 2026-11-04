@@ -10,7 +10,8 @@ import SwiftUI
 /// "See it in AR": recognise the room in its saved map, then float a label over everything Recall found there. The
 /// labels are SAM 3.1's results from the Mac, placed by MapAnything's geometry; nothing is recognised on the phone.
 /// The view stays open: double tap a label, or say what you're looking for, and the walk there runs in this same camera
-/// (the same ARKit session, so nothing has to be recognised again), then the labels come back.
+/// (the same ARKit session, so nothing has to be recognised again), then the labels come back. It runs by voice: once
+/// the room is recognised it asks what you're looking for and listens, and after a find it asks whether to go back.
 @MainActor @Observable
 final class ARLabelsModel {
     enum Phase: Equatable { case loading, locating, showing, listOnly(String), failed(String) }
@@ -33,6 +34,8 @@ final class ARLabelsModel {
     private(set) var heard: String?
     /// The walk under way: its directions replace the list; the camera stays.
     private(set) var guide: GuideModel?
+    /// Walking back the way the person came, after a find.
+    private(set) var isReturning = false
     var look = CameraLook.camera
     let room: String
     let locator: ARLocator
@@ -53,6 +56,11 @@ final class ARLabelsModel {
     /// The thing the last answer was about, so "the black one" means something.
     private var lastAbout: String?
     private var starting = false
+    /// The next thing heard answers "Do you want to go back, or are you done?".
+    private var afterFound = false
+    /// The next recording is thrown away: it was cut off by Done, a double tap or leaving the view.
+    private var dropping = false
+    private var followUp: Task<Void, Never>?
 
     /// Seconds before the list is shown instead, and how long the room is still looked for after that.
     static let listAfter = 25.0
@@ -78,7 +86,7 @@ final class ARLabelsModel {
         assist?.cancel()
         guide?.stop()
         guide = nil
-        if asking?.voice.isRecording == true { asking?.voice.stop() }
+        stopListening()
         locator.onMapGrown = nil
         locator.clearLabels()
         locator.stop()
@@ -127,31 +135,85 @@ final class ARLabelsModel {
         }
     }
 
-    /// Tap to talk, tap to stop; the recording also ends by itself after 15 s, like Find.
+    /// Tap to talk, tap to stop; a turn also ends when you stop talking, and after 15 s at most.
     func toggleListening() async {
-        guard let asking, guide == nil else { return }
+        guard let asking else { return }
         if asking.voice.isRecording {
             asking.voice.stop()
             return
         }
+        guard guide == nil else { return }
+        await listen()
+    }
+
+    /// Opens the microphone; the tap on the phone tells someone who can't see the screen that it's their turn.
+    private func listen() async {
+        guard let asking, hearing == .idle, !asking.voice.isRecording else { return }
         haptics?.tap()
         heard = nil
-        let started = await asking.voice.start(maxSeconds: 15) { [weak self] wav in
+        let started = await asking.voice.start(maxSeconds: 15, endOnSilence: true) { [weak self] wav in
             Task { await self?.heard(wav) }
         }
         hearing = started ? .listening : .idle
         if !started { speech.say(UserMessage.explain(RecallError.noMicrophone), interrupt: true) }
     }
 
+    /// Ends a turn nobody wants the words of any more.
+    private func stopListening() {
+        followUp?.cancel()
+        afterFound = false
+        guard asking?.voice.isRecording == true else { return }
+        dropping = true
+        asking?.voice.stop()
+    }
+
+    /// Waits for a line to end: the speech engine says when; under VoiceOver only an estimate is possible.
+    private func spoken(_ line: String) async {
+        try? await clock.sleep(seconds: 0.2)
+        let started = clock.now()
+        while speech.isSpeaking, clock.now().timeIntervalSince(started) < 12 {
+            try? await clock.sleep(seconds: 0.1)
+        }
+        if UIAccessibility.isVoiceOverRunning { try? await clock.sleep(seconds: SpokenLength.seconds(line)) }
+    }
+
+    /// Asks out loud, then listens without a tap.
+    private func ask(_ line: String, interrupt: Bool = true) async {
+        speech.say(line, interrupt: interrupt)
+        await spoken(line)
+        guard !Task.isCancelled else { return }
+        await listen()
+    }
+
     private func heard(_ wav: Data?) async {
-        guard let asking, let wav, !wav.isEmpty else {
+        guard let asking, let wav, !wav.isEmpty, !dropping else {
+            dropping = false
             hearing = .idle
             return
         }
         hearing = .thinking
         do {
-            let question = try await asking.transcriber.transcribe(wav: wav)
+            let question = try await asking.transcriber.transcribe(wav: wav).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !question.isEmpty else {
+                hearing = .idle
+                return
+            }
             heard = question
+            if afterFound {
+                afterFound = false
+                switch FoundReply.read(question) {
+                case .goBack:
+                    hearing = .idle
+                    return goBack()
+                case .done:
+                    hearing = .idle
+                    endWalk()
+                    return speech.say("You're welcome.", interrupt: true)
+                case .question:
+                    endWalk()  // the next thing: answered below like any question
+                    heard = question
+                }
+            }
             speech.say(Acknowledgement.line(for: question, known: asking.things.things), interrupt: true)
             if !asking.things.loaded { await asking.things.refresh() }
             let outcome = try await asking.ask(question, home: home, known: asking.things.things, labels: labels,
@@ -177,21 +239,56 @@ final class ARLabelsModel {
         defer { starting = false }
         task?.cancel()  // still looking for the room: the guide does that itself now
         assist?.cancel()
+        stopListening()
         speech.say(line, interrupt: true)
-        try? await clock.sleep(seconds: 0.2)
-        let started = clock.now()
-        while speech.isSpeaking, clock.now().timeIntervalSince(started) < 12 {
-            try? await clock.sleep(seconds: 0.1)
-        }
+        await spoken(line)
         locator.focus(label: thing.id)
         let walk = asking.makeGuide(thing, mapInUse)
+        walk.onFinished = { [weak self] in self?.walkFinished($0) }
         guide = walk
         walk.start()
     }
 
+    /// The walk reached its end. At the thing: ask what next. Back at the start: ask for the next thing.
+    private func walkFinished(_ end: GuideToThing.Phase) {
+        guard case .arrived(let said) = end else { return }
+        if isReturning {
+            endWalk()
+            followUp = Task { [weak self] in await self?.ask("You're back. What else are you looking for?") }
+            return
+        }
+        followUp = Task { [weak self] in
+            await self?.spoken(said)
+            guard !Task.isCancelled else { return }
+            self?.afterFound = true
+            await self?.ask("Do you want to go back, or are you done?")
+        }
+    }
+
+    /// Back the way the person came, by voice or the Go back button.
+    func goBack() {
+        guard let guide, guide.canWalkBack else {
+            return speech.say("I can't retrace this walk.", interrupt: true)
+        }
+        stopListening()
+        isReturning = true
+        guide.walkBack()
+    }
+
+    /// Closes the walk and brings the labels back.
+    private func endWalk() {
+        guide?.stop()
+        guide = nil
+        isReturning = false
+        heard = nil
+        locator.focus(label: nil)
+    }
+
     /// The walk ended (Stop or Done; GuidePanel has stopped it): the labels are back for the next thing.
     func walkEnded() {
+        stopListening()
         guide = nil
+        isReturning = false
         heard = nil
         locator.focus(label: nil)
         guard phase == .showing else { return start() }  // it was still looking for the room: carry on
@@ -206,7 +303,7 @@ final class ARLabelsModel {
                 return phase = .listOnly("The room map of this scan isn't on this iPhone, so here is the list.")
             }
             phase = .locating
-            speech.say("Point the phone around \(room) so I can recognise it.", interrupt: true)
+            speech.say("Scanning \(room). Point the phone around the room.", interrupt: true)
             let scan = found.scanId
             mapInUse = (scan, map)
             locator.onMapGrown = { [saveGrownMap] data in saveGrownMap(scan, data) }
@@ -240,8 +337,7 @@ final class ARLabelsModel {
             phase = .showing
             let n = labels.count == 1 ? "1 thing" : "\(labels.count) things"
             let lead = late ? "Recognised \(room). " : ""
-            speech.say("\(lead)\(n) in \(room). Double tap a label for directions, or tap Speak and say what you're looking for.",
-                       interrupt: late)
+            await ask("\(lead)\(n) in \(room). What are you looking for?", interrupt: late)
         } catch is CancellationError {
         } catch {
             phase = .failed(UserMessage.explain(error))

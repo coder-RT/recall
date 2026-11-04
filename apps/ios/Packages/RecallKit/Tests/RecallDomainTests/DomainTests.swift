@@ -114,3 +114,50 @@ private func pose(x: Float = 0, z: Float = 0, yawDegrees: Float = 0) -> simd_flo
         #expect(Array(m.columnMajor[12...14]) == [1, 2, 3])
     }
 }
+
+@Suite("After a find") struct FoundReplyTests {
+    @Test func goingBack() {
+        for said in ["Yes", "yes please", "Go back.", "Take me back", "No, go back", "return to the start", "Yeah"] {
+            #expect(FoundReply.read(said) == .goBack, "\(said)")
+        }
+    }
+
+    @Test func done() {
+        for said in ["No, thank you.", "no thanks", "Thank you", "I'm done", "Don't go back", "no need to go back", "Nope"] {
+            #expect(FoundReply.read(said) == .done, "\(said)")
+        }
+    }
+
+    @Test func anythingElseIsANewQuestion() {
+        for said in ["Where's my wallet?", "No, where are my keys?", "Find my glasses", "wallet", "The black one"] {
+            #expect(FoundReply.read(said) == .question, "\(said)")
+        }
+    }
+
+    @Test func aCurlyApostropheCounts() {
+        #expect(FoundReply.read("Don\u{2019}t go back") == .done)
+        #expect(FoundReply.read("Where\u{2019}s my watch") == .question)
+    }
+}
+
+@Suite("Turn taking") struct TurnTests {
+    @Test func aTurnEndsAfterTheTalkingStops() {
+        var gate = SilenceGate()
+        #expect(gate.hear(level: -50, at: 0.5) == .listen)
+        #expect(gate.hear(level: -20, at: 1.0) == .listen)
+        #expect(gate.hear(level: -50, at: 2.0) == .listen)  // a pause between words
+        #expect(gate.hear(level: -22, at: 2.1) == .listen)
+        #expect(gate.hear(level: -50, at: 3.2) == .listen)
+        #expect(gate.hear(level: -50, at: 3.4) == .finished)
+    }
+
+    @Test func silenceGivesUpWithNothingToSend() {
+        var gate = SilenceGate()
+        #expect(gate.hear(level: -50, at: 7.9) == .listen)
+        #expect(gate.hear(level: -50, at: 8.0) == .nothingSaid)
+    }
+
+    @Test func aLongerLineTakesLonger() {
+        #expect(SpokenLength.seconds("What are you looking for?") < SpokenLength.seconds("Your grey watch is here, but moved: at 12 o'clock."))
+    }
+}

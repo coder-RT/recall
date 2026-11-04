@@ -29,6 +29,8 @@ final class ARLabelsModel {
     private(set) var phase = Phase.loading
     private(set) var labels: [ArLabel] = []
     private(set) var hearing = Hearing.idle
+    /// What the person said, as Muse Voice Transcribe heard it: shown lightly over the camera so a wrong word is seen.
+    private(set) var heard: String?
     /// The walk under way: its directions replace the list; the camera stays.
     private(set) var guide: GuideModel?
     var look = CameraLook.camera
@@ -108,6 +110,12 @@ final class ARLabelsModel {
     /// Directions to a label, from the camera or the list.
     func go(to label: ArLabel) {
         guard canGo else { return }
+        // the Mac plans no route to something seen in one photo: it waits for the owner to confirm it on Found
+        guard label.mark != .seenOnce else {
+            speech.say("Recall saw your \(label.title) only once, so it can't guide you there yet. It's \(label.place). "
+                       + "Confirm it on Found to get directions.", interrupt: true)
+            return
+        }
         haptics?.tap()
         Task {
             await asking?.things.refreshIfNeeded(for: label.id)
@@ -127,6 +135,7 @@ final class ARLabelsModel {
             return
         }
         haptics?.tap()
+        heard = nil
         let started = await asking.voice.start(maxSeconds: 15) { [weak self] wav in
             Task { await self?.heard(wav) }
         }
@@ -142,6 +151,7 @@ final class ARLabelsModel {
         hearing = .thinking
         do {
             let question = try await asking.transcriber.transcribe(wav: wav)
+            heard = question
             speech.say(Acknowledgement.line(for: question, known: asking.things.things), interrupt: true)
             if !asking.things.loaded { await asking.things.refresh() }
             let outcome = try await asking.ask(question, home: home, known: asking.things.things, labels: labels,
@@ -182,6 +192,7 @@ final class ARLabelsModel {
     /// The walk ended (Stop or Done; GuidePanel has stopped it): the labels are back for the next thing.
     func walkEnded() {
         guide = nil
+        heard = nil
         locator.focus(label: nil)
         guard phase == .showing else { return start() }  // it was still looking for the room: carry on
         speech.say("Double tap another label, or tap Speak.", interrupt: true)

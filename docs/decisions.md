@@ -360,7 +360,7 @@ D-27 the UI libraries, D-09 the reconstructor.
 - **Context:** "You've arrived" must be true.
 - **Decision:**
   - One camera frame goes to SAM 3.1; the box is lifted with LiDAR depth into the home frame; the 30 cm rule decides.
-  - Muse Spark 1.1 is asked only when SAM is unsure, and may only move a result to "uncertain".
+  - Muse Spark 1.1 is asked when SAM is unsure or the thing seems to have moved (added 4 Nov: one wrong frame had moved a watch 82 cm), and may only move a result to "uncertain".
   - Seen nearby updates memory.
   - It runs in-process; A2A is optional.
 - **Alternatives:**

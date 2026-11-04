@@ -508,7 +508,7 @@ export const en = {
       { what: "Scan photos, about 50 per room (no depth, no sound)", to: "Meta Model API: SAM 3.1", when: "While your Mac processes a scan, to find furniture and things" },
       { what: "Your spoken question (a few seconds of audio)", to: "Meta Model API: Muse Voice Transcribe", when: "When you ask by voice" },
       { what: "Your question as text, and what memory says about the thing (names, rooms, heights, times; no photos)", to: "Baseten: Muse Spark Open. In private mode, Muse Glimmer on your Mac, so nothing leaves", when: "Each time you ask" },
-      { what: "One photo from the camera", to: "Meta Model API: SAM 3.1, and Muse Spark 1.1 only when SAM is unsure", when: "When you check on arrival" },
+      { what: "One photo from the camera", to: "Meta Model API: SAM 3.1, and Muse Spark 1.1 when SAM is unsure or the thing seems to have moved", when: "When you check on arrival" },
       { what: "The room map, things and furniture (no photos, your names or notes, or anyone's position)", to: "Robots and agents you gave the robot key", when: "Only while Robot Access is on (off by default)" },
       { what: "The object name a robot asked about", to: "Muse Spark Open (or Glimmer on your Mac), to check it is only a name", when: "Before any robot request is answered" },
     ],
@@ -707,7 +707,7 @@ export const en = {
           head: ["Agent", "Its job", "Meta model", "What it may do", "Runs"],
           rows: [
             { agent: "Guide", job: "Answers \u201cwhere are my keys?\u201d out loud", model: "Muse Spark Open (Muse Glimmer in private mode)", may: "Call 5 tools over this memory; never state a place no tool returned", runs: "Live, on every question" },
-            { agent: "Verifier", job: "Checks the thing is really there when you arrive", model: "SAM 3.1, plus Muse Spark 1.1 when SAM is unsure", may: "Lower a result to \u201cnot sure\u201d, never confirm one on its own", runs: "Once, on arrival" },
+            { agent: "Verifier", job: "Checks the thing is really there when you arrive", model: "SAM 3.1, plus Muse Spark 1.1 when SAM is unsure or the thing seems to have moved", may: "Lower a result to \u201cnot sure\u201d, never confirm one on its own", runs: "Once, on arrival" },
             { agent: "Home Memory (A2A 1.0)", job: "Answers a robot or another app you connect", model: "Muse Spark Open screens every request", may: "Read only; one object name per request; fails closed", runs: "Off by default" },
             { agent: "Muse Code (while building)", job: "Tested and security-audited the whole repo", model: "Meta's Muse Code: tester + reviewer, tie-breaker, synthesis", may: "Read the code and run the tests; only the synthesis agent writes", runs: "During development" },
           ],

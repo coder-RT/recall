@@ -96,6 +96,18 @@ def test_muse_spark_may_only_downgrade_and_only_when_sam_was_unsure():
     assert verify(sid, b"jpeg", view()).outcome == "confirmed" and sure.asked == 0  # SAM was sure: not asked
 
 
+def test_a_move_needs_muse_spark_too_because_one_wrong_frame_misleads_the_next_walk():
+    spark = Spark("no")  # SAM is sure, but of something else (a watch face on a TV, say)
+    verify, sid, r, oid = setup(Sam(Mask("keys", 0.95, None, RIGHT)), spark)
+    v = verify(sid, b"jpeg", view())
+    assert v.outcome == "uncertain" and spark.asked == 1
+    assert "kept where I last saw it" in v.say
+    assert len(r.objects.get(oid).observations) == 1  # memory is untouched
+    yes = Spark("yes")
+    verify, sid, r, oid = setup(Sam(Mask("keys", 0.95, None, RIGHT)), yes)
+    assert verify(sid, b"jpeg", view()).outcome == "found_nearby" and yes.asked == 1  # it may never confirm alone
+
+
 def test_nothing_seen_or_only_a_hint():
     verify, sid, r, oid = setup(Sam())
     v = verify(sid, b"jpeg", view())

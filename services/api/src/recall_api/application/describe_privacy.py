@@ -48,7 +48,8 @@ def describe_privacy(
              "When you ask by voice"),
         Flow("Your question as text, and what memory says about the thing (names, rooms, heights, times; no photos)",
              guide_to, "Each time you ask", guide_local),
-        Flow("One photo from the camera", "Meta Model API: SAM 3.1, and Muse Spark 1.1 only when SAM is unsure",
+        Flow("One photo from the camera",
+             "Meta Model API: SAM 3.1, and Muse Spark 1.1 when SAM is unsure or the thing seems to have moved",
              "When you check on arrival"),
     ]  # fmt: skip
     if robot_access:

@@ -132,7 +132,7 @@ call: `TODO(verify)` from the Meta Model API pricing page.
 
 **What does a question cost?** Measured over 9 recorded questions: **2 Muse Spark Open calls**, median **2,460
 prompt and 261 completion tokens**. Asking by voice adds 1 Muse Voice Transcribe call. An arrival check is 1 SAM 3.1
-call, plus 1 Muse Spark 1.1 call only when SAM is unsure. Baseten's price per token: `TODO(verify)`.
+call, plus 1 Muse Spark 1.1 call when SAM is unsure or the thing seems to have moved. Baseten's price per token: `TODO(verify)`.
 
 **Where does the data live, and who can read it?** On the owner's Mac. Scan photos go to SAM 3.1 and voice to Muse
 Voice Transcribe on the Meta Model API. Questions, with no photos, go to Muse Spark Open on Baseten, or stay on the

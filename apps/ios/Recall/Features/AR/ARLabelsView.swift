@@ -42,15 +42,26 @@ struct ARLabelsView: View {
             }
             .frame(maxHeight: .infinity)
             .overlay(alignment: .bottom) {
-                if model.canGo {
-                    BigButton(speakTitle, systemImage: model.hearing == .listening ? "stop.fill" : "mic.fill",
-                              hint: "Say what you're looking for and Recall walks you there.", style: .secondary) {
-                        Task { await model.toggleListening() }
+                VStack(spacing: 10) {
+                    if let heard = model.heard {
+                        Text("“\(heard)”")
+                            .font(.callout.italic()).foregroundStyle(.white.opacity(0.9))
+                            .multilineTextAlignment(.center).lineLimit(3)
+                            .padding(.horizontal, 14).padding(.vertical, 8)
+                            .background(.black.opacity(0.45), in: .rect(cornerRadius: 16))
+                            .accessibilityLabel("You said: \(heard)")
+                            .accessibilityIdentifier("ar-heard")
                     }
-                    .disabled(model.hearing == .thinking)
-                    .accessibilityIdentifier("ar-speak")
-                    .padding(16)
+                    if model.canGo {
+                        BigButton(speakTitle, systemImage: model.hearing == .listening ? "stop.fill" : "mic.fill",
+                                  hint: "Say what you're looking for and Recall walks you there.", style: .secondary) {
+                            Task { await model.toggleListening() }
+                        }
+                        .disabled(model.hearing == .thinking)
+                        .accessibilityIdentifier("ar-speak")
+                    }
                 }
+                .padding(16)
             }
             if let guide = model.guide {
                 GuidePanel(model: guide) { model.walkEnded() }

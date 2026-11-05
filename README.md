@@ -140,7 +140,7 @@ come from the planner the phone uses, on the scan's floor.
 
 **Real output, from the author's own living room:** one walk with an iPhone, rebuilt on a Mac. The room map shows
 floor, furniture and walls as cells, and the things as dots. The scan holds no photos of the home; the only footage in this repo is one short screen
-recording and one frame of it (the AR shot below), which the author reviewed and chose to publish (`apps/web/public/demo-video/`).
+recording and one frame of it, on the demo page, which the author reviewed and chose to publish (`apps/web/public/demo-video/`).
 
 <table>
   <tr>
@@ -156,7 +156,7 @@ recording and one frame of it (the AR shot below), which the author reviewed and
   <tr>
     <td width="33%" valign="top" align="center"><img src="docs/media/app-scans.png" width="250" alt="Scans: Scan a room with a Start a scan button, then Your scans: Living room, Usable, 173 frames, processed, and a note that this walk didn't line up with the last scan, so Recall can't say what moved"><br><br><b>Scans.</b> Every walk gets a quality report. When a walk doesn't line up with the last one, Recall says so rather than guessing what moved.<br><br></td>
     <td width="33%" valign="top" align="center"><img src="docs/media/app-devices.png" width="250" alt="Devices: Where Recall runs, with tabs for iPhone, Watch, Glasses and Robots, and the iPhone card marked Available now"><br><br><b>Devices.</b> iPhone is available now; Apple Watch and home robots are previews; Meta AI glasses are planned.<br><br></td>
-    <td width="33%" valign="top" align="center"><img src="apps/web/public/demo-video/ar-labels.jpg" width="250" alt="See it in AR: the camera view of the living room, with labelled tags and rings on the things Recall remembers, such as grey watch and brown keys"><br><br><b>See it in AR.</b> What Recall remembers, labelled on the real room through the camera, each with how sure it is.<br><br></td>
+    <td width="33%" valign="top" align="center"><img src="docs/media/app-ar.png" width="250" alt="Illustration of the See it in AR screen in Edges mode: furniture drawn as pale outlines on black, labelled tags and rings on things such as grey watch and brown keys, a Speak button, and the same things as a list below"><br><br><b>See it in AR.</b> What Recall remembers, labelled through the camera, each with how sure it is, and the same things as a list. <i>Illustration of the app's AR screen in its Edges look, drawn without the home; the tags are real ones from a walk.</i><br><br></td>
   </tr>
 </table>
 

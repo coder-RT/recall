@@ -99,8 +99,14 @@ Remove any row for a tool or library that isn't actually in the repo at submissi
 
 ## Audio
 
-None. Every spoken line on the site is the browser's own speech synthesis (`apps/web/lib/speech.ts`); no recording is
-shipped and no speech model runs. Speech input is Muse Voice Transcribe (above).
+The site's spoken lines are the browser's own speech synthesis (`apps/web/lib/speech.ts`), and no speech model runs.
+Speech input is Muse Voice Transcribe (above).
+
+| What | Where | Terms |
+|---|---|---|
+| Sound of our own screen recording of a walk | `apps/web/public/demo-video/watch.mp4` | Ours, Apache-2.0 |
+| Music: [Soft Technology Music](https://pixabay.com/music/ambient-soft-technology-music-629712/) by MiroMaxMusic | Background of the demo video only; the file is not in this repo | [Pixabay Content License](https://pixabay.com/service/license-summary/): free, commercial use allowed, no attribution required. |
+| Sound effects in the demo video | The demo video only; not in this repo | Ours: generated from noise and sine waves by our own script, no samples |
 
 ## Images
 

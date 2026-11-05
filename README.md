@@ -134,23 +134,33 @@ recording and one frame of it, which the author reviewed and chose to publish (`
 <table>
   <tr>
     <td width="33%" align="center"><img src="docs/media/app-answer.png" width="250" alt="Find: the question 'Where are my keys?' and the answer 'Your keys are near the desk in the living room at waist height, seen on Friday at 04:21', with Take me there and Why? buttons, and the room map below"></td>
-    <td width="33%" align="center"><img src="docs/media/app-rooms.png" width="250" alt="Find: Your rooms, the Living room card with its map, 10 things as blue dots, and the list of things below"></td>
+    <td width="33%" align="center"><img src="docs/media/app-rooms.png" width="250" alt="Find: the Where is box with Speak and Ask, then Your rooms: the Living room card with its map, 20 things as blue dots, and See it in AR and Share for robots"></td>
     <td width="33%" align="center"><img src="docs/media/app-why.png" width="250" alt="Why Recall thinks so: the answer, 'Phrased by Muse Spark Open from 1 sighting, in 1.8 seconds', and the sighting: seen in the Living room scan on 30 Oct 2026, 70% sure"></td>
   </tr>
   <tr>
     <td><b>Ask.</b> Muse Spark Open picks the tools; the place comes from the 3D memory. <b>Take me there</b> walks you to it.</td>
-    <td><b>Your rooms.</b> The map MapAnything and SAM 3.1 built from one walk. Swipe between rooms; tap one to see only its things.</td>
+    <td><b>Your rooms.</b> The map MapAnything and SAM 3.1 built from one walk. Swipe between rooms; tap one to see only its things, or see them through the camera in AR.</td>
     <td><b>Why?</b> The sighting behind the answer, and which model worded it, in how long.</td>
   </tr>
   <tr>
-    <td width="33%" align="center"><img src="docs/media/app-things.png" width="250" alt="Find: Your things, the Living room, on or near the desk: grey bag, red book, beige keys, bottles, glasses and a laptop, each with a Go button"></td>
-    <td width="33%" align="center"><img src="docs/media/app-found.png" width="250" alt="Found: search, filters, group by place, height or kind; the Living room, 10 things, 4 to check, with Check marks on the unsure ones"></td>
+    <td width="33%" align="center"><img src="docs/media/app-things.png" width="250" alt="Your things: the Living room, 20 things, on or near the cabinet: keys, wallet, spectacle case, laptop, bottle, watch and book, each with its height and a Go button"></td>
+    <td width="33%" align="center"><img src="docs/media/app-found.png" width="250" alt="Found: search, All, To check and Checked filters, group by place, height or kind; books listed by kind, and a brown book marked Seen once"></td>
     <td width="33%" align="center"><img src="docs/media/app-robots.png" width="250" alt="Robot Access: the switch to share the home map with robots, off; the Living room map for robots; what robots receive and what is never shared"></td>
   </tr>
   <tr>
     <td><b>Your things.</b> By room, then the furniture they're on or near. <b>Go</b> on every row.</td>
     <td><b>Found.</b> Check what the scan found; fix a name, colour or height; the unsure ones are marked.</td>
     <td><b>Robot Access.</b> Off by default. A robot gets the map and where things are, never photos or anyone's position.</td>
+  </tr>
+  <tr>
+    <td width="33%" align="center"><img src="docs/media/app-scans.png" width="250" alt="Scans: Scan a room with a Start a scan button, then Your scans: Living room, Usable, 173 frames, processed, and a note that this walk didn't line up with the last scan, so Recall can't say what moved"></td>
+    <td width="33%" align="center"><img src="docs/media/app-devices.png" width="250" alt="Devices: Where Recall runs, with tabs for iPhone, Watch, Glasses and Robots, and the iPhone card marked Available now"></td>
+    <td width="33%"></td>
+  </tr>
+  <tr>
+    <td><b>Scans.</b> Every walk gets a quality report. When a walk doesn't line up with the last one, Recall says so rather than guessing what moved.</td>
+    <td><b>Devices.</b> iPhone is available now; Apple Watch and home robots are previews; Meta AI glasses are planned.</td>
+    <td></td>
   </tr>
 </table>
 
@@ -629,7 +639,7 @@ Measured, dated, and recorded in `docs/verification.md`. Nothing below is estima
 - **Flat surfaces:** the geometry-only detector found **12 level patches** in the room; the two largest sit at the heights of the two measured desks.
 - **Viewer:** about 150k points, the gather animation, photo and confidence colouring, and the floor grid, height bands and surfaces as layers, on a phone and a laptop.
 - **Tests (3 November):** API 218 (including Schemathesis against the spec), pipeline 64 (including a synthetic room run through the whole pipeline), website 203 (accessibility with axe, WCAG 2.2 AA, reduced motion, no-JavaScript, keyboard-only and 200 % text usability, security headers); on the iPhone, 197 unit tests and 34 UI tests (2 skipped): accessibility audits and usability tasks done with VoiceOver labels at default and largest text; the Watch app builds.
-- **Usability, honestly:** the checks above are automated. In person, the author's screen-off run (VoiceOver Screen Curtain: the screen stays black) is planned, and a session with blind and low-vision testers is planned; its plan is ready in `evals/usability/`.
+- **Usability, honestly:** the checks above are automated. One informal test so far: a 65-year-old tester with low vision used the app on the author's iPhone and said that after a couple of runs he could guide himself through the rooms and find his wallet. That is one person's account, not a measured study. The author's screen-off run (VoiceOver Screen Curtain: the screen stays black) and a fuller session with blind and low-vision testers are planned; the session plan is ready in `evals/usability/`.
 
 **Planned evaluation:** median position error against hand-measured positions, questions answered correctly, Verifier precision, and time to find an object by touch versus with Recall, scored without AI. The dated table is [`evals/results.md`](evals/results.md); recognising the room from a photo is its first entry. The session plan for a blind or low-vision tester is in `evals/usability/`.
 
@@ -771,9 +781,8 @@ Planned next, not built or not working yet (updated before submission; removed i
 - Quantitative evaluations and the Verifier precision figure.
 - Timing room recognition on the iPhone from five start spots, and whether a grown room map matches from a spot that
   failed before (the photo matcher is measured on the Mac only so far).
-- The usability session with blind and low-vision testers (plan ready in `evals/usability/`), and the author's screen-off run.
+- The fuller usability session with blind and low-vision testers (plan ready in `evals/usability/`), and the author's screen-off run.
 - Daily spend caps on model calls (the API and the website's voice route are rate-limited per key or visitor; there is no daily cap yet).
-- The 3-minute demo video.
 
 ## Contributing
 

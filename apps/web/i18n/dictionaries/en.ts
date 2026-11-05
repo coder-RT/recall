@@ -813,7 +813,7 @@ export const en = {
         { value: "2.3 s", label: "median from speech to text, over 61 turns" },
         { value: "19 of 20", label: "spoken replies understood, in a test of varied phrasing" },
       ],
-      note: "From this app's own logs, 31 Oct to 4 Nov 2026: one person, one flat, the author's phone. Real use, not a study.",
+      note: "From this app's own logs, 31 Oct to 4 Nov 2026: one flat, the author's phone, which a tester also used. Real use, not a study.",
     },
     hearRoom: {
       hear: "Hear this room",

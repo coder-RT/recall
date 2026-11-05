@@ -680,8 +680,9 @@ cd apps/web && pnpm dev          # A: http://localhost:3000 and /homes/flat/view
 - **Keys** go only in `.env` at the repo root, which git ignores. The guide shows the variable names, never values.
 - **The phone reaches the Mac** on the same Wi-Fi or over Tailscale. `make pair URL=…` shows a QR code, and the app
   asks "Pair with this Mac?" before it uses it.
-- **Checked from a fresh clone:** `make setup`, the website, `make demo`, `make test lint lint-imports` (API 202,
-  pipeline 57) and the iPhone build.
+- **Checked from a fresh clone of the submission, 5 Nov 2026:** `make setup`, the website, `make demo` with no keys, and
+  `make test lint lint-imports` (API 233, pipeline 64). The live path needs keys, Xcode and an iPhone, so it wasn't part of
+  that clean-clone run; it runs on the author's own setup.
 
 ## How to run it
 

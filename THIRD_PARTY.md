@@ -27,8 +27,8 @@ Library versions are pinned in the lockfiles (`pnpm-lock.yaml`, `uv.lock`).
 |---|---|---|
 | Baseten | Hosts Muse Spark Open | Baseten terms of service |
 | LM Studio | Runs Muse Glimmer locally | LM Studio terms |
-| Cloudflare R2, Cloudflare Tunnel | Scan storage; reaching the Mac from the phone | Cloudflare terms of service |
-| Vercel | Hosts the web app (optional) | Vercel terms of service |
+| Tailscale | Reaching the Mac from the phone | Tailscale terms of service |
+| Vercel | Hosts the website | Vercel terms of service |
 
 ## Libraries
 

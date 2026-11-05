@@ -608,7 +608,7 @@ erDiagram
 - **Indexes:** scans, landmarks, objects and rejections by home; observations and set-asides by object; audit events
   by time and by action; the answer log by home and time.
 - **The job queue** is a separate SQLite file (`data/jobs.db`, Huey) that holds only queued scan jobs.
-- **Not in SQL:** the scan files (`data/blobs` on the Mac, or Cloudflare R2), and each scan's `place_index.npz` beside
+- **Not in SQL:** the scan files (`data/blobs` on the Mac), and each scan's `place_index.npz` beside
   them (ORB descriptors of the keyframes and their 3D points, for the photo matcher; built by the pipeline, or
   `make place-index`). On the iPhone there is no database:
   scans are folders in Application Support, the device key is in the Keychain, and the Mac's address is in

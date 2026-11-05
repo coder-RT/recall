@@ -160,7 +160,23 @@ recording and one frame of it, on the demo page, which the author reviewed and c
   </tr>
 </table>
 
+### The website
+
+**[The landing page](https://recall-ten-khaki.vercel.app).** What Recall is, and every answer spoken out loud.
+
 ![The landing page: "Find your keys", RECALL in Braille, built first for blind and low-vision people and useful to anyone who forgets where they put things, the Ask Recall card, and Explore a real room · Actual scan](docs/media/hero.png)
+
+<br>
+
+**[The demo page](https://recall-ten-khaki.vercel.app/demo).** Pick a question and follow the walk to the thing, in the real scan: every measured point on the left, the architect's view on the right. The answers are real, recorded once, and labelled as recorded.
+
+![The demo page, Ask, then walk: a row of questions with Where is my watch? selected and marked Real recording; below it the scan's points and an architect's view of the room from above, each with a green route to the thing](docs/media/site-demo.png)
+
+<br>
+
+**[The viewer](https://recall-ten-khaki.vercel.app/homes/flat/viewer).** Which Meta model made each part of this scan, and what each of Recall's agents may do. The same page has the full measurements and everything SAM 3.1 found.
+
+![The viewer: a table of what each Meta model made for this scan and where it ran, then a table of Recall's agents with each one's job, model and limits](docs/media/site-viewer.png)
 
 ## What it is
 

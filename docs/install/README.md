@@ -109,8 +109,8 @@ pnpm dev
 ### A3. Open it
 
 - `http://localhost:3000/`: the landing page.
-- `http://localhost:3000/homes/flat/viewer`: the **real scan** of the author's living room. It is geometry only, and
-  no photo of the room is published. It shows:
+- `http://localhost:3000/homes/flat/viewer`: the **real scan** of the author's living room. The scan is geometry only
+  and holds no photos of the room. It shows:
   - the 3D room;
   - which Meta model made each part;
   - the measured numbers;
@@ -181,7 +181,8 @@ Open `http://localhost:3000/demo`.
 
 **Check:**
 - the badge says "Recorded demo · real scan, real answers";
-- Recall's answer to "Where are my keys?" is shown, with the walk to them as clock-face steps;
+- the page opens on "Where is my watch?": Recall's answer, the walk as clock-face steps, and a real recording of that
+  walk, which the author chose to publish;
 - choosing "Where is my bag?" draws a green route on the floor of the 3D room, one step at a time, while "you" move
   along it and the phone beside it shows the step being spoken (a simulated screen, labelled as such);
 - choosing "Where is my laptop?" offers the two laptops Recall found, each with its own walk;
@@ -200,7 +201,7 @@ curl -s -X POST http://127.0.0.1:8000/ask \
   -d '{"home_id": "flat", "question": "Where are my keys?"}'
 ```
 
-**Check:** a JSON answer like `"Your brown keys are near the desk in the living room at knee height, seen on Sunday at
+**Check:** a JSON answer like `"Your keys were near the desk in the living room at knee height, seen on Sunday at
 19:11."`, with `"model": "replay:muse-spark-open (recorded)"`. Every demo answer is labelled as recorded.
 
 The API documentation (Swagger UI) is at `http://127.0.0.1:8000/docs`.

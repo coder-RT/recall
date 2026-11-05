@@ -105,7 +105,7 @@ Speech input is Muse Voice Transcribe (above).
 | What | Where | Terms |
 |---|---|---|
 | Sound of our own screen recording of a walk | `apps/web/public/demo-video/watch.mp4` | Ours, Apache-2.0 |
-| Music: [Soft Technology Music](https://pixabay.com/music/ambient-soft-technology-music-629712/) by MiroMaxMusic | Background of the demo video only; the file is not in this repo | [Pixabay Content License](https://pixabay.com/service/license-summary/): free, commercial use allowed, no attribution required. |
+| Music: original track made for this film with Claude | Background of the demo video only; the file is not in this repo | Ours: Anthropic's terms assign the output to the user, and no attribution is required |
 | Sound effects in the demo video | The demo video only; not in this repo | Ours: generated from noise and sine waves by our own script, no samples |
 
 ## Images

@@ -396,7 +396,7 @@ runs its software or its models; every model Recall itself calls is a Meta model
 | Model | Job | Runs on | Code |
 |---|---|---|---|
 | Muse Spark Open (`meta-models/muse-spark-open-1026`) | Guide agent: understands the question, chooses the tools, words the answer (default) | Baseten | `services/api/.../adapters/outbound/llm/` |
-| Muse Glimmer | Guide agent alternative; local privacy mode | Modal / Fireworks; LM Studio on the Mac | same adapter |
+| Muse Glimmer | Guide agent alternative; local privacy mode | LM Studio on the Mac | same adapter |
 | Muse Spark (hosted) | Guide fallback | Meta Model API | same adapter |
 | Muse Spark 1.1 (multimodal) | Verifier tie-break; may only downgrade a result, never confirm | Meta Model API | `services/api/.../adapters/outbound/vision/spark_vision_meta_api.py` |
 | SAM 3.1 | Objects and furniture by text prompt, on a sample of each scan (40 photos × 24 prompts on a large scan); the arrival check | Meta Model API (optional self-hosted on Modal) | `services/pipeline/.../sam31_meta_api.py`, `services/api/.../sam31_meta_api.py` |

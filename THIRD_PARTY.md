@@ -7,12 +7,12 @@ Library versions are pinned in the lockfiles (`pnpm-lock.yaml`, `uv.lock`).
 
 | What | Used for | Runs on | Terms |
 |---|---|---|---|
-| Muse Spark Open (`meta-models/muse-spark-open-1026`) | Guide agent; the Home Memory agent's check on object names from other agents | Baseten | Open weights from Meta ([model page](https://huggingface.co/meta-models/Muse-Spark-Open-816B-A42B)), used under its terms; served by Baseten. Licence type on the page: other |
+| Muse Spark Open (`meta-models/muse-spark-open-1026`) | Guide agent; the Home Memory agent's check on object names from other agents | Baseten | Meta Muse model licence (`muse-model-license`, custom; see the [model page](https://huggingface.co/meta-models/Muse-Spark-Open-816B-A42B)), served by Baseten |
 | Muse Glimmer | Guide agent, local privacy mode | LM Studio on the Mac | Apache-2.0 ([model card](https://huggingface.co/meta-models/Muse-Glimmer-30B)) |
-| Muse Spark (hosted) and Muse Spark 1.1 | Guide fallback; Verifier tie-break | Meta Model API | Meta Model API, under [Meta's terms](https://www.facebook.com/policies_center/) ([API site](https://dev.meta.ai)) |
-| SAM 3.1 | Objects and furniture in frames; arrival check | Meta Model API | Meta Model API, under [Meta's terms](https://www.facebook.com/policies_center/). Hosted only: the [weights](https://huggingface.co/facebook/sam3.1) are gated under Meta's own licence and are not used here |
+| Muse Spark (hosted, 1.1 to 1.3) | Guide fallback; Verifier tie-break | Meta Model API | Meta Model API terms ([API site](https://dev.meta.ai)) |
+| SAM 3.1 | Objects and furniture in frames; arrival check | Meta Model API | Meta Model API terms ([API site](https://dev.meta.ai)). Hosted only: the [weights](https://huggingface.co/facebook/sam3.1) are gated under Meta's own licence and are not used here |
 | Muse Voice Transcribe (`muse-voice-transcribe-1.0`) | All speech input (app and the landing page's "Ask by voice", server route `apps/web/app/api/voice/transcribe/route.ts`; the key never reaches the browser) | Meta Model API | Meta developer terms. Audio is forwarded for transcription and not stored by Recall. |
-| MapAnything (`facebookresearch/map-anything` @ `3d10cf7`), weights `facebook/map-anything-apache` @ `00f9c24` | 3D reconstruction; produced the sample room in `apps/web/public/samples/demo-flat/` | Mac | Code Apache-2.0; weights Apache-2.0 (see `docs/verification.md`) |
+| MapAnything (`facebookresearch/map-anything` @ `3d10cf7`), weights `facebook/map-anything-apache` @ `00f9c24` | 3D reconstruction; produced the sample room in `apps/web/public/real-scan/flat/` | Mac | Code Apache-2.0; weights Apache-2.0 (see `docs/verification.md`) |
 
 ## Our own artwork
 
@@ -61,7 +61,7 @@ Direct dependencies only. Licences below are as published by each project.
 | NumPy, SciPy | 3D maths | BSD-3-Clause |
 | Open3D (classic geometry only: downsample, outlier removal, `segment_plane`, `cluster_dbscan`, FPFH + ICP; never Open3D-ML), trimesh | Point clouds, planes, clustering, registration, meshes | MIT (package metadata): https://www.open3d.org/docs/ |
 | Shapely | 2D room geometry: floor polygon, wall segments, footprints | BSD-3-Clause (package metadata): https://github.com/shapely/shapely |
-| opencv-python-headless | Classic image functions only (Laplacian blur measure); never the DNN module | Apache-2.0 (package metadata): https://github.com/opencv/opencv-python |
+| opencv-python-headless | Classic image functions only (Laplacian blur measure); never the DNN module | Apache-2.0 (OpenCV) / MIT (package): https://github.com/opencv/opencv-python |
 | Pillow | API: cuts the evidence crop from a stored keyframe (`GET /observations/{id}/crop`); pipeline: reads frames | MIT-CMU (package metadata): https://github.com/python-pillow/Pillow/blob/main/LICENSE |
 | rerun-sdk (dev dependency of `services/pipeline` only) | Debug viewer for pipeline runs (`RERUN=1`, `make rerun`) | MIT or Apache-2.0 (package metadata): https://github.com/rerun-io/rerun |
 | a2a-sdk | Agent-to-agent protocol | Apache-2.0 |
@@ -84,8 +84,6 @@ No third-party Swift packages. Apple frameworks only (ARKit, RealityKit, SwiftUI
 | Redocly CLI | MIT |
 | XcodeGen | MIT |
 | swift-openapi-generator | Apache-2.0 |
-
-Remove any row for a tool or library that isn't actually in the repo at submission.
 
 ## Fonts
 

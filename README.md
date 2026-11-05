@@ -80,7 +80,7 @@ Indie track · Theme: <strong>Build for Your World</strong></p>
 
 ### For judges, in one minute
 
-**Start with the demo.** Nothing to install: open
+**Start with the [3-minute video](https://youtu.be/vRAR3FHNSks): a blindfolded walk to a watch, one take.** Then try it, with nothing to install: open
 **[recall-ten-khaki.vercel.app/demo](https://recall-ten-khaki.vercel.app/demo)**, pick "Where are my keys?", and
 follow the walk to them in the author's real scanned living room. To run the same thing from this repo, with no keys,
 no GPU and no account:
@@ -95,10 +95,19 @@ come from the planner the phone uses, on the scan's floor.
 
 | Criterion | Where to look |
 |---|---|
-| **Impact** (30 %) | [Why I built it](#why-i-built-it): a true story · [What it is](#what-it-is): built first for blind and low-vision people, for anyone who misplaces things, voice first · [Privacy](docs/privacy.md): the home stays on your own computer · the [tester session plan](evals/usability/) |
+| **Impact** (30 %) | [Why I built it](#why-i-built-it): a true story · [What it is](#what-it-is): built first for blind and low-vision people, for anyone who misplaces things, voice first · [Privacy](docs/privacy.md): the home stays on your own computer · a [first real tester](#results-so-far) with low vision, and the [fuller session plan](evals/usability/) |
 | **Use of Meta AI tooling** (25 %) | [Only Meta models, each with one job](#how-it-works-the-meta-models): MapAnything, SAM 3.1, Muse Spark Open (Muse Glimmer on your own Mac), Muse Voice Transcribe, Muse Spark 1.1 · [Recall's three agents](#recalls-three-agents) · [Sharing with robots](#sharing-with-robots) over A2A |
-| **Demo** (25 %) | [The demo page](https://recall-ten-khaki.vercel.app/demo) and `make demo`: a real run, no keys · the screenshots below are real output · [How to run it](#how-to-run-it) |
+| **Demo** (25 %) | [The 3-minute video](https://youtu.be/vRAR3FHNSks) · [The demo page](https://recall-ten-khaki.vercel.app/demo) and `make demo`: a real run, recorded and labelled, no keys · the screenshots below are real output · [How to run it](#how-to-run-it) |
 | **Technical depth** (20 %) | [Architecture](docs/architecture.md) · [28 decisions](docs/decisions.md) · [Guardrails](#guardrails): geometry decides the facts, the model only phrases them · [Algorithms](#algorithms) · tests on every part ([Results so far](#results-so-far)) |
+
+**Real use, from the app's own logs** (31 Oct to 4 Nov 2026, one flat, one iPhone; not a study, [details](evals/results.md)):
+
+| Measure | Result |
+|---|---|
+| Answers grounded in what Recall really saw | **49 of 49** |
+| Gap between camera and memory, confirmed arrivals | **2 cm** median (n = 22) |
+| Arrival checks where the camera saw the thing | **26 of 31** |
+| Guide, question to answer | **2.3 s** median (n = 46) |
 
 ---
 
@@ -131,38 +140,23 @@ come from the planner the phone uses, on the scan's floor.
 
 **Real output, from the author's own living room:** one walk with an iPhone, rebuilt on a Mac. The room map shows
 floor, furniture and walls as cells, and the things as dots. The scan holds no photos of the home; the only footage in this repo is one short screen
-recording and one frame of it, which the author reviewed and chose to publish (`apps/web/public/demo-video/`).
+recording and one frame of it (the AR shot below), which the author reviewed and chose to publish (`apps/web/public/demo-video/`).
 
 <table>
   <tr>
-    <td width="33%" align="center"><img src="docs/media/app-answer.png" width="250" alt="Find: the question 'Where are my keys?' and the answer 'Your keys are near the desk in the living room at waist height, seen on Friday at 04:21', with Take me there and Why? buttons, and the room map below"></td>
-    <td width="33%" align="center"><img src="docs/media/app-rooms.png" width="250" alt="Find: the Where is box with Speak and Ask, then Your rooms: the Living room card with its map, 20 things as blue dots, and See it in AR and Share for robots"></td>
-    <td width="33%" align="center"><img src="docs/media/app-why.png" width="250" alt="Why Recall thinks so: the answer, 'Phrased by Muse Spark Open from 1 sighting, in 1.8 seconds', and the sighting: seen in the Living room scan on 30 Oct 2026, 70% sure"></td>
+    <td width="33%" valign="top" align="center"><img src="docs/media/app-answer.png" width="250" alt="Find: the question 'Where are my keys?' and the answer 'Your keys are near the desk in the living room at waist height, seen on Friday at 04:21', with Take me there and Why? buttons, and the room map below"><br><br><b>Ask.</b> Muse Spark Open picks the tools; the place comes from the 3D memory. <b>Take me there</b> walks you to it.<br><br></td>
+    <td width="33%" valign="top" align="center"><img src="docs/media/app-rooms.png" width="250" alt="Find: the Where is box with Speak and Ask, then Your rooms: the Living room card with its map, 20 things as blue dots, and See it in AR and Share for robots"><br><br><b>Your rooms.</b> The map MapAnything and SAM 3.1 built from one walk. Swipe between rooms; tap one to see only its things, or see them through the camera in AR.<br><br></td>
+    <td width="33%" valign="top" align="center"><img src="docs/media/app-why.png" width="250" alt="Why Recall thinks so: the answer, 'Phrased by Muse Spark Open from 1 sighting, in 1.8 seconds', and the sighting: seen in the Living room scan on 30 Oct 2026, 70% sure"><br><br><b>Why?</b> The sighting behind the answer, and which model worded it, in how long.<br><br></td>
   </tr>
   <tr>
-    <td><b>Ask.</b> Muse Spark Open picks the tools; the place comes from the 3D memory. <b>Take me there</b> walks you to it.</td>
-    <td><b>Your rooms.</b> The map MapAnything and SAM 3.1 built from one walk. Swipe between rooms; tap one to see only its things, or see them through the camera in AR.</td>
-    <td><b>Why?</b> The sighting behind the answer, and which model worded it, in how long.</td>
+    <td width="33%" valign="top" align="center"><img src="docs/media/app-things.png" width="250" alt="Your things: the Living room, 20 things, on or near the cabinet: keys, wallet, spectacle case, laptop, bottle, watch and book, each with its height and a Go button"><br><br><b>Your things.</b> By room, then the furniture they're on or near. <b>Go</b> on every row.<br><br></td>
+    <td width="33%" valign="top" align="center"><img src="docs/media/app-found.png" width="250" alt="Found: search, All, To check and Checked filters, group by place, height or kind; books listed by kind, and a brown book marked Seen once"><br><br><b>Found.</b> Check what the scan found; fix a name, colour or height; the unsure ones are marked.<br><br></td>
+    <td width="33%" valign="top" align="center"><img src="docs/media/app-robots.png" width="250" alt="Robot Access: the switch to share the home map with robots, off; the Living room map for robots; what robots receive and what is never shared"><br><br><b>Robot Access.</b> Off by default. A robot gets the map and where things are, never photos or anyone's position.<br><br></td>
   </tr>
   <tr>
-    <td width="33%" align="center"><img src="docs/media/app-things.png" width="250" alt="Your things: the Living room, 20 things, on or near the cabinet: keys, wallet, spectacle case, laptop, bottle, watch and book, each with its height and a Go button"></td>
-    <td width="33%" align="center"><img src="docs/media/app-found.png" width="250" alt="Found: search, All, To check and Checked filters, group by place, height or kind; books listed by kind, and a brown book marked Seen once"></td>
-    <td width="33%" align="center"><img src="docs/media/app-robots.png" width="250" alt="Robot Access: the switch to share the home map with robots, off; the Living room map for robots; what robots receive and what is never shared"></td>
-  </tr>
-  <tr>
-    <td><b>Your things.</b> By room, then the furniture they're on or near. <b>Go</b> on every row.</td>
-    <td><b>Found.</b> Check what the scan found; fix a name, colour or height; the unsure ones are marked.</td>
-    <td><b>Robot Access.</b> Off by default. A robot gets the map and where things are, never photos or anyone's position.</td>
-  </tr>
-  <tr>
-    <td width="33%" align="center"><img src="docs/media/app-scans.png" width="250" alt="Scans: Scan a room with a Start a scan button, then Your scans: Living room, Usable, 173 frames, processed, and a note that this walk didn't line up with the last scan, so Recall can't say what moved"></td>
-    <td width="33%" align="center"><img src="docs/media/app-devices.png" width="250" alt="Devices: Where Recall runs, with tabs for iPhone, Watch, Glasses and Robots, and the iPhone card marked Available now"></td>
-    <td width="33%"></td>
-  </tr>
-  <tr>
-    <td><b>Scans.</b> Every walk gets a quality report. When a walk doesn't line up with the last one, Recall says so rather than guessing what moved.</td>
-    <td><b>Devices.</b> iPhone is available now; Apple Watch and home robots are previews; Meta AI glasses are planned.</td>
-    <td></td>
+    <td width="33%" valign="top" align="center"><img src="docs/media/app-scans.png" width="250" alt="Scans: Scan a room with a Start a scan button, then Your scans: Living room, Usable, 173 frames, processed, and a note that this walk didn't line up with the last scan, so Recall can't say what moved"><br><br><b>Scans.</b> Every walk gets a quality report. When a walk doesn't line up with the last one, Recall says so rather than guessing what moved.<br><br></td>
+    <td width="33%" valign="top" align="center"><img src="docs/media/app-devices.png" width="250" alt="Devices: Where Recall runs, with tabs for iPhone, Watch, Glasses and Robots, and the iPhone card marked Available now"><br><br><b>Devices.</b> iPhone is available now; Apple Watch and home robots are previews; Meta AI glasses are planned.<br><br></td>
+    <td width="33%" valign="top" align="center"><img src="apps/web/public/demo-video/ar-labels.jpg" width="250" alt="See it in AR: the camera view of the living room, with labelled tags and rings on the things Recall remembers, such as grey watch and brown keys"><br><br><b>See it in AR.</b> What Recall remembers, labelled on the real room through the camera, each with how sure it is.<br><br></td>
   </tr>
 </table>
 
@@ -626,6 +620,7 @@ erDiagram
 
 Measured, dated, and recorded in `docs/verification.md`. Nothing below is estimated.
 
+- **First real tester:** a 65-year-old with low vision used the app on the author's iPhone and said that after a couple of runs he could guide himself through the rooms and find his wallet. One person's account, not a measured study.
 - **Reconstruction speed (M5 Pro, Apple GPU):** one room, 63 frames from a 21-second phone video, MapAnything with the Apache-2.0 weights: **19.6 s** of inference, **14.8 GB** peak memory, 11.3 s to load the model.
 - **Scale, images only:** two tape-measured desks (78 cm and 61 cm) came out about **23 % too large**, both by the same factor, so the shape is right and the absolute scale is not. This is why the pipeline feeds the phone's depth and poses into MapAnything. The tape-measured 20 cm check with the phone's inputs is still open.
 - **Room processing:** **60 s** per room with the warm model server (143 s before it), on the M5 Pro.

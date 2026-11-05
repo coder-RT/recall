@@ -20,6 +20,8 @@ SAM 3.1 finds your things in it, and Muse Voice Transcribe + Muse Spark Open hea
 
 <p align="center">…then tap <strong>Take me there</strong>, and the camera checks it's really there when you arrive.</p>
 
+<p align="center"><strong><a href="https://youtu.be/vRAR3FHNSks">Watch the 3-minute demo</a></strong> · <a href="https://recall-ten-khaki.vercel.app">Try the sample home</a></p>
+
 <p align="center"><strong>Built during the Meta Global AI Developer Hackathon, Oct 26 to Nov 4, 2026. Pre-existing work: none.</strong><br>
 Indie track · Theme: <strong>Build for Your World</strong></p>
 
@@ -204,7 +206,7 @@ recording and one frame of it, which the author reviewed and chose to publish (`
 | Architecture, decisions, privacy note, measurements | [`docs/`](docs) | [architecture](docs/architecture.md) · [decisions](docs/decisions.md) · [privacy](docs/privacy.md) · [verification](docs/verification.md) |
 | Tests and CI: API, pipeline, website, iPhone (unit, integration, accessibility, usability) | `services/*/tests`, `apps/web/e2e`, `apps/ios/RecallUITests`, `.github/workflows` | Green |
 | A usability session plan for a blind or low-vision tester | `evals/usability/` | Ready |
-| The 3-minute demo video | | Coming |
+| The 3-minute demo video | [youtu.be/vRAR3FHNSks](https://youtu.be/vRAR3FHNSks) | Ready |
 
 ## How the code is laid out
 

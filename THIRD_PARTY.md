@@ -7,10 +7,10 @@ Library versions are pinned in the lockfiles (`pnpm-lock.yaml`, `uv.lock`).
 
 | What | Used for | Runs on | Terms |
 |---|---|---|---|
-| Muse Spark Open (`meta-models/muse-spark-open-1026`) | Guide agent; the Home Memory agent's check on object names from other agents | Baseten | TODO(verify): model licence, link |
-| Muse Glimmer | Guide agent, local privacy mode | LM Studio on the Mac | TODO(verify): licence on the Hugging Face model card, link |
-| Muse Spark (hosted) and Muse Spark 1.1 | Guide fallback; Verifier tie-break | Meta Model API | Meta developer terms. TODO(verify): link |
-| SAM 3.1 | Objects and furniture in frames; arrival check | Meta Model API | Meta developer terms. TODO(verify): link; weights licence if self-hosted |
+| Muse Spark Open (`meta-models/muse-spark-open-1026`) | Guide agent; the Home Memory agent's check on object names from other agents | Baseten | Open weights from Meta ([model page](https://huggingface.co/meta-models/Muse-Spark-Open-816B-A42B)), used under its terms; served by Baseten. Licence type on the page: other |
+| Muse Glimmer | Guide agent, local privacy mode | LM Studio on the Mac | Apache-2.0 ([model card](https://huggingface.co/meta-models/Muse-Glimmer-30B)) |
+| Muse Spark (hosted) and Muse Spark 1.1 | Guide fallback; Verifier tie-break | Meta Model API | Meta Model API, under [Meta's terms](https://www.facebook.com/policies_center/) ([API site](https://dev.meta.ai)) |
+| SAM 3.1 | Objects and furniture in frames; arrival check | Meta Model API | Meta Model API, under [Meta's terms](https://www.facebook.com/policies_center/). Hosted only: the [weights](https://huggingface.co/facebook/sam3.1) are gated under Meta's own licence and are not used here |
 | Muse Voice Transcribe (`muse-voice-transcribe-1.0`) | All speech input (app and the landing page's "Ask by voice", server route `apps/web/app/api/voice/transcribe/route.ts`; the key never reaches the browser) | Meta Model API | Meta developer terms. Audio is forwarded for transcription and not stored by Recall. |
 | MapAnything (`facebookresearch/map-anything` @ `3d10cf7`), weights `facebook/map-anything-apache` @ `00f9c24` | 3D reconstruction; produced the sample room in `apps/web/public/samples/demo-flat/` | Mac | Code Apache-2.0; weights Apache-2.0 (see `docs/verification.md`) |
 
@@ -26,8 +26,6 @@ Library versions are pinned in the lockfiles (`pnpm-lock.yaml`, `uv.lock`).
 | What | Used for | Terms |
 |---|---|---|
 | Baseten | Hosts Muse Spark Open | Baseten terms of service |
-| Modal | Optional GPU backup for MapAnything or SAM 3.1 | Modal terms of service (remove if unused) |
-| Fireworks | Optional Glimmer hosting | Fireworks terms of service (remove if unused) |
 | LM Studio | Runs Muse Glimmer locally | LM Studio terms |
 | Cloudflare R2, Cloudflare Tunnel | Scan storage; reaching the Mac from the phone | Cloudflare terms of service |
 | Vercel | Hosts the web app (optional) | Vercel terms of service |
@@ -47,7 +45,6 @@ Direct dependencies only. Licences below are as published by each project.
 | React | UI | MIT |
 | three.js (`three` 0.186.1) | Point-cloud rendering in the 3D viewer | MIT |
 | react-three-fiber (`@react-three/fiber` 9.8.2) | React renderer for three.js (`apps/web/components/viewer/`) | MIT |
-| `@react-three/drei`, `postprocessing` (phase 4 only, not yet added) | Viewer labels, orbit controls, outline effect for the high-contrast toggle | MIT; Zlib. TODO(verify) before adding: https://github.com/pmndrs/drei , https://github.com/pmndrs/postprocessing |
 | GSAP, `@gsap/react` | Scroll storytelling (ScrollTrigger, SplitText, DrawSVG) | Standard "No Charge" GSAP License (Webflow; its own terms, not MIT): free for any website or web app, commercial included, no attribution required, keep its notices intact. https://gsap.com/community/standard-license/ (checked 2026-10-29). Used as an npm dependency, not copied into the repo. |
 | Motion | UI animation | MIT |
 | `@vercel/speed-insights` | Page-speed numbers (Core Web Vitals) on the Vercel deployment; no cookies | Apache-2.0 (npm registry, version 2.0.0, checked 2026-10-30), https://www.npmjs.com/package/@vercel/speed-insights |
@@ -62,11 +59,11 @@ Direct dependencies only. Licences below are as published by each project.
 | Pydantic, pydantic-settings | Models and config | MIT |
 | SQLAlchemy, Alembic | Database access and migrations | MIT |
 | NumPy, SciPy | 3D maths | BSD-3-Clause |
-| Open3D (classic geometry only: downsample, outlier removal, `segment_plane`, `cluster_dbscan`, FPFH + ICP; never Open3D-ML), trimesh | Point clouds, planes, clustering, registration, meshes | MIT. TODO(verify) before first use: current API names, https://www.open3d.org/docs/ |
-| Shapely | 2D room geometry: floor polygon, wall segments, footprints | BSD-3-Clause. TODO(verify): https://github.com/shapely/shapely |
-| opencv-python-headless | Classic image functions only (Laplacian blur measure); never the DNN module | Apache-2.0 (OpenCV) / MIT (package). TODO(verify): https://github.com/opencv/opencv-python |
-| Pillow | API: cuts the evidence crop from a stored keyframe (`GET /observations/{id}/crop`); pipeline: reads frames | MIT-CMU (HPND). TODO(verify): https://github.com/python-pillow/Pillow/blob/main/LICENSE |
-| rerun-sdk (dev dependency of `services/pipeline` only) | Debug viewer for pipeline runs (`RERUN=1`, `make rerun`) | MIT or Apache-2.0. TODO(verify): https://github.com/rerun-io/rerun |
+| Open3D (classic geometry only: downsample, outlier removal, `segment_plane`, `cluster_dbscan`, FPFH + ICP; never Open3D-ML), trimesh | Point clouds, planes, clustering, registration, meshes | MIT (package metadata): https://www.open3d.org/docs/ |
+| Shapely | 2D room geometry: floor polygon, wall segments, footprints | BSD-3-Clause (package metadata): https://github.com/shapely/shapely |
+| opencv-python-headless | Classic image functions only (Laplacian blur measure); never the DNN module | Apache-2.0 (package metadata): https://github.com/opencv/opencv-python |
+| Pillow | API: cuts the evidence crop from a stored keyframe (`GET /observations/{id}/crop`); pipeline: reads frames | MIT-CMU (package metadata): https://github.com/python-pillow/Pillow/blob/main/LICENSE |
+| rerun-sdk (dev dependency of `services/pipeline` only) | Debug viewer for pipeline runs (`RERUN=1`, `make rerun`) | MIT or Apache-2.0 (package metadata): https://github.com/rerun-io/rerun |
 | a2a-sdk | Agent-to-agent protocol | Apache-2.0 |
 | httpx | Calls to model APIs | BSD-3-Clause |
 
@@ -111,4 +108,3 @@ Speech input is Muse Voice Transcribe (above).
 ## Images
 
 All images in the repo and on the site come from our own scans and screenshots. No third-party images.
-TODO(verify): confirm before submission; list any exception here with its licence.

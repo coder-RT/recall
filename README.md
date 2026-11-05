@@ -789,12 +789,12 @@ Planned next, not built or not working yet (updated before submission; removed i
 
 - The Apple Watch app on a real Ultra 4 (built and unit-tested, in preview) and Meta AI glasses (planned).
 - A physical robot running the ROS 2 example (the example and the robot package are in the repo).
-- A real rescan that lines up with the room's last scan and reports what moved (built and unit-tested; the author's six scans each started fresh).
+- Comparing two scans to report what moved (built and unit-tested). The author's six real scans of the room were all processed, but none lined up with the one before, so each became a fresh map. In real use, moved things are caught on arrival instead: the Verifier updates the memory when it finds the thing nearby.
 - The tape-measured 20 cm accuracy check with the phone's depth and poses.
-- Quantitative evaluations and the Verifier precision figure.
+- A formal evaluation and the Verifier precision figure. The real-use numbers so far are in [For judges](#for-judges-in-one-minute) and [`evals/results.md`](evals/results.md).
 - Timing room recognition on the iPhone from five start spots, and whether a grown room map matches from a spot that
   failed before (the photo matcher is measured on the Mac only so far).
-- The fuller usability session with blind and low-vision testers (plan ready in `evals/usability/`), and the author's screen-off run.
+- The fuller usability session with blind and low-vision testers (plan ready in `evals/usability/`), and the author's VoiceOver screen-off run. A blindfolded walk is in the [video](https://youtu.be/vRAR3FHNSks).
 - Daily spend caps on model calls (the API and the website's voice route are rate-limited per key or visitor; there is no daily cap yet).
 
 ## Contributing
